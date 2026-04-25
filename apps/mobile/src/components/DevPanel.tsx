@@ -1,6 +1,6 @@
+import { SymbolView } from "expo-symbols";
 import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
 import { Pressable, Switch, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 
 import {
   apiBase,
@@ -194,7 +194,13 @@ export function DevPanel(props: Props): ReactElement | null {
             style={s("bg-gh-chip rounded-md px-3 py-2 mb-4 border border-gh")}
           >
             <View style={s("flex-row items-center gap-2")}>
-              <Ionicons name="lock-closed" size={11} color="#3fb950" />
+              <SymbolView
+                name="lock.fill"
+                tintColor="#7d8590"
+                size={11}
+                weight="medium"
+                style={{ width: 12, height: 12 }}
+              />
               <Text style={s("mono text-[10px] text-white")} numberOfLines={1}>
                 {"{intent_token, h3_cell_r8}"}
               </Text>
@@ -267,12 +273,11 @@ export function DevPanel(props: Props): ReactElement | null {
 
       <Pressable
         onPress={onRunSurfacing}
-        style={s("bg-gh-btn rounded-md py-3 px-4 flex-row items-center justify-center")}
+        style={s("bg-gh-btn rounded-md py-3 px-4 items-center")}
       >
         <Text style={s("text-white font-semibold text-[13px]")}>
-          {"Run Surfacing Agent  "}
+          {"Run Surfacing Agent  →"}
         </Text>
-        <Ionicons name="arrow-forward" size={14} color="#fff" />
       </Pressable>
     </View>
   );
@@ -551,8 +556,8 @@ function ApiHealthPill({
     .replace(/^https?:\/\//, "")
     .replace(/\.hf\.space$/, "");
 
-  const dot =
-    apiHealthy === null ? "⚪" : apiHealthy ? "\u{1F7E2}" : "\u{1F534}";
+  const dotTint =
+    apiHealthy === null ? "#7d8590" : apiHealthy ? "#3fb950" : "#f85149";
   const label =
     apiHealthy === null
       ? "checking…"
@@ -576,7 +581,13 @@ function ApiHealthPill({
         { gap: 8 },
       ]}
     >
-      <Text style={s("text-[11px]")}>{dot}</Text>
+      <SymbolView
+        name="circle.fill"
+        tintColor={dotTint}
+        size={10}
+        weight="medium"
+        style={{ width: 11, height: 11 }}
+      />
       <View style={s("flex-1")}>
         <Text style={[...s("mono text-[10px] font-semibold"), ...toneStyle]} numberOfLines={1}>
           {label}
@@ -638,7 +649,7 @@ function GenerationProvenancePill({ meta }: { meta: OpportunityMeta | null }) {
     : widgetDegraded
       ? "LLM (fallback widget)"
       : "fixture";
-  const dot = widgetClean ? "\u{1F7E2}" : widgetDegraded ? "\u{1F7E1}" : "⚪";
+  const dotTint = widgetClean ? "#3fb950" : widgetDegraded ? "#f0883e" : "#7d8590";
 
   const toneStyle =
     tone === "good"
@@ -655,7 +666,13 @@ function GenerationProvenancePill({ meta }: { meta: OpportunityMeta | null }) {
       style={s("bg-gh-chip rounded-md px-3 py-2 mb-3 border border-gh")}
     >
       <View style={[...s("flex-row items-center"), { gap: 8 }]}>
-        <Text style={s("text-[11px]")}>{dot}</Text>
+        <SymbolView
+          name="circle.fill"
+          tintColor={dotTint}
+          size={10}
+          weight="medium"
+          style={{ width: 11, height: 11 }}
+        />
         <View style={s("flex-1")}>
           <Text style={s("mono text-[10px] uppercase tracking-[0.5px] text-gh-low")}>
             generation
@@ -667,9 +684,13 @@ function GenerationProvenancePill({ meta }: { meta: OpportunityMeta | null }) {
             {label}
           </Text>
         </View>
-        <Text style={s("mono text-[10px] text-gh-low")}>
-          {expanded ? "−" : "+"}
-        </Text>
+        <SymbolView
+          name={expanded ? "chevron.up" : "chevron.down"}
+          tintColor="#7d8590"
+          size={10}
+          weight="medium"
+          style={{ width: 11, height: 11 }}
+        />
       </View>
       {expanded ? (
         <View style={s("mt-2 gap-1")}>

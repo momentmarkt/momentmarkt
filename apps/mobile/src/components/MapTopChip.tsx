@@ -1,6 +1,6 @@
+import { SymbolView } from "expo-symbols";
 import { type ReactElement } from "react";
 import { Pressable, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { s } from "../styles";
@@ -82,11 +82,12 @@ export function MapTopChip({
           },
         ]}
       >
-        <Ionicons
-          name="location-sharp"
-          size={14}
-          color="#17120f"
-          style={{ marginRight: 4 }}
+        <SymbolView
+          name="mappin.and.ellipse"
+          tintColor="#17120f"
+          size={13}
+          weight="medium"
+          style={{ width: 16, height: 16, marginRight: 4 }}
         />
         <Text style={[...s("text-[13px] text-ink"), { fontWeight: "500" }]} numberOfLines={1}>
           <Text style={[...s("text-[13px] text-ink"), { fontWeight: "700" }]}>
@@ -95,11 +96,12 @@ export function MapTopChip({
           {area ? ` ${area}` : ""}
           {"  ·  "}
         </Text>
-        <Ionicons
-          name="rainy"
-          size={14}
-          color="#5b7c99"
-          style={{ marginRight: 4 }}
+        <SymbolView
+          name="cloud.rain.fill"
+          tintColor="#17120f"
+          size={13}
+          weight="medium"
+          style={{ width: 16, height: 16, marginRight: 4 }}
         />
         <Text style={[...s("text-[13px] text-ink"), { fontWeight: "500" }]} numberOfLines={1}>
           {Math.round(tempC)}

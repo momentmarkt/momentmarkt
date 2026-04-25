@@ -1,3 +1,4 @@
+import { SymbolView } from "expo-symbols";
 import { useMemo, useState } from "react";
 import {
   Image,
@@ -7,7 +8,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 
 import { s } from "../styles";
 
@@ -170,7 +170,13 @@ export function HistoryScreen({
   if (redemptions.length === 0) {
     return (
       <View style={s("flex-1 bg-cream items-center justify-center px-5")}>
-        <Ionicons name="wallet-outline" size={56} color="#737373" />
+        <SymbolView
+          name="wallet.pass.fill"
+          tintColor="#6f3f2c"
+          size={60}
+          weight="medium"
+          style={{ width: 64, height: 64 }}
+        />
         <Text style={[...s("mt-4 text-ink"), { fontSize: 18, fontWeight: "800" }]}>
           No cashbacks yet. Get out there!
         </Text>
@@ -256,11 +262,16 @@ export function HistoryScreen({
             <View style={[{ flexDirection: "row", alignItems: "center", marginTop: 20 }]}>
               <View
                 style={[
-                  ...s("rounded-full flex-row items-center px-3 py-1"),
+                  ...s("flex-row items-center rounded-full px-3 py-1"),
                   { backgroundColor: "rgba(242, 84, 45, 0.12)", gap: 4 },
                 ]}
               >
-                <Ionicons name="trophy-outline" size={12} color="#f2542d" />
+                <SymbolView
+                  name="trophy.fill"
+                  size={12}
+                  tintColor="#f2542d"
+                  weight="medium"
+                />
                 <Text
                   style={s(
                     "text-[11px] font-bold uppercase tracking-[1px] text-spark",
@@ -364,10 +375,11 @@ function RedemptionRow({ redemption }: { redemption: Redemption }) {
           +€{formatEuro(redemption.cashback)}
         </Text>
         <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
-          <Ionicons
-            name="time-outline"
+          <SymbolView
+            name="clock"
             size={11}
-            color="#737373"
+            tintColor="#737373"
+            weight="medium"
             style={{ marginRight: 3 }}
           />
           <Text style={[...s("text-neutral-600"), { fontSize: 11 }]}>

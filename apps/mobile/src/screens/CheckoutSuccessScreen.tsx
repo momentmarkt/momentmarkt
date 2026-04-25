@@ -7,7 +7,7 @@ import Animated, {
   withDelay,
   withTiming,
 } from "react-native-reanimated";
-import { Ionicons } from "@expo/vector-icons";
+import { SymbolView } from "expo-symbols";
 
 import { s } from "../styles";
 
@@ -304,7 +304,7 @@ export function CheckoutSuccessScreen({ cashbackEur, budgetRemaining, onDone }: 
           ))}
         </View>
 
-        {/* Hero checkmark: 80px ink circle with cream Ionicons check (was 128px). */}
+        {/* Hero checkmark: 80px ink circle with cream SF Symbol check. */}
         <Animated.View
           style={[
             checkStyle,
@@ -318,7 +318,7 @@ export function CheckoutSuccessScreen({ cashbackEur, budgetRemaining, onDone }: 
             },
           ]}
         >
-          <Ionicons name="checkmark" size={48} color="#fff8ee" />
+          <SymbolView name="checkmark" size={48} tintColor="#fff8ee" weight="medium" />
         </Animated.View>
 
         {/* 3. Big amount — 64px ultralight, spark-red, German comma decimals. */}
