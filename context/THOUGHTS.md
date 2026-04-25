@@ -1,5 +1,7 @@
 # City Wallet — Planning & Talking Points
 
+> ⚠️ **Some early framing in this doc has been overridden.** Original synthesis below assumes Stuttgart-as-canonical, Next.js stack, Sparkassen branding in product UI. Current decisions live in `context/PARTNER_DISCUSSION.md` + `context/FUTURE.md`: Berlin primary + Zürich config swap, React Native + Expo, neutral product (no Sparkassen branding), `s()` helper instead of NativeWind, Reanimated v4 + newArch=true. **Use this doc for vocabulary + Why DSV / Why Payone talking points; defer to the override files for any spec-affecting decision.**
+
 > Working document for the Hack-Nation Global AI Hackathon 2026 / DSV-Gruppe "Generative City-Wallet" challenge. Synthesizes the brief, the team's accumulated ideas, and the constraints from analysis so far. Refine in place.
 
 ---
