@@ -68,21 +68,53 @@ type MerchantStats = {
   offers: unknown[];
 };
 
+type MerchantPollState = {
+  baseUrl: string;
+  error: string | null;
+  lastUpdated: Date | null;
+  stats: MerchantStats | null;
+};
+
 function useMerchantStats(merchantId: string, intervalMs = 2000) {
-  const [stats, setStats] = useState<MerchantStats | null>(null);
+  const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+  const [state, setState] = useState<MerchantPollState>({
+    baseUrl,
+    error: null,
+    lastUpdated: null,
+    stats: null,
+  });
+
   useEffect(() => {
     let cancelled = false;
-    const baseUrl =
-      import.meta.env.VITE_API_URL || "http://localhost:8000";
     const fetchStats = async () => {
       try {
         const r = await fetch(`${baseUrl}/merchants/${merchantId}/summary`);
         if (!cancelled && r.ok) {
           const data = (await r.json()) as MerchantStats;
-          setStats(data);
+          setState({
+            baseUrl,
+            error: null,
+            lastUpdated: new Date(),
+            stats: data,
+          });
+          return;
         }
-      } catch {
+        if (!cancelled) {
+          setState((previous) => ({
+            ...previous,
+            baseUrl,
+            error: `HTTP ${r.status}`,
+          }));
+        }
+      } catch (error) {
         // demo-safe: keep last-known stats on failure
+        if (!cancelled) {
+          setState((previous) => ({
+            ...previous,
+            baseUrl,
+            error: error instanceof Error ? error.message : "network error",
+          }));
+        }
       }
     };
     fetchStats();
@@ -91,8 +123,8 @@ function useMerchantStats(merchantId: string, intervalMs = 2000) {
       cancelled = true;
       clearInterval(id);
     };
-  }, [merchantId, intervalMs]);
-  return stats;
+  }, [baseUrl, merchantId, intervalMs]);
+  return state;
 }
 
 function euro(amount: number) {
@@ -110,9 +142,19 @@ function percent(value: number) {
   }).format(value);
 }
 
+function timeLabel(date: Date | null) {
+  if (!date) return "fixture fallback";
+  return new Intl.DateTimeFormat("en", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(date);
+}
+
 function App() {
   const [eventRuleEnabled, setEventRuleEnabled] = useState(false);
-  const stats = useMerchantStats(MERCHANT_ID, 2000);
+  const poll = useMerchantStats(MERCHANT_ID, 2000);
+  const stats = poll.stats;
 
   const surfaced = stats?.surfaced ?? fallbackSurfaced;
   const redeemed = stats?.redeemed ?? fallbackRedeemed;
@@ -135,9 +177,7 @@ function App() {
             signals for the Berlin lunch window.
           </p>
         </div>
-        <div className="status-pill">
-          <span className="pulse" /> {stats ? "Live" : "Auto-approved 3h ago"}
-        </div>
+        <LiveStatus poll={poll} />
       </section>
 
       <DemandGapHero />
@@ -289,6 +329,22 @@ function DemandGapHero() {
         </div>
       </div>
     </section>
+  );
+}
+
+function LiveStatus({ poll }: { poll: MerchantPollState }) {
+  const connected = Boolean(poll.stats && !poll.error);
+  return (
+    <aside className={`live-status ${connected ? "live-status-ok" : "live-status-warn"}`}>
+      <div className="status-pill">
+        <span className="pulse" /> {connected ? "Live API connected" : "Fixture fallback"}
+      </div>
+      <div className="live-status-meta">
+        <span>{timeLabel(poll.lastUpdated)}</span>
+        <code>{poll.baseUrl.replace(/^https?:\/\//, "")}</code>
+        {poll.error ? <small>{poll.error}</small> : null}
+      </div>
+    </aside>
   );
 }
 
