@@ -1,5 +1,11 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 
 import type { DemoOffer } from "../demo/miaOffer";
 import {
@@ -28,12 +34,17 @@ type Props = {
 };
 
 const DEFAULT_AMOUNT_EUR = 12;
+const FADE_DURATION_MS = 200;
 
 /**
  * Composer that wires QrRedeemScreen → tap → CheckoutSuccessScreen
  * using a small finite state machine. Drop-in replacement for the
  * inline `RedeemCard` + `SuccessCard` currently in App.tsx — the user
  * can swap this in after #5 lands without touching the redeem logic.
+ *
+ * Issue #31: each new child fades in (opacity 0 → 1) over 200ms when
+ * the state advances, so transitions between QR / tapping / success
+ * feel smooth without breaking the existing state machine.
  *
  * Usage:
  *   <RedeemFlow offer={miaRainOffer} onComplete={() => setStep("silent")} />
@@ -74,14 +85,12 @@ export function RedeemFlow({
     setResult(null);
   }, [onComplete, result]);
 
-  if (state === "qr") {
-    return (
-      <QrRedeemScreen offer={offer} onTap={handleTap} onCancel={handleCancel} />
-    );
-  }
+  let child: React.ReactNode = null;
 
-  if (state === "tapping") {
-    return (
+  if (state === "qr") {
+    child = <QrRedeemScreen offer={offer} onTap={handleTap} onCancel={handleCancel} />;
+  } else if (state === "tapping") {
+    child = (
       <View style={s("flex-1 items-center justify-center bg-ink px-5")}>
         <ActivityIndicator size="large" color="#fff8ee" />
         <Text style={s("mt-4 text-xs font-bold uppercase tracking-[3px] text-cream/70")}>
@@ -92,10 +101,8 @@ export function RedeemFlow({
         </Text>
       </View>
     );
-  }
-
-  if (state === "success" && result) {
-    return (
+  } else if (state === "success" && result) {
+    child = (
       <CheckoutSuccessScreen
         cashbackEur={result.cashbackEur}
         budgetRemaining={result.budgetRemaining}
@@ -104,7 +111,60 @@ export function RedeemFlow({
     );
   }
 
-  // "idle" — flow already completed or cancelled. Render nothing so
-  // the caller can decide what to show next (home, reset card, etc).
-  return null;
+  if (child === null) {
+    // "idle" — flow already completed or cancelled. Render nothing so
+    // the caller can decide what to show next (home, reset card, etc).
+    return null;
+  }
+
+  return (
+    <FadeSwap stateKey={state} duration={FADE_DURATION_MS}>
+      {child}
+    </FadeSwap>
+  );
+}
+
+/**
+ * Cross-fade between children whenever `stateKey` changes. Mounts a
+ * fresh `Animated.View` per key so the new child fades in from 0 → 1
+ * over `duration` ms. We rely on React's keyed remount + a per-mount
+ * `useSharedValue` to avoid keeping refs to the previous tree.
+ */
+function FadeSwap({
+  stateKey,
+  duration,
+  children,
+}: {
+  stateKey: string;
+  duration: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <FadeChild key={stateKey} duration={duration}>
+      {children}
+    </FadeChild>
+  );
+}
+
+function FadeChild({
+  duration,
+  children,
+}: {
+  duration: number;
+  children: React.ReactNode;
+}) {
+  const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    opacity.value = withTiming(1, {
+      duration,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [duration, opacity]);
+
+  const fadeStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
+  return <Animated.View style={[...s("flex-1"), fadeStyle]}>{children}</Animated.View>;
 }

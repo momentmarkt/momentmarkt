@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import QRCode from "react-native-qrcode-svg";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withTiming,
+} from "react-native-reanimated";
 
 import type { DemoOffer } from "../demo/miaOffer";
 import { generateRedeemToken } from "../lib/redeem";
@@ -38,6 +45,53 @@ export function QrRedeemScreen({
   const [secondsLeft, setSecondsLeft] = useState(expiresInSeconds);
   const startedAt = useRef(Date.now());
 
+  // Reanimated entry choreography (issue #31):
+  //   QR card scales 0.6 → 1.0 with elastic ease over 400ms + fade in.
+  //   Token text fades in 200ms after the QR settles (delay 450ms).
+  //   "Simulate girocard tap" button slides up from below at delay 600ms.
+  const qrScale = useSharedValue(0.6);
+  const qrOpacity = useSharedValue(0);
+  const tokenOpacity = useSharedValue(0);
+  const buttonTranslateY = useSharedValue(40);
+  const buttonOpacity = useSharedValue(0);
+
+  useEffect(() => {
+    qrScale.value = withTiming(1, {
+      duration: 400,
+      easing: Easing.elastic(1.1),
+    });
+    qrOpacity.value = withTiming(1, {
+      duration: 400,
+      easing: Easing.out(Easing.cubic),
+    });
+    tokenOpacity.value = withDelay(
+      450,
+      withTiming(1, { duration: 200, easing: Easing.out(Easing.cubic) }),
+    );
+    buttonTranslateY.value = withDelay(
+      600,
+      withTiming(0, { duration: 320, easing: Easing.out(Easing.cubic) }),
+    );
+    buttonOpacity.value = withDelay(
+      600,
+      withTiming(1, { duration: 320, easing: Easing.out(Easing.cubic) }),
+    );
+  }, [qrScale, qrOpacity, tokenOpacity, buttonTranslateY, buttonOpacity]);
+
+  const qrStyle = useAnimatedStyle(() => ({
+    opacity: qrOpacity.value,
+    transform: [{ scale: qrScale.value }],
+  }));
+
+  const tokenStyle = useAnimatedStyle(() => ({
+    opacity: tokenOpacity.value,
+  }));
+
+  const buttonStyle = useAnimatedStyle(() => ({
+    opacity: buttonOpacity.value,
+    transform: [{ translateY: buttonTranslateY.value }],
+  }));
+
   useEffect(() => {
     const interval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - startedAt.current) / 1000);
@@ -72,7 +126,7 @@ export function QrRedeemScreen({
         </Pressable>
       </View>
 
-      <View style={s("mt-6 items-center rounded-[34px] bg-cream p-6")}>
+      <Animated.View style={[...s("mt-6 items-center rounded-[34px] bg-cream p-6"), qrStyle]}>
         <Text style={s("text-xs font-semibold uppercase tracking-[3px] text-rain")}>
           Show this at the till
         </Text>
@@ -86,13 +140,17 @@ export function QrRedeemScreen({
           />
         </View>
 
-        <Text
-          style={[...s("mt-4 text-base font-black tracking-[1px] text-cocoa"), { fontFamily: "Courier" }]}
+        <Animated.Text
+          style={[
+            ...s("mt-4 text-base font-black tracking-[1px] text-cocoa"),
+            { fontFamily: "Courier" },
+            tokenStyle,
+          ]}
         >
           {token}
-        </Text>
+        </Animated.Text>
 
-        <View style={s("mt-3 flex-row items-center gap-2")}>
+        <Animated.View style={[...s("mt-3 flex-row items-center gap-2"), tokenStyle]}>
           <View
             style={s("h-2 w-2 rounded-full", expired ? "bg-spark" : "bg-cocoa")}
           />
@@ -101,8 +159,8 @@ export function QrRedeemScreen({
               ? "Token expired — cancel and re-open"
               : `Expires in ${formatCountdown(secondsLeft)}`}
           </Text>
-        </View>
-      </View>
+        </Animated.View>
+      </Animated.View>
 
       <View style={s("mt-5 rounded-3xl bg-cream/10 p-4")}>
         <Text style={s("text-xs font-semibold uppercase tracking-[2px] text-cream/60")}>
@@ -118,16 +176,18 @@ export function QrRedeemScreen({
 
       <View style={s("flex-1")} />
 
-      <Pressable
-        accessibilityRole="button"
-        disabled={expired}
-        style={s("rounded-2xl px-5 py-4", expired ? "bg-cream/20" : "bg-spark")}
-        onPress={() => onTap(token)}
-      >
-        <Text style={s("text-center text-base font-black text-white")}>
-          {expired ? "Token expired" : "Simulate girocard tap"}
-        </Text>
-      </Pressable>
+      <Animated.View style={buttonStyle}>
+        <Pressable
+          accessibilityRole="button"
+          disabled={expired}
+          style={s("rounded-2xl px-5 py-4", expired ? "bg-cream/20" : "bg-spark")}
+          onPress={() => onTap(token)}
+        >
+          <Text style={s("text-center text-base font-black text-white")}>
+            {expired ? "Token expired" : "Simulate girocard tap"}
+          </Text>
+        </Pressable>
+      </Animated.View>
     </View>
   );
 }

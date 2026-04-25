@@ -1,6 +1,14 @@
 import type { JSX } from "react";
-import { View } from "react-native";
+import { useEffect } from "react";
+import { type StyleProp, View, type ViewStyle } from "react-native";
 import MapView, { Marker, PROVIDER_DEFAULT } from "react-native-maps";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from "react-native-reanimated";
 
 import { s } from "../styles";
 
@@ -20,6 +28,14 @@ type Props = {
   height?: number;
   interactive?: boolean;
   showCompass?: boolean;
+  /**
+   * Optional style override applied to the outer wrapper View. Lets the
+   * caller make the map full-bleed (`StyleSheet.absoluteFill`) or pin it
+   * inside another container without inheriting the default rounded card
+   * sizing. When provided it replaces the default rounded-2xl + width/height
+   * styling.
+   */
+  style?: StyleProp<ViewStyle>;
 };
 
 // Inline brand color (styles.ts does not export the palette).
@@ -56,6 +72,7 @@ export function CityMap({
   height = 200,
   interactive = false,
   showCompass = false,
+  style,
 }: Props): JSX.Element {
   const resolvedPins = pins ?? DEFAULT_BERLIN_PINS;
 
@@ -67,17 +84,19 @@ export function CityMap({
     longitudeDelta: 0.015,
   };
 
-  return (
-    <View
-      style={[
+  const wrapperStyle: StyleProp<ViewStyle> = style
+    ? [{ overflow: "hidden" }, style]
+    : [
         ...s("rounded-2xl shadow-sm"),
         {
           width,
           height,
           overflow: "hidden",
         },
-      ]}
-    >
+      ];
+
+  return (
+    <View style={wrapperStyle}>
       <MapView
         provider={PROVIDER_DEFAULT}
         style={{ width: "100%", height: "100%" }}
@@ -91,17 +110,92 @@ export function CityMap({
         showsMyLocationButton={false}
         toolbarEnabled={false}
       >
-        {resolvedPins.map((pin) => (
-          <Marker
-            key={pin.id}
-            coordinate={{ latitude: pin.lat, longitude: pin.lng }}
-            title={pin.name}
-            pinColor={pin.highlighted ? SPARK_RED : undefined}
-            opacity={pin.highlighted ? 1 : 0.55}
-            tracksViewChanges={false}
-          />
-        ))}
+        {resolvedPins.map((pin) =>
+          pin.highlighted ? (
+            <Marker
+              key={pin.id}
+              coordinate={{ latitude: pin.lat, longitude: pin.lng }}
+              title={pin.name}
+              anchor={{ x: 0.5, y: 0.5 }}
+              // Halo animation requires React-side redraws — let the
+              // marker view track changes here so the pulse animates.
+              tracksViewChanges
+            >
+              <PulsingMarker />
+            </Marker>
+          ) : (
+            <Marker
+              key={pin.id}
+              coordinate={{ latitude: pin.lat, longitude: pin.lng }}
+              title={pin.name}
+              opacity={0.55}
+              tracksViewChanges={false}
+            />
+          ),
+        )}
       </MapView>
+    </View>
+  );
+}
+
+/**
+ * Custom marker view used for highlighted pins: a solid dot with a
+ * pulsing halo ring (scale 1 → 1.5 → 1, opacity 0.7 → 0 → 0.7) on a
+ * 1.2s ease-in-out loop. Non-highlighted pins keep the system marker
+ * for a cleaner, less busy map.
+ */
+function PulsingMarker() {
+  const pulse = useSharedValue(0);
+
+  useEffect(() => {
+    pulse.value = withRepeat(
+      withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true,
+    );
+  }, [pulse]);
+
+  const haloStyle = useAnimatedStyle(() => {
+    const scale = 1 + pulse.value * 0.5; // 1 → 1.5
+    const opacity = 0.7 - pulse.value * 0.7; // 0.7 → 0
+    return {
+      opacity,
+      transform: [{ scale }],
+    };
+  });
+
+  return (
+    <View
+      style={{
+        alignItems: "center",
+        justifyContent: "center",
+        height: 40,
+        width: 40,
+      }}
+    >
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          {
+            position: "absolute",
+            height: 32,
+            width: 32,
+            borderRadius: 16,
+            backgroundColor: SPARK_RED,
+          },
+          haloStyle,
+        ]}
+      />
+      <View
+        style={{
+          height: 14,
+          width: 14,
+          borderRadius: 7,
+          backgroundColor: SPARK_RED,
+          borderColor: "#fff8ee",
+          borderWidth: 2,
+        }}
+      />
     </View>
   );
 }
