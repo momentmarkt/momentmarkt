@@ -262,6 +262,77 @@ def test_redeem_records_checkout_and_updates_budget() -> None:
     assert summary.json()["budget_spent"] == 3.0
 
 
+def test_mia_spine_e2e_regression_path() -> None:
+    reset = client.post("/demo/reset")
+    assert reset.status_code == 200
+    assert store.merchant_summary("berlin-mitte-cafe-bondi")["offer_count"] == 0
+
+    generated = client.post("/opportunity/generate", json={"city": "berlin"})
+    assert generated.status_code == 200
+    draft = generated.json()
+    offer_id = draft["persisted_offer"]["id"]
+    assert draft["widget_valid"] is True
+    assert draft["persisted_offer"]["status"] == "auto_approved"
+    assert draft["signal_context"]["wrapped_user_context"]["intent_token"] == "lunch_break.cold"
+    assert draft["signal_context"]["privacy"]["h3_cell_r8"] == "881f1d489dfffff"
+
+    surfaced = client.post(
+        "/surfacing/evaluate",
+        json={"city": "berlin", "seed_offer": False},
+    )
+    assert surfaced.status_code == 200
+    surface_payload = surfaced.json()
+    assert surface_payload["fired"] is True
+    assert surface_payload["offer"]["id"] == offer_id
+    assert surface_payload["widget_spec"]["type"] == "ScrollView"
+    assert surface_payload["wrapped_user_context"]["h3_cell_r8"] == "881f1d489dfffff"
+
+    high_intent_surface = client.post(
+        "/surfacing/evaluate",
+        json={
+            "city": "berlin",
+            "seed_offer": False,
+            "high_intent": {
+                "active_screen_time_recent_s": 120,
+                "map_app_foreground_recent": True,
+                "coupon_browse_recent": True,
+            },
+        },
+    )
+    assert high_intent_surface.status_code == 200
+    high_payload = high_intent_surface.json()
+    assert high_payload["fired"] is True
+    assert high_payload["intent_state"] == "active"
+    assert high_payload["threshold"] == 0.58
+    assert high_payload["boost"] > surface_payload["boost"]
+    assert high_payload["score"] > surface_payload["score"]
+
+    redeem = client.post("/redeem", json={"offer_id": offer_id, "user_id": "mia"})
+    assert redeem.status_code == 200
+    redeem_payload = redeem.json()
+    assert redeem_payload["status"] == "cashback_confirmed"
+    assert redeem_payload["merchant_counter"] == 1
+    assert redeem_payload["cashback_amount"] == 3.0
+
+    summary = client.get("/merchants/berlin-mitte-cafe-bondi/summary")
+    assert summary.status_code == 200
+    summary_payload = summary.json()
+    assert summary_payload["offer_count"] == 1
+    assert summary_payload["surfaced"] >= 2
+    assert summary_payload["redeemed"] == 1
+    assert summary_payload["budget_spent"] == 3.0
+
+    demand_chart = client.get("/merchants/berlin-mitte-cafe-bondi/demand-chart")
+    assert demand_chart.status_code == 200
+    chart_payload = demand_chart.json()
+    assert chart_payload["highlight"]["triggers_demand_gap"] is True
+    assert chart_payload["trigger_evaluation"]["fired"] is True
+
+    final_reset = client.post("/demo/reset")
+    assert final_reset.status_code == 200
+    assert store.merchant_summary("berlin-mitte-cafe-bondi")["offer_count"] == 0
+
+
 def test_approve_and_reject_endpoints_control_surfacing_pool() -> None:
     generated = client.post(
         "/opportunity/generate",

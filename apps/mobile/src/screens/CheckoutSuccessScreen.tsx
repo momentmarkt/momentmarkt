@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Image, Pressable, Text, View } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -21,6 +21,10 @@ type Props = {
 /** Confetti palette pulled from styles.ts tokens. */
 const CONFETTI_COLORS = ["#6f3f2c", "#f2542d", "#356f95", "#fff8ee"]; // cocoa, spark, rain, cream
 const CONFETTI_COUNT = 12;
+
+/** Apple-Pay-receipt static merchant photo for the demo cut. */
+const MERCHANT_PHOTO_URI =
+  "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=200";
 
 type ConfettiSpec = {
   /** Starting horizontal offset in px from the centre line. */
@@ -97,24 +101,45 @@ function ConfettiParticle({ spec, index }: { spec: ConfettiSpec; index: number }
   );
 }
 
+/** Format a euro amount as German: 1.85 -> "1,85". */
+function formatEurDe(value: number): string {
+  return value.toFixed(2).replace(".", ",");
+}
+
+/** Stable per-mount transaction id so the receipt feels real but reproduces. */
+function generateTxId(): string {
+  return `MM-${Math.random().toString(36).slice(-6).toUpperCase()}`;
+}
+
 /**
  * Standalone full-screen "cashback gutgeschrieben" success view.
  *
- * Plays a coordinated 3-second beat for the demo cut:
- *  - inkflavoured circle pops in with an SVG checkmark on an elastic curve
- *  - 12 confetti particles drift down in a staggered, deterministic arc
- *  - cashback amount counts up from +€0.00 to the real value over 800ms
- *  - sub-line and Done button fade in on a delay so the eye lands in order
+ * Apple-Pay-receipt aesthetic (issue #75) layered on top of the #27 animation
+ * choreography. Visual layout, copy, and German formatting are new; the
+ * Reanimated shared-value choreography, confetti generation, count-up rAF
+ * loop, and optional haptics are intentionally untouched from #27.
+ *
+ * Beat sheet for the demo cut:
+ *  - small "Restbudget" pill at the very top (static)
+ *  - hero zone: 80px ink circle + SVG check pops in elastic, confetti rains
+ *  - big German cashback amount counts up over 800ms
+ *  - sub-line "Cashback gutgeschrieben" fades in 300ms after the bounce
+ *  - merchant card (photo + name + address) fades in at 600ms
+ *  - transaction receipt rows fade in at 800ms
+ *  - "Fertig" button slides + fades in at 1500ms
  *  - optional Haptics success notification fires if expo-haptics is present
  */
 export function CheckoutSuccessScreen({ cashbackEur, budgetRemaining, onDone }: Props) {
   const checkScale = useSharedValue(0.5);
   const checkOpacity = useSharedValue(0);
   const subLineOpacity = useSharedValue(0);
+  const merchantOpacity = useSharedValue(0);
+  const receiptOpacity = useSharedValue(0);
   const doneOpacity = useSharedValue(0);
   const doneTranslate = useSharedValue(16);
 
   const confettiSpecs = useMemo(() => buildConfettiSpecs(CONFETTI_COUNT), []);
+  const txId = useMemo(() => generateTxId(), []);
 
   // Count-up via rAF + setState. Simple and demo-stable.
   const [displayedAmount, setDisplayedAmount] = useState(0);
@@ -139,6 +164,18 @@ export function CheckoutSuccessScreen({ cashbackEur, budgetRemaining, onDone }: 
     subLineOpacity.value = withDelay(
       900,
       withTiming(1, { duration: 300, easing: Easing.out(Easing.cubic) }),
+    );
+
+    // Merchant card fades in at 600ms after mount (issue #75).
+    merchantOpacity.value = withDelay(
+      600,
+      withTiming(1, { duration: 360, easing: Easing.out(Easing.cubic) }),
+    );
+
+    // Receipt rows fade in at 800ms after mount (issue #75).
+    receiptOpacity.value = withDelay(
+      800,
+      withTiming(1, { duration: 360, easing: Easing.out(Easing.cubic) }),
     );
 
     // Done button fades in 1.5s after mount.
@@ -191,7 +228,16 @@ export function CheckoutSuccessScreen({ cashbackEur, budgetRemaining, onDone }: 
         rafRef.current = null;
       }
     };
-  }, [cashbackEur, checkScale, checkOpacity, subLineOpacity, doneOpacity, doneTranslate]);
+  }, [
+    cashbackEur,
+    checkScale,
+    checkOpacity,
+    subLineOpacity,
+    merchantOpacity,
+    receiptOpacity,
+    doneOpacity,
+    doneTranslate,
+  ]);
 
   const checkStyle = useAnimatedStyle(() => ({
     opacity: checkOpacity.value,
@@ -202,14 +248,52 @@ export function CheckoutSuccessScreen({ cashbackEur, budgetRemaining, onDone }: 
     opacity: subLineOpacity.value,
   }));
 
+  const merchantStyle = useAnimatedStyle(() => ({
+    opacity: merchantOpacity.value,
+  }));
+
+  const receiptStyle = useAnimatedStyle(() => ({
+    opacity: receiptOpacity.value,
+  }));
+
   const doneStyle = useAnimatedStyle(() => ({
     opacity: doneOpacity.value,
     transform: [{ translateY: doneTranslate.value }],
   }));
 
+  const formattedCashback = formatEurDe(displayedAmount);
+  const finalCashbackLabel = formatEurDe(cashbackEur);
+
   return (
-    <View style={s("flex-1 bg-spark px-5 py-6")}>
-      <View style={s("flex-1 items-center justify-center")}>
+    <View style={[...s("flex-1 bg-cream px-5 py-6"), { paddingTop: 24 }]}>
+      {/* 1. Top status bar — small Restbudget pill, 30% opacity. */}
+      <View style={s("items-center")}>
+        {typeof budgetRemaining === "number" ? (
+          <View
+            style={[
+              {
+                paddingHorizontal: 12,
+                paddingVertical: 4,
+                borderRadius: 999,
+                backgroundColor: "rgba(23, 18, 15, 0.08)",
+                opacity: 0.6,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                ...s("text-xs text-ink"),
+                { fontWeight: "500" },
+              ]}
+            >
+              Restbudget €{formatEurDe(budgetRemaining)}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+
+      {/* 2. Hero zone — 200px tall, top-centre. Confetti + 80px check + amount + sub-line. */}
+      <View style={[{ height: 220 }, ...s("items-center justify-center")]}>
         {/* Confetti layer — sits behind the hero, anchored at centre. */}
         <View
           pointerEvents="none"
@@ -220,14 +304,21 @@ export function CheckoutSuccessScreen({ cashbackEur, budgetRemaining, onDone }: 
           ))}
         </View>
 
-        {/* Hero checkmark: ink circle with white SVG check. */}
+        {/* Hero checkmark: 80px ink circle with cream SVG check (was 128px). */}
         <Animated.View
           style={[
             checkStyle,
-            ...s("h-32 w-32 items-center justify-center rounded-full bg-ink"),
+            {
+              width: 80,
+              height: 80,
+              borderRadius: 40,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "#17120f",
+            },
           ]}
         >
-          <Svg width={64} height={64} viewBox="0 0 24 24">
+          <Svg width={44} height={44} viewBox="0 0 24 24">
             <Path
               d="M5 12.5l4.5 4.5L19 7.5"
               stroke="#fff8ee"
@@ -239,39 +330,149 @@ export function CheckoutSuccessScreen({ cashbackEur, budgetRemaining, onDone }: 
           </Svg>
         </Animated.View>
 
-        <View style={s("mt-8 items-center px-2")}>
-          <Text style={s("text-center text-xs font-bold uppercase tracking-[3px] text-white/80")}>
+        {/* 3. Big amount — 64px ultralight, spark-red, German comma decimals. */}
+        <Text
+          style={[
+            ...s("text-center text-spark"),
+            {
+              marginTop: 16,
+              fontSize: 64,
+              lineHeight: 68,
+              fontWeight: "200",
+            },
+          ]}
+        >
+          €{formattedCashback}
+        </Text>
+
+        {/* 4. Sub-line — fades in 300ms after the checkmark settles. */}
+        <Animated.View style={subLineStyle}>
+          <Text
+            style={[
+              ...s("text-center text-ink"),
+              { fontSize: 20, marginTop: 4, fontWeight: "500" },
+            ]}
+          >
             Cashback gutgeschrieben
           </Text>
-          <Text style={s("mt-3 text-center text-5xl font-black leading-[44px] text-white")}>
-            +€{displayedAmount.toFixed(2)}
-          </Text>
-          <Animated.View style={subLineStyle}>
-            <Text style={s("mt-2 text-center text-sm font-semibold text-white/80")}>
-              via girocard simulation
-            </Text>
-          </Animated.View>
-          {typeof budgetRemaining === "number" ? (
-            <Animated.View
-              style={[subLineStyle, ...s("mt-5 rounded-full bg-white/15 px-4 py-2")]}
-            >
-              <Text style={s("text-xs font-bold uppercase tracking-[2px] text-white")}>
-                Merchant budget remaining: €{budgetRemaining.toFixed(2)}
-              </Text>
-            </Animated.View>
-          ) : null}
-        </View>
+        </Animated.View>
       </View>
 
+      {/* 5. Merchant card — Apple-Pay-receipt feel, fade in 600ms. */}
+      <Animated.View
+        style={[
+          merchantStyle,
+          ...s("flex-row items-center bg-cream rounded-2xl p-4 mt-6"),
+          {
+            backgroundColor: "#f6ecdb",
+            shadowColor: "#17120f",
+            shadowOpacity: 0.05,
+            shadowRadius: 6,
+            shadowOffset: { width: 0, height: 2 },
+          },
+        ]}
+      >
+        <Image
+          source={{ uri: MERCHANT_PHOTO_URI }}
+          style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: "rgba(23,18,15,0.08)" }}
+        />
+        <View style={{ marginLeft: 12, flex: 1 }}>
+          <Text style={[...s("text-base font-semibold text-ink")]}>Café Bondi</Text>
+          <Text
+            style={[
+              ...s("text-xs text-ink"),
+              { marginTop: 2, opacity: 0.55 },
+            ]}
+          >
+            Torstr. 174 · Berlin Mitte
+          </Text>
+        </View>
+      </Animated.View>
+
+      {/* 6. Transaction receipt — monospace small rows, fade in 800ms. */}
+      <Animated.View
+        style={[
+          receiptStyle,
+          { marginTop: 16, paddingHorizontal: 4 },
+        ]}
+      >
+        <ReceiptRow label="Transaktion" value={txId} />
+        <ReceiptRow label="Zeitpunkt" value="Heute, 14:32" />
+        <ReceiptRow label="Bezahlt mit" value="girocard simulation" />
+        <ReceiptRow
+          label="Cashback"
+          value={`+€${finalCashbackLabel} (12%)`}
+          highlight
+          isLast
+        />
+      </Animated.View>
+
+      <View style={{ flex: 1 }} />
+
+      {/* 7. Fertig — bottom-anchored, full-width ink, fade in 1500ms (preserved from #27). */}
       <Animated.View style={doneStyle}>
         <Pressable
           accessibilityRole="button"
-          style={s("rounded-2xl bg-ink px-5 py-4")}
+          style={s("rounded-2xl bg-ink px-5 py-4 w-full")}
           onPress={onDone}
         >
-          <Text style={s("text-center text-base font-black text-cream")}>Fertig</Text>
+          <Text style={[...s("text-center text-base text-cream"), { fontWeight: "500" }]}>
+            Fertig
+          </Text>
         </Pressable>
       </Animated.View>
     </View>
   );
 }
+
+/**
+ * Single monospaced receipt row: label on the left, value on the right,
+ * 0.5px hairline separator below (suppressed for the last row).
+ */
+function ReceiptRow({
+  label,
+  value,
+  highlight,
+  isLast,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+  isLast?: boolean;
+}) {
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        paddingVertical: 4,
+        borderBottomWidth: isLast ? 0 : StyleSheetHairline,
+        borderBottomColor: "rgba(23, 18, 15, 0.1)",
+      }}
+    >
+      <Text
+        style={{
+          fontFamily: "Menlo",
+          fontSize: 12,
+          color: "rgba(23, 18, 15, 0.55)",
+        }}
+      >
+        {label}
+      </Text>
+      <Text
+        style={{
+          fontFamily: "Menlo",
+          fontSize: 12,
+          color: highlight ? "#f2542d" : "#17120f",
+          fontWeight: highlight ? "700" : "400",
+        }}
+      >
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+/** Hairline-style border thickness; RN doesn't expose 0.5 directly on all platforms. */
+const StyleSheetHairline = 0.5;

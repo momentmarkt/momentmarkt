@@ -8,18 +8,21 @@ import {
   useRef,
   useState,
 } from "react";
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, {
+  Easing,
   Extrapolation,
   interpolate,
   useAnimatedStyle,
   useSharedValue,
+  withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CityMap } from "./src/components/CityMap";
 import { DevPanel, type DevPanelSignal } from "./src/components/DevPanel";
+import { MapTopChip } from "./src/components/MapTopChip";
 import { RedeemFlow } from "./src/components/RedeemFlow";
 import { WalletSheetContent } from "./src/components/WalletSheetContent";
 import { WidgetRenderer } from "./src/components/WidgetRenderer";
@@ -69,7 +72,12 @@ type BottomMenuTarget = DemoStep | "history";
 const SIDE_BY_SIDE_BREAKPOINT = 820;
 const FALLBACK_CASHBACK_EUR = 1.85;
 const SHEET_SNAP_POINTS = ["25%", "60%", "95%"] as const;
-const TAB_BAR_HEIGHT = 64; // matches BottomMenu padding+content
+// Intrinsic content height of <BottomMenu /> *above* the home-indicator inset
+// (paddingTop 8 + item paddingVertical 12 + icon line 20 + marginTop 3 + label
+// line 12 ≈ 55 → round up to 56). The actual home-indicator padding is added
+// separately via insets.bottom so the sheet's bottomInset lands flush against
+// the *visible* tab bar top edge with no map-strip gap (issue #70 part A).
+const TAB_BAR_HEIGHT = 56;
 
 export default function App() {
   const [step, setStep] = useState<DemoStep>("silent");
@@ -77,7 +85,11 @@ export default function App() {
   const [highIntent, setHighIntent] = useState(false);
   const [city, setCity] = useState<DemoCityId>("berlin");
   const [widgetVariant, setWidgetVariant] = useState<WidgetVariant>("rainHero");
-  const [devPanelExpanded, setDevPanelExpanded] = useState(false);
+  // DevPanel overlay state (issue #70). In compact mode (<820px) the
+  // engineering surface lives behind a small top-right icon + the central
+  // MapTopChip; tapping either slides the full DevPanel in from the right.
+  // Wide mode keeps its sidecar layout — this state is ignored there.
+  const [devPanelOpen, setDevPanelOpen] = useState(false);
   const [sheetIndex, setSheetIndex] = useState(0);
   // Settings overlay state (issue #62). `settingsOpen` drives the slide-in
   // overlay; the two settings below are the *real* toggles wired through to
@@ -194,6 +206,12 @@ export default function App() {
   const handleCloseSettings = useCallback(() => {
     setSettingsOpen(false);
   }, []);
+  const handleOpenDevPanel = useCallback(() => {
+    setDevPanelOpen(true);
+  }, []);
+  const handleCloseDevPanel = useCallback(() => {
+    setDevPanelOpen(false);
+  }, []);
   const handleTogglePrivacyEnvelope = useCallback(() => {
     setShowPrivacyEnvelope((prev) => !prev);
   }, []);
@@ -255,7 +273,33 @@ export default function App() {
         ]}
       />
 
-      {/* Bottom sheet wallet drawer. */}
+      {/* Apple-Maps-style search chip floating top-center (issue #70 part C).
+          Pure presentational; tap routes to the DevPanel overlay so the
+          city/weather chip doubles as a discoverable engineering surface
+          entry point during the demo. */}
+      {!sideBySide ? (
+        <MapTopChip
+          city={city === "berlin" ? "Berlin" : "Zürich"}
+          area={city === "berlin" ? "Mitte" : "HB"}
+          tempC={city === "berlin" ? 11 : 14}
+          weatherSummary={
+            city === "berlin" ? "Rain in 22 min" : "Clear · light breeze"
+          }
+          onPress={handleOpenDevPanel}
+        />
+      ) : null}
+
+      {/* Top-right DevPanel trigger (issue #70 part B). Replaces the old
+          horizontal collapsed strip with a compact 32×32 round button that
+          opens the full DevPanel as a slide-in overlay. */}
+      {!sideBySide ? (
+        <DevPanelTrigger topInset={insets.top} onPress={handleOpenDevPanel} />
+      ) : null}
+
+      {/* Bottom sheet wallet drawer. bottomInset matches the *real* tab-bar
+          height (intrinsic 56 + home-indicator inset) so the lowest snap
+          (25%) sits flush against the visible tab-bar top edge — no
+          map-strip gap (issue #70 part A). */}
       <BottomSheet
         ref={sheetRef}
         index={0}
@@ -329,6 +373,24 @@ export default function App() {
         onSetLanguage={handleSetLanguage}
         onResetDemo={handleResetDemoFromSettings}
       />
+
+      {/* DevPanel overlay (issue #70 part B). Compact mode only — wide-mode
+          keeps the existing right-side sidecar layout. Slides in from the
+          right (translateX 100% → 0, 300ms easing-out). Tap-outside or the
+          top-right ✕ closes it. */}
+      {!sideBySide ? (
+        <DevPanelOverlay
+          visible={devPanelOpen}
+          onClose={handleCloseDevPanel}
+          devPanelProps={{
+            ...devPanelProps,
+            onRunSurfacing: () => {
+              setDevPanelOpen(false);
+              handleRunSurfacing();
+            },
+          }}
+        />
+      ) : null}
     </View>
   );
 
@@ -337,21 +399,9 @@ export default function App() {
       <View style={s("flex-1 bg-ink")}>
         <StatusBar style="light" />
         <View style={[...s("flex-1"), { flexDirection: sideBySide ? "row" : "column" }]}>
-          {!sideBySide ? (
-            <CollapsibleDevPanel
-              expanded={devPanelExpanded}
-              onToggle={() => setDevPanelExpanded((v) => !v)}
-              topInset={insets.top}
-              devPanelProps={{
-                ...devPanelProps,
-                onRunSurfacing: () => {
-                  setDevPanelExpanded(false);
-                  handleRunSurfacing();
-                },
-              }}
-            />
-          ) : null}
-
+          {/* Compact (<820px): the wallet area is full-bleed; DevPanel access
+              is via the floating top-right icon + MapTopChip → DevPanelOverlay
+              (issue #70). Wide (≥820px): keep the existing right sidecar. */}
           {walletArea}
 
           {sideBySide ? <DevPanel {...devPanelProps} /> : null}
@@ -598,37 +648,162 @@ function VariantButton({
   );
 }
 
-function CollapsibleDevPanel({
-  expanded,
-  onToggle,
+function DevPanelTrigger({
   topInset,
-  devPanelProps,
+  onPress,
 }: {
-  expanded: boolean;
-  onToggle: () => void;
   topInset: number;
-  devPanelProps: ComponentProps<typeof DevPanel>;
+  onPress: () => void;
 }) {
+  // Small 32×32 round chip pinned top-right with a wrench glyph. Replaces
+  // the old wide horizontal "DEV_PANEL · …" strip — keeps the engineering
+  // surface within one tap on phones without occupying any vertical space
+  // above the map (issue #70 part B).
   return (
-    <View
-      style={[
-        { backgroundColor: "#0d1117" },
-        { paddingTop: Math.max(topInset, 0) },
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Dev-Panel öffnen"
+      onPress={onPress}
+      hitSlop={10}
+      style={({ pressed }) => [
+        {
+          position: "absolute",
+          top: Math.max(topInset, 0) + 8,
+          right: 12,
+          width: 32,
+          height: 32,
+          borderRadius: 16,
+          backgroundColor: "rgba(13, 17, 23, 0.85)",
+          borderWidth: 1,
+          borderColor: "rgba(255, 255, 255, 0.08)",
+          alignItems: "center",
+          justifyContent: "center",
+          opacity: pressed ? 0.7 : 1,
+          zIndex: 5,
+          shadowColor: "#000",
+          shadowOpacity: 0.18,
+          shadowRadius: 6,
+          shadowOffset: { width: 0, height: 1 },
+          elevation: 3,
+        },
       ]}
     >
-      <Pressable
-        onPress={onToggle}
+      <Text
         style={[
-          ...s("flex-row items-center justify-between px-4 py-3"),
-          { borderBottomColor: "#30363d", borderBottomWidth: 1 },
+          ...s("text-white"),
+          { fontSize: 14, lineHeight: 16, fontWeight: "700" },
         ]}
       >
-        <Text style={s("mono text-[10px] uppercase tracking-[0.5px] text-gh-low")}>
-          dev_panel · {devPanelProps.compositeState}
-        </Text>
-        <Text style={s("mono text-[13px] text-white")}>{expanded ? "—" : "+"}</Text>
-      </Pressable>
-      {expanded ? <DevPanel {...devPanelProps} /> : null}
+        {"\u{1F6E0}"}
+      </Text>
+    </Pressable>
+  );
+}
+
+function DevPanelOverlay({
+  visible,
+  onClose,
+  devPanelProps,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  devPanelProps: ComponentProps<typeof DevPanel>;
+}) {
+  // Slide-in container (right edge of screen → 0). Width is capped at 320 so
+  // the underlying map peeks through on the left, signalling "this is a
+  // sidecar, not a fullscreen takeover". Tap-outside dismisses; the small ✕
+  // in the header gives an explicit close affordance.
+  const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+  const panelWidth = Math.min(320, Math.round(screenWidth * 0.86));
+  const translateX = useSharedValue(panelWidth);
+
+  useEffect(() => {
+    translateX.value = withTiming(visible ? 0 : panelWidth, {
+      duration: 300,
+      easing: Easing.out(Easing.exp),
+    });
+  }, [visible, panelWidth, translateX]);
+
+  const slideStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  if (!visible) return null;
+
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      {/* Tap-outside scrim. Subtle dimming so the map still reads behind. */}
+      <Pressable
+        accessibilityLabel="Dev-Panel schliessen"
+        onPress={onClose}
+        style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0, 0, 0, 0.35)" }]}
+      />
+      <Animated.View
+        style={[
+          slideStyle,
+          {
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            right: 0,
+            width: panelWidth,
+            backgroundColor: "#0d1117",
+            paddingTop: Math.max(insets.top, 0),
+            shadowColor: "#000",
+            shadowOpacity: 0.4,
+            shadowRadius: 12,
+            shadowOffset: { width: -4, height: 0 },
+            elevation: 8,
+          },
+        ]}
+      >
+        <View
+          style={[
+            ...s("flex-row items-center justify-between px-4"),
+            {
+              paddingTop: 10,
+              paddingBottom: 8,
+              borderBottomColor: "#30363d",
+              borderBottomWidth: 1,
+            },
+          ]}
+        >
+          <Text style={s("mono text-[10px] uppercase tracking-[0.5px] text-gh-low")}>
+            dev_panel
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Dev-Panel schliessen"
+            onPress={onClose}
+            hitSlop={10}
+            style={({ pressed }) => [
+              {
+                width: 28,
+                height: 28,
+                borderRadius: 14,
+                backgroundColor: "#1f2937",
+                borderWidth: 1,
+                borderColor: "#30363d",
+                alignItems: "center",
+                justifyContent: "center",
+                opacity: pressed ? 0.6 : 1,
+              },
+            ]}
+          >
+            <Text style={[...s("text-white"), { fontSize: 12, lineHeight: 14, fontWeight: "700" }]}>
+              ✕
+            </Text>
+          </Pressable>
+        </View>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 12) }}
+          showsVerticalScrollIndicator={false}
+        >
+          <DevPanel {...devPanelProps} />
+        </ScrollView>
+      </Animated.View>
     </View>
   );
 }
