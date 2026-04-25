@@ -1,83 +1,90 @@
+import BottomSheet from "@gorhom/bottom-sheet";
 import { StatusBar } from "expo-status-bar";
-import { type ComponentProps, useCallback, useMemo, useState } from "react";
-import { Pressable, Text, useWindowDimensions, View } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  type ComponentProps,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import Animated, {
+  Extrapolation,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+} from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CityMap } from "./src/components/CityMap";
 import { DevPanel, type DevPanelSignal } from "./src/components/DevPanel";
 import { RedeemFlow } from "./src/components/RedeemFlow";
-import { SurfaceNotification } from "./src/components/SurfaceNotification";
+import { WalletSheetContent } from "./src/components/WalletSheetContent";
 import { WidgetRenderer } from "./src/components/WidgetRenderer";
 import { cityProfiles, type DemoCityId, type DemoCityProfile } from "./src/demo/cityProfiles";
 import { miaRainOffer } from "./src/demo/miaOffer";
 import { demoWidgetSpecs } from "./src/demo/widgetSpecs";
 import { CheckoutSuccessScreen } from "./src/screens/CheckoutSuccessScreen";
-import { LockScreen } from "./src/screens/LockScreen";
+import { HistoryScreen } from "./src/screens/HistoryScreen";
 import { s } from "./src/styles";
 import { scoreSurfacing, type SurfacingInput } from "./src/surfacing/surfacingScore";
 
 /**
- * App.tsx — demo state machine (issue #29).
+ * App.tsx — demo state machine (issue #29) + bottom-sheet wallet drawer (#37).
  *
  * Drives the 11-beat demo cut from SPEC §The demo:
  *   silent → surfacing → offer → redeeming → success → silent
  *
- * Layout
+ * Layout (post-#37 — Apple Wallet / Find My pattern)
+ *   - Full-bleed Apple Map (PROVIDER_DEFAULT, native iOS Maps) lives in the
+ *     background via StyleSheet.absoluteFill. Map is interactive (pan/zoom)
+ *     only when the bottom sheet is at its lowest snap.
+ *   - <BottomSheet /> from @gorhom/bottom-sheet is the wallet drawer with
+ *     three snap points: 25% (collapsed), 60% (medium), 95% (expanded).
+ *     The sheet's animatedIndex drives both content fade-in AND map dimming.
+ *   - When the surfacing agent fires (step → "surfacing"/"offer"), we
+ *     snapToIndex(2) so the offer card is revealed without a separate
+ *     notification banner. The sheet expansion IS the surface event — the
+ *     old SurfaceNotification banner overlay is no longer rendered.
+ *   - Bottom tab bar is pinned absolute below everything; sheet bottomInset
+ *     keeps the drawer from sliding under it.
  *   - Wide viewports (≥820px logical width — landscape iPad / Mac sim window):
- *     phone area + DevPanel sidecar render side-by-side.
- *   - Narrow (phone portrait): they stack; DevPanel collapses to a pill that
- *     expands on tap to keep the phone canvas readable.
- *   - `compact` prop (default: false) — when true, the DevPanel sidecar /
- *     collapsible pill is hidden so the consumer view fills the screen for
- *     clean polished video shots. The tech-cut keeps `compact={false}` to
- *     show the engineering surface alongside the phone.
- *
- * High-intent toggle
- *   - DevPanel switch flips `highIntent`; surfacing score recomputes (lower
- *     threshold + boost). On the offer step we render an extra "in-market"
- *     headline chip above the WidgetRenderer using the surfacing decision's
- *     headline copy. The widget spec stays static (the SPEC describes
- *     "more aggressive headline" — chip is the cleanest demo-recordable
- *     channel without forking widgetSpecs.ts).
- *
- * Demo-presenter affordances (issue #38)
- *   - The Rain / Quiet / Event widget-variant pills used to live in the
- *     consumer Offer view as a presenter shortcut. They were leaking debug
- *     UI into the user-facing surface. Per #38 they are gone from the
- *     consumer view and now live exclusively in DevPanel under the
- *     "widget_variant (debug only)" section. In a real wallet the
- *     Opportunity Agent picks the variant; the user never sees a switcher.
- *   - The "Toggle high-intent in the dev panel..." instructional footer is
- *     also gone — presenters narrate the toggle, the user UI never names
- *     the dev panel.
+ *     DevPanel renders as a sidecar to the right; the map+sheet take the
+ *     remaining width. Narrow phone portrait: DevPanel is a collapsible pill
+ *     anchored to the very top so it doesn't fight the sheet.
  */
 
 type DemoStep = "silent" | "surfacing" | "offer" | "redeeming" | "success";
 type WidgetVariant = keyof typeof demoWidgetSpecs;
+/** Top-level view selector. "demo" shows the wallet sheet + map + state
+ *  machine; "history" pins the Verlauf screen above the wallet area. The
+ *  Verlauf tab in the bottom menu replaces the old "Proof" tab (issue #39). */
+type AppView = "demo" | "history";
+/** What the bottom menu can request — either a demo step or the history view. */
+type BottomMenuTarget = DemoStep | "history";
 
 const SIDE_BY_SIDE_BREAKPOINT = 820;
 const FALLBACK_CASHBACK_EUR = 1.85;
+const SHEET_SNAP_POINTS = ["25%", "60%", "95%"] as const;
+const TAB_BAR_HEIGHT = 64; // matches BottomMenu padding+content
 
-type AppProps = {
-  /**
-   * When true, the DevPanel sidecar / collapsible pill is hidden so the
-   * consumer view fills the screen — used for polished video shots that
-   * shouldn't show the engineering surface. Defaults to `false` so the
-   * tech-cut and dev-loop keep the DevPanel visible.
-   */
-  compact?: boolean;
-};
-
-export default function App({ compact = false }: AppProps = {}) {
+export default function App() {
   const [step, setStep] = useState<DemoStep>("silent");
+  const [view, setView] = useState<AppView>("demo");
   const [highIntent, setHighIntent] = useState(false);
   const [city, setCity] = useState<DemoCityId>("berlin");
   const [widgetVariant, setWidgetVariant] = useState<WidgetVariant>("rainHero");
   const [devPanelExpanded, setDevPanelExpanded] = useState(false);
+  const [sheetIndex, setSheetIndex] = useState(0);
 
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const sideBySide = width >= SIDE_BY_SIDE_BREAKPOINT;
+
+  const sheetRef = useRef<BottomSheet>(null);
+  const animatedIndex = useSharedValue(0);
 
   const cityProfile = cityProfiles[city];
   const surfacing = useMemo(
@@ -119,16 +126,21 @@ export default function App({ compact = false }: AppProps = {}) {
     [city, cityProfile],
   );
 
-  // Headline shown above the widget when high-intent is on. Demonstrates the
-  // visible mutation called out in SPEC §Communication & Presentation.
   const aggressiveHeadline = highIntent ? surfacing.headline : null;
 
+  useEffect(() => {
+    if (step === "silent") {
+      sheetRef.current?.snapToIndex(0);
+      return;
+    }
+    sheetRef.current?.snapToIndex(2);
+  }, [step]);
+
+  const mapInteractive = sheetIndex <= 0;
+
   const handleRunSurfacing = useCallback(() => {
-    // The dev-panel "Run Surfacing Agent" button always advances to the
-    // surfacing-banner beat for demo determinism. The "will fire" delta is
-    // surfaced visibly inside DevPanel (the bar + caption) so judges can
-    // see the silent-vs-fire delta when toggling high-intent.
     setStep("surfacing");
+    setTimeout(() => setStep("offer"), 250);
   }, []);
 
   const handleSwapCity = useCallback(() => {
@@ -138,14 +150,6 @@ export default function App({ compact = false }: AppProps = {}) {
 
   const handleToggleHighIntent = useCallback(() => {
     setHighIntent((prev) => !prev);
-  }, []);
-
-  const handleSurfaceTap = useCallback(() => {
-    setStep("offer");
-  }, []);
-
-  const handleSurfaceDismiss = useCallback(() => {
-    setStep("silent");
   }, []);
 
   const handleAdvanceFromOffer = useCallback(() => {
@@ -160,8 +164,20 @@ export default function App({ compact = false }: AppProps = {}) {
     setStep("silent");
   }, []);
 
-  const handleBottomMenu = useCallback((target: DemoStep) => {
+  const handleBottomMenu = useCallback((target: BottomMenuTarget) => {
+    if (target === "history") {
+      setView("history");
+      return;
+    }
+    // Any demo-step tap returns us to the demo view (in case we were on
+    // Verlauf) and advances the underlying state machine. Demo presenter
+    // can keep the cut intact by simply not tapping during a beat.
+    setView("demo");
     setStep(target);
+  }, []);
+
+  const handleSheetChange = useCallback((index: number) => {
+    setSheetIndex(index);
   }, []);
 
   const devPanelProps: ComponentProps<typeof DevPanel> = {
@@ -177,43 +193,111 @@ export default function App({ compact = false }: AppProps = {}) {
     city,
     onSwapCity: handleSwapCity,
     onRunSurfacing: handleRunSurfacing,
-    // Variant picker is presenter-only: lives on the engineering surface
-    // (DevPanel) so the consumer view never shows widget-debug controls (#38).
-    widgetVariant,
-    onWidgetVariantChange: setWidgetVariant,
   };
 
-  return (
-    <View style={s("flex-1 bg-cream")}>
-      <StatusBar style="dark" />
-      <SafeAreaView style={s("flex-1")} edges={["top", "left", "right"]}>
-        <View style={[...s("flex-1"), { flexDirection: sideBySide ? "row" : "column" }]}>
-          <PhoneArea
-            step={step}
-            city={city}
-            cityProfile={cityProfile}
-            widgetVariant={widgetVariant}
-            aggressiveHeadline={aggressiveHeadline}
-            insetBottom={insets.bottom}
-            onSurfaceTap={handleSurfaceTap}
-            onSurfaceDismiss={handleSurfaceDismiss}
-            onWidgetCta={handleAdvanceFromOffer}
-            onRedeemComplete={handleRedeemComplete}
-            onSuccessDone={handleResetToSilent}
-            onBottomMenu={handleBottomMenu}
-          />
+  const mapOverlayStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      animatedIndex.value,
+      [0, 1, 2],
+      [0, 0.25, 0.45],
+      Extrapolation.CLAMP,
+    );
+    return { opacity };
+  });
 
-          {/* When `compact` is true the entire DevPanel surface is hidden so
-              the consumer phone view fills the screen for polished video
-              shots. Otherwise wide viewports get the sidecar and narrow
-              viewports get the collapsible pill (#38). */}
-          {!compact && sideBySide ? (
-            <DevPanel {...devPanelProps} />
-          ) : null}
-          {!compact && !sideBySide ? (
+  const walletArea = (
+    <View style={s("flex-1")}>
+      {/* Full-bleed Apple Map background. */}
+      <View style={StyleSheet.absoluteFill}>
+        <CityMap
+          centerLat={cityProfile.mapCenter.lat}
+          centerLng={cityProfile.mapCenter.lng}
+          pins={cityProfile.mapPins}
+          interactive={mapInteractive}
+          style={StyleSheet.absoluteFill}
+        />
+      </View>
+
+      {/* Subtle dimming overlay tied to sheet index. */}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFill,
+          { backgroundColor: "rgba(13, 17, 23, 1)" },
+          mapOverlayStyle,
+        ]}
+      />
+
+      {/* Bottom sheet wallet drawer. */}
+      <BottomSheet
+        ref={sheetRef}
+        index={0}
+        snapPoints={SHEET_SNAP_POINTS as unknown as string[]}
+        animatedIndex={animatedIndex}
+        onChange={handleSheetChange}
+        bottomInset={TAB_BAR_HEIGHT + Math.max(insets.bottom, 8)}
+        backgroundStyle={{
+          backgroundColor: "#17120f",
+          borderTopLeftRadius: 34,
+          borderTopRightRadius: 34,
+        }}
+        handleIndicatorStyle={{
+          backgroundColor: "rgba(255, 255, 255, 0.4)",
+          width: 44,
+          height: 5,
+        }}
+        handleStyle={{ paddingTop: 10, paddingBottom: 6 }}
+        enablePanDownToClose={false}
+      >
+        <SheetBody
+          step={step}
+          city={city}
+          cityProfile={cityProfile}
+          widgetVariant={widgetVariant}
+          highIntent={highIntent}
+          aggressiveHeadline={aggressiveHeadline}
+          animatedIndex={animatedIndex}
+          onWidgetVariantChange={setWidgetVariant}
+          onWidgetCta={handleAdvanceFromOffer}
+          onRedeemComplete={handleRedeemComplete}
+          onSuccessDone={handleResetToSilent}
+        />
+      </BottomSheet>
+
+      {/* Verlauf / History overlay (issue #39). Renders above the map+sheet
+          when the user taps the Verlauf tab. The demo state machine + sheet
+          remain mounted underneath — tapping any other tab returns to it. */}
+      {view === "history" ? (
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { paddingBottom: TAB_BAR_HEIGHT + Math.max(insets.bottom, 8) },
+          ]}
+        >
+          <HistoryScreen />
+        </View>
+      ) : null}
+
+      {/* Bottom tab bar — pinned absolute, above the sheet & history overlay. */}
+      <BottomMenu
+        activeStep={step}
+        activeView={view}
+        bottomInset={insets.bottom}
+        onSelect={handleBottomMenu}
+      />
+    </View>
+  );
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <View style={s("flex-1 bg-ink")}>
+        <StatusBar style="light" />
+        <View style={[...s("flex-1"), { flexDirection: sideBySide ? "row" : "column" }]}>
+          {!sideBySide ? (
             <CollapsibleDevPanel
               expanded={devPanelExpanded}
               onToggle={() => setDevPanelExpanded((v) => !v)}
+              topInset={insets.top}
               devPanelProps={{
                 ...devPanelProps,
                 onRunSurfacing: () => {
@@ -223,157 +307,106 @@ export default function App({ compact = false }: AppProps = {}) {
               }}
             />
           ) : null}
+
+          {walletArea}
+
+          {sideBySide ? <DevPanel {...devPanelProps} /> : null}
         </View>
-      </SafeAreaView>
-    </View>
+      </View>
+    </GestureHandlerRootView>
   );
 }
 
-// ─── PhoneArea ──────────────────────────────────────────────────────────────
-
-type PhoneAreaProps = {
+type SheetBodyProps = {
   step: DemoStep;
   city: DemoCityId;
   cityProfile: DemoCityProfile;
   widgetVariant: WidgetVariant;
+  highIntent: boolean;
   aggressiveHeadline: string | null;
-  insetBottom: number;
-  onSurfaceTap: () => void;
-  onSurfaceDismiss: () => void;
+  animatedIndex: ReturnType<typeof useSharedValue<number>>;
+  onWidgetVariantChange: (variant: WidgetVariant) => void;
   onWidgetCta: () => void;
   onRedeemComplete: () => void;
   onSuccessDone: () => void;
-  onBottomMenu: (step: DemoStep) => void;
 };
 
-function PhoneArea({
+function SheetBody({
   step,
   city,
   cityProfile,
   widgetVariant,
+  highIntent,
   aggressiveHeadline,
-  insetBottom,
-  onSurfaceTap,
-  onSurfaceDismiss,
+  animatedIndex,
+  onWidgetVariantChange,
   onWidgetCta,
   onRedeemComplete,
   onSuccessDone,
-  onBottomMenu,
-}: PhoneAreaProps) {
-  return (
-    <View style={[...s("flex-1 bg-cream"), { position: "relative" }]}>
-      <View style={[...s("flex-1"), { paddingBottom: 64 + Math.max(insetBottom, 8) }]}>
-        {step === "silent" ? (
-          <SilentScreen city={city} cityProfile={cityProfile} />
-        ) : null}
-
-        {step === "offer" ? (
-          <OfferScreen
-            widgetVariant={widgetVariant}
-            aggressiveHeadline={aggressiveHeadline}
-            onWidgetCta={onWidgetCta}
-          />
-        ) : null}
-
-        {step === "redeeming" ? (
-          <RedeemFlow offer={miaRainOffer} onComplete={onRedeemComplete} />
-        ) : null}
-
-        {step === "success" ? (
-          <CheckoutSuccessScreen
-            cashbackEur={FALLBACK_CASHBACK_EUR}
-            onDone={onSuccessDone}
-          />
-        ) : null}
+}: SheetBodyProps) {
+  if (step === "redeeming") {
+    return (
+      <View style={s("flex-1 bg-ink")}>
+        <RedeemFlow offer={miaRainOffer} onComplete={onRedeemComplete} />
       </View>
+    );
+  }
 
-      {/* SurfaceNotification floats over whatever silent visual is rendered. */}
-      <SurfaceNotification
-        visible={step === "surfacing"}
-        title={city === "berlin" ? "Es regnet bald" : "Heads-up"}
-        body={
-          city === "berlin"
-            ? "80 m bis zum heißen Kakao bei Café Bondi. 15% cashback."
-            : cityProfile.offerSummary
-        }
-        emoji={city === "berlin" ? "☔" : "☀️"}
-        timeLabel="now"
-        onTap={onSurfaceTap}
-        onDismiss={onSurfaceDismiss}
+  if (step === "success") {
+    return (
+      <View style={s("flex-1 bg-ink")}>
+        <CheckoutSuccessScreen
+          cashbackEur={FALLBACK_CASHBACK_EUR}
+          onDone={onSuccessDone}
+        />
+      </View>
+    );
+  }
+
+  const offerSlot =
+    step === "offer" || step === "surfacing" ? (
+      <OfferStack
+        widgetVariant={widgetVariant}
+        highIntent={highIntent}
+        aggressiveHeadline={aggressiveHeadline}
+        onWidgetVariantChange={onWidgetVariantChange}
+        onWidgetCta={onWidgetCta}
       />
-
-      {/* Bottom menu — always visible inside the phone area (per #30). */}
-      <BottomMenu activeStep={step} bottomInset={insetBottom} onSelect={onBottomMenu} />
-    </View>
-  );
-}
-
-// ─── Silent screen: CityMap header + LockScreen body ────────────────────────
-
-function SilentScreen({
-  city,
-  cityProfile,
-}: {
-  city: DemoCityId;
-  cityProfile: DemoCityProfile;
-}) {
-  const { width } = useWindowDimensions();
-  // Map fills the phone-area horizontally minus 40px padding (px-5 each side).
-  // Cap at 480 to keep the map framed and avoid sprawl on tablets / wide sims.
-  const mapWidth = Math.min(480, Math.max(280, width - 40));
+    ) : null;
 
   return (
-    <View style={s("flex-1")}>
-      {/* Map header — small inset so judges see the city framing. */}
-      <View style={[...s("px-5 py-3 items-center"), { backgroundColor: "#17120f" }]}>
-        <CityMap
-          centerLat={cityProfile.mapCenter.lat}
-          centerLng={cityProfile.mapCenter.lng}
-          pins={cityProfile.mapPins}
-          width={mapWidth}
-          height={140}
-        />
-      </View>
-
-      {/* LockScreen fills remaining space. */}
-      <View style={s("flex-1")}>
-        <LockScreen
-          personaName="Mia"
-          cityLabel={cityProfile.cityLabel}
-          tempC={city === "berlin" ? 11 : 14}
-          weatherLabel={
-            city === "berlin"
-              ? "overcast • rain in ~22 min"
-              : "clear • light breeze"
-          }
-        />
-      </View>
-    </View>
+    <WalletSheetContent
+      cityLabel={cityProfile.cityLabel}
+      tempC={city === "berlin" ? 11 : 14}
+      weatherLabel={
+        city === "berlin"
+          ? "overcast • rain in ~22 min"
+          : "clear • light breeze"
+      }
+      pulseLabel={city === "berlin" ? "Rain in ~22 min" : "Clear · light breeze"}
+      animatedIndex={animatedIndex}
+      expandedSlot={offerSlot}
+    />
   );
 }
 
-// ─── Offer screen: aggressive-headline chip + WidgetRenderer ───────────────
-//
-// Per #38 the consumer view shows ONE widget at a time (whichever the
-// Opportunity Agent picks; the variant comes in as a prop). The Rain /
-// Quiet / Event presenter pills and the "Toggle high-intent in the dev
-// panel..." instructional footer were removed because they leaked debug
-// affordances into the user-facing surface. Those controls now live in
-// DevPanel under "widget_variant (debug only)".
-
-function OfferScreen({
+function OfferStack({
   widgetVariant,
+  highIntent,
   aggressiveHeadline,
+  onWidgetVariantChange,
   onWidgetCta,
 }: {
   widgetVariant: WidgetVariant;
+  highIntent: boolean;
   aggressiveHeadline: string | null;
+  onWidgetVariantChange: (variant: WidgetVariant) => void;
   onWidgetCta: () => void;
 }) {
   return (
-    <View style={s("flex-1 bg-cream px-5 py-6")}>
+    <View style={s("flex-1")}>
       {aggressiveHeadline ? (
-        <View style={s("mb-4 rounded-2xl bg-spark px-4 py-3")}>
+        <View style={s("mb-3 rounded-2xl bg-spark px-4 py-3")}>
           <Text style={s("text-xs font-bold uppercase tracking-[2px] text-white")}>
             High-intent boost
           </Text>
@@ -383,30 +416,59 @@ function OfferScreen({
         </View>
       ) : null}
 
+      <View style={s("mb-3 flex-row gap-2")}>
+        <VariantButton
+          active={widgetVariant === "rainHero"}
+          label="Rain"
+          onPress={() => onWidgetVariantChange("rainHero")}
+        />
+        <VariantButton
+          active={widgetVariant === "quietStack"}
+          label="Quiet"
+          onPress={() => onWidgetVariantChange("quietStack")}
+        />
+        <VariantButton
+          active={widgetVariant === "preEventTicket"}
+          label="Event"
+          onPress={() => onWidgetVariantChange("preEventTicket")}
+        />
+      </View>
+
       <View style={s("flex-1")}>
         <WidgetRenderer node={demoWidgetSpecs[widgetVariant]} onRedeem={onWidgetCta} />
       </View>
+
+      {!highIntent ? (
+        <Text style={s("mt-3 text-xs text-white/50 text-center")}>
+          Toggle high-intent in the dev panel to re-skin the headline.
+        </Text>
+      ) : null}
     </View>
   );
 }
 
-// ─── Bottom menu (kept inline to honor #30 ded6acf shape) ───────────────────
-
 function BottomMenu({
   activeStep,
+  activeView,
   bottomInset,
   onSelect,
 }: {
   activeStep: DemoStep;
+  activeView: AppView;
   bottomInset: number;
-  onSelect: (step: DemoStep) => void;
+  onSelect: (target: BottomMenuTarget) => void;
 }) {
+  // When the History view is active none of the demo-step tabs should glow —
+  // the highlight belongs to the Verlauf tab. Demo-step tabs only highlight
+  // when the user is in the demo view.
+  const inDemo = activeView === "demo";
+
   return (
     <View pointerEvents="box-none" style={{ bottom: 0, left: 0, position: "absolute", right: 0 }}>
       <View
         style={{
-          backgroundColor: "rgba(255, 248, 238, 0.94)",
-          borderTopColor: "rgba(23, 18, 15, 0.12)",
+          backgroundColor: "rgba(23, 18, 15, 0.96)",
+          borderTopColor: "rgba(255, 255, 255, 0.08)",
           borderTopWidth: 1,
           flexDirection: "row",
           paddingBottom: Math.max(bottomInset, 8),
@@ -415,28 +477,31 @@ function BottomMenu({
         }}
       >
         <BottomMenuItem
-          active={activeStep === "silent"}
+          active={inDemo && activeStep === "silent"}
           icon="⌂"
           label="Home"
           onPress={() => onSelect("silent")}
         />
         <BottomMenuItem
-          active={activeStep === "offer"}
+          active={inDemo && activeStep === "offer"}
           icon="✦"
           label="Offer"
           onPress={() => onSelect("offer")}
         />
         <BottomMenuItem
-          active={activeStep === "redeeming"}
+          active={inDemo && activeStep === "redeeming"}
           icon="▣"
           label="QR"
           onPress={() => onSelect("redeeming")}
         />
+        {/* Verlauf replaces the old "Proof" tab (issue #39). Clock-face glyph
+            reinforces the "wallet has memory" framing without shipping an
+            icon font. */}
         <BottomMenuItem
-          active={activeStep === "success"}
-          icon="✓"
-          label="Proof"
-          onPress={() => onSelect("success")}
+          active={activeView === "history"}
+          icon="◷"
+          label="Verlauf"
+          onPress={() => onSelect("history")}
         />
       </View>
     </View>
@@ -454,7 +519,7 @@ function BottomMenuItem({
   label: string;
   onPress: () => void;
 }) {
-  const color = active ? "#f2542d" : "rgba(23, 18, 15, 0.48)";
+  const color = active ? "#f2542d" : "rgba(255, 248, 238, 0.55)";
 
   return (
     <Pressable onPress={onPress} style={{ alignItems: "center", flex: 1, paddingVertical: 6 }}>
@@ -464,24 +529,50 @@ function BottomMenuItem({
   );
 }
 
-// ─── Collapsible DevPanel for narrow viewports ──────────────────────────────
+function VariantButton({
+  active,
+  label,
+  onPress,
+}: {
+  active: boolean;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={s("flex-1 rounded-2xl px-3 py-2", active ? "bg-spark" : "bg-white/15")}
+      onPress={onPress}
+    >
+      <Text style={s("text-center text-xs font-black", active ? "text-white" : "text-white/70")}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
 
 function CollapsibleDevPanel({
   expanded,
   onToggle,
+  topInset,
   devPanelProps,
 }: {
   expanded: boolean;
   onToggle: () => void;
+  topInset: number;
   devPanelProps: ComponentProps<typeof DevPanel>;
 }) {
   return (
-    <View style={[{ backgroundColor: "#0d1117" }]}>
+    <View
+      style={[
+        { backgroundColor: "#0d1117" },
+        { paddingTop: Math.max(topInset, 0) },
+      ]}
+    >
       <Pressable
         onPress={onToggle}
         style={[
           ...s("flex-row items-center justify-between px-4 py-3"),
-          { borderTopColor: "#30363d", borderTopWidth: 1 },
+          { borderBottomColor: "#30363d", borderBottomWidth: 1 },
         ]}
       >
         <Text style={s("mono text-[10px] uppercase tracking-[0.5px] text-gh-low")}>
@@ -494,13 +585,6 @@ function CollapsibleDevPanel({
   );
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-/**
- * Mirrors the per-feature math inside `scoreSurfacing()` so the DevPanel can
- * render a per-dimension breakdown bar chart. Kept here (not in surfacingScore.ts)
- * so the existing `reasons` shape and its pinned tests stay untouched.
- */
 function buildBreakdown(
   input: Omit<SurfacingInput, "highIntent">,
   highIntent: boolean,
