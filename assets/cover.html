@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>MomentMarkt — Devpost cover (1920×1080)</title>
+    <style>
+      /* ------------------------------------------------------------------
+         MomentMarkt 16:9 Devpost cover — drop-in, no external assets.
+         Palette pulled from apps/mobile/src/styles.ts:
+           cream #fff8ee · ink #17120f · cocoa #6f3f2c
+           spark #f2542d · rain #356f95
+         Plus #fbe7c8 for the warm gradient.
+         Render target: Chrome headless --window-size=1920,1080.
+         ------------------------------------------------------------------ */
+
+      *,
+      *::before,
+      *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      html, body { width: 1920px; height: 1080px; overflow: hidden; }
+
+      body {
+        width: 1920px;
+        height: 1080px;
+        background:
+          radial-gradient(circle at 78% 38%, rgba(53, 111, 149, 0.10) 0%, rgba(53, 111, 149, 0) 55%),
+          linear-gradient(135deg, #fff8ee 0%, #fbe7c8 100%);
+        font-family: "Helvetica Neue", "Helvetica", Arial, sans-serif;
+        color: #17120f;
+        position: relative;
+      }
+
+      /* faint Berlin street silhouette behind the right side */
+      .skyline {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        width: 1280px;
+        height: 320px;
+        opacity: 0.10;
+        pointer-events: none;
+      }
+
+      /* faint H3 hex grid hint */
+      .hex-grid {
+        position: absolute;
+        right: 60px;
+        top: 90px;
+        width: 320px;
+        height: 320px;
+        opacity: 0.18;
+        pointer-events: none;
+      }
+
+      /* ─── LEFT THIRD ─────────────────────────────────────────────── */
+      .left {
+        position: absolute;
+        left: 96px;
+        top: 0;
+        width: 720px;
+        height: 1080px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+
+      .eyebrow {
+        font-family: "Menlo", "Monaco", "Consolas", monospace;
+        font-size: 14px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: #6f3f2c;
+        margin-bottom: 28px;
+      }
+      .eyebrow .dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #f2542d;
+        margin-right: 10px;
+        vertical-align: middle;
+      }
+
+      .wordmark {
+        font-family: "Georgia", "Times New Roman", serif;
+        font-weight: 400;
+        font-size: 132px;
+        line-height: 0.95;
+        letter-spacing: -2px;
+        color: #17120f;
+      }
+      .wordmark .accent { color: #6f3f2c; font-style: italic; }
+
+      .tagline {
+        font-family: "Georgia", "Times New Roman", serif;
+        font-style: italic;
+        font-size: 32px;
+        line-height: 1.4;
+        color: #6f3f2c;
+        margin-top: 36px;
+        max-width: 660px;
+      }
+
+      .tagline .spark { color: #f2542d; font-style: italic; }
+
+      .pillars {
+        margin-top: 56px;
+        display: flex;
+        gap: 28px;
+      }
+      .pillar {
+        font-family: "Helvetica Neue", Arial, sans-serif;
+        font-size: 14px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: #17120f;
+        padding: 10px 16px;
+        border: 1px solid rgba(23, 18, 15, 0.15);
+        background: rgba(255, 255, 255, 0.45);
+        border-radius: 999px;
+      }
+      .pillar .num { color: #f2542d; font-weight: 700; margin-right: 8px; }
+
+      /* ─── BADGES ─────────────────────────────────────────────────── */
+      .track-badge {
+        position: absolute;
+        left: 96px;
+        bottom: 64px;
+        font-family: "Menlo", "Monaco", "Consolas", monospace;
+        font-size: 14px;
+        letter-spacing: 1px;
+        color: #17120f;
+        opacity: 0.7;
+      }
+
+      .live-badge {
+        position: absolute;
+        right: 96px;
+        bottom: 64px;
+        font-family: "Menlo", "Monaco", "Consolas", monospace;
+        font-size: 14px;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: #fff8ee;
+        background: #f2542d;
+        padding: 10px 16px;
+        border-radius: 999px;
+        box-shadow: 0 14px 40px rgba(242, 84, 45, 0.35);
+      }
+      .live-badge .pulse {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #fff8ee;
+        margin-right: 10px;
+        vertical-align: middle;
+      }
+
+      /* ─── PHONE MOCKUP (right two-thirds) ────────────────────────── */
+      .phone-stage {
+        position: absolute;
+        right: 200px;
+        top: 130px;
+        width: 360px;
+        height: 740px;
+        transform: rotate(-6deg);
+        filter: drop-shadow(0 60px 80px rgba(23, 18, 15, 0.28));
+      }
+
+      .phone {
+        width: 360px;
+        height: 740px;
+        background: #1c1c1e;
+        border-radius: 64px;
+        padding: 14px;
+        position: relative;
+      }
+
+      .phone::before {
+        /* notch */
+        content: "";
+        position: absolute;
+        top: 18px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 120px;
+        height: 30px;
+        background: #1c1c1e;
+        border-radius: 999px;
+        z-index: 3;
+      }
+
+      .screen {
+        width: 100%;
+        height: 100%;
+        background: #fff8ee;
+        border-radius: 50px;
+        overflow: hidden;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .status-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 18px 36px 8px;
+        font-family: "Helvetica Neue", Arial, sans-serif;
+        font-size: 15px;
+        font-weight: 700;
+        color: #17120f;
+      }
+      .status-bar .icons { display: flex; gap: 6px; align-items: center; }
+      .status-bar .icons .bar { width: 4px; background: #17120f; border-radius: 1px; }
+      .status-bar .icons .b1 { height: 4px; }
+      .status-bar .icons .b2 { height: 6px; }
+      .status-bar .icons .b3 { height: 8px; }
+      .status-bar .icons .b4 { height: 10px; }
+      .status-bar .battery {
+        width: 24px; height: 11px; border: 1.5px solid #17120f;
+        border-radius: 3px; position: relative; padding: 1px;
+      }
+      .status-bar .battery::after {
+        content: ""; position: absolute; right: -3px; top: 3px;
+        width: 2px; height: 5px; background: #17120f; border-radius: 1px;
+      }
+      .status-bar .battery .fill {
+        width: 80%; height: 100%; background: #17120f; border-radius: 1px;
+      }
+
+      .app-header {
+        padding: 18px 26px 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .app-header .brand {
+        font-family: "Georgia", "Times New Roman", serif;
+        font-style: italic;
+        font-size: 18px;
+        color: #6f3f2c;
+      }
+      .app-header .quiet {
+        font-family: "Menlo", monospace;
+        font-size: 10px;
+        letter-spacing: 1px;
+        color: rgba(23, 18, 15, 0.45);
+        text-transform: uppercase;
+      }
+
+      .offer-card {
+        margin: 12px 22px 0;
+        background: #ffffff;
+        border-radius: 28px;
+        padding: 22px 22px 24px;
+        box-shadow: 0 12px 32px rgba(23, 18, 15, 0.08);
+        border: 1px solid rgba(23, 18, 15, 0.06);
+        flex-shrink: 0;
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(242, 84, 45, 0.12);
+        color: #f2542d;
+        font-family: "Helvetica Neue", Arial, sans-serif;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        padding: 6px 12px;
+        border-radius: 999px;
+      }
+      .chip .drop {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #f2542d;
+      }
+
+      .headline {
+        font-family: "Georgia", "Times New Roman", serif;
+        font-size: 26px;
+        line-height: 1.2;
+        color: #17120f;
+        margin-top: 14px;
+        font-weight: 700;
+      }
+
+      .sub {
+        font-family: "Helvetica Neue", Arial, sans-serif;
+        font-size: 13px;
+        color: rgba(23, 18, 15, 0.7);
+        margin-top: 10px;
+        line-height: 1.45;
+      }
+
+      .price-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-top: 16px;
+        padding-top: 14px;
+        border-top: 1px dashed rgba(23, 18, 15, 0.15);
+      }
+      .price-row .price {
+        font-family: "Georgia", serif;
+        font-size: 22px;
+        color: #356f95;
+        font-weight: 700;
+      }
+      .price-row .save {
+        font-family: "Helvetica Neue", Arial, sans-serif;
+        font-size: 11px;
+        color: #6f3f2c;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      .cta {
+        margin-top: 18px;
+        background: #17120f;
+        color: #fff8ee;
+        text-align: center;
+        padding: 16px 0;
+        border-radius: 999px;
+        font-family: "Helvetica Neue", Arial, sans-serif;
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+      }
+
+      .meta-row {
+        margin: 18px 22px 0;
+        display: flex;
+        justify-content: space-between;
+        font-family: "Menlo", monospace;
+        font-size: 10px;
+        color: rgba(23, 18, 15, 0.45);
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+
+      .home-indicator {
+        position: absolute;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 130px;
+        height: 4px;
+        background: #17120f;
+        border-radius: 999px;
+        opacity: 0.7;
+      }
+
+      /* ─── DEV-PANEL CHIP (top-right of phone) ────────────────────── */
+      .dev-chip {
+        position: absolute;
+        right: 60px;
+        top: 70px;
+        width: 360px;
+        background: #0d1117;
+        color: #c9d1d9;
+        border: 1px solid #30363d;
+        border-radius: 14px;
+        padding: 14px 16px;
+        font-family: "Menlo", monospace;
+        font-size: 11px;
+        line-height: 1.5;
+        box-shadow: 0 18px 50px rgba(13, 17, 23, 0.35);
+      }
+      .dev-chip .label {
+        color: #7d8590;
+        font-size: 9px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+      }
+      .dev-chip .key { color: #f0883e; }
+      .dev-chip .val { color: #3fb950; }
+      .dev-chip .pill {
+        display: inline-block;
+        margin-top: 8px;
+        padding: 3px 8px;
+        background: #1f2937;
+        border-radius: 999px;
+        color: #3fb950;
+        font-size: 9px;
+        letter-spacing: 1px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- faint H3 hex grid hint (top right) -->
+    <svg class="hex-grid" viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <pattern id="hexes" x="0" y="0" width="60" height="52" patternUnits="userSpaceOnUse">
+          <polygon points="30,2 58,18 58,46 30,62 2,46 2,18"
+                   fill="none" stroke="#356f95" stroke-width="1.2" />
+        </pattern>
+      </defs>
+      <rect width="320" height="320" fill="url(#hexes)" />
+      <polygon points="120,80 178,114 178,182 120,216 62,182 62,114"
+               fill="#f2542d" fill-opacity="0.35" stroke="#f2542d" stroke-width="2" />
+    </svg>
+
+    <!-- faint Berlin skyline silhouette -->
+    <svg class="skyline" viewBox="0 0 1280 320" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" preserveAspectRatio="xMidYMax meet">
+      <g fill="#17120f">
+        <!-- Fernsehturm-ish tower -->
+        <rect x="280" y="40" width="6" height="280" />
+        <circle cx="283" cy="80" r="22" />
+        <polygon points="283,30 287,40 279,40" />
+        <!-- generic blocks -->
+        <rect x="40" y="220" width="120" height="100" />
+        <rect x="170" y="190" width="80" height="130" />
+        <rect x="320" y="200" width="140" height="120" />
+        <rect x="470" y="180" width="100" height="140" />
+        <polygon points="520,180 520,140 540,140 540,180" />
+        <rect x="580" y="210" width="90" height="110" />
+        <rect x="680" y="170" width="120" height="150" />
+        <rect x="810" y="200" width="80" height="120" />
+        <rect x="900" y="180" width="160" height="140" />
+        <rect x="1070" y="220" width="100" height="100" />
+        <rect x="1180" y="200" width="90" height="120" />
+        <!-- spires / details -->
+        <polygon points="940,180 940,150 960,180" />
+        <polygon points="1020,180 1020,150 1040,180" />
+        <rect x="220" y="240" width="40" height="80" />
+      </g>
+    </svg>
+
+    <!-- LEFT THIRD: wordmark + tagline -->
+    <section class="left">
+      <div class="eyebrow"><span class="dot"></span>City wallet · Berlin · live</div>
+
+      <h1 class="wordmark">Moment<span class="accent">Markt</span></h1>
+
+      <p class="tagline">
+        The marketing department small merchants don't have, generated for the
+        <span class="spark">moment</span>, redeemed through the rail the bank
+        already operates.
+      </p>
+
+      <div class="pillars">
+        <div class="pillar"><span class="num">2</span>agents</div>
+        <div class="pillar"><span class="num">3</span>triggers</div>
+        <div class="pillar"><span class="num">1</span>quiet wallet</div>
+      </div>
+    </section>
+
+    <!-- DEV PANEL CHIP -->
+    <div class="dev-chip">
+      <div class="label">surfacing input · privacy boundary</div>
+      <div>{</div>
+      <div>&nbsp;&nbsp;<span class="key">"intent_token"</span>: <span class="val">"lunch_break.cold"</span>,</div>
+      <div>&nbsp;&nbsp;<span class="key">"h3_cell_r8"</span>:&nbsp;&nbsp; <span class="val">"881f1d489dfffff"</span>,</div>
+      <div>&nbsp;&nbsp;<span class="key">"weather"</span>:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span class="val">"rain_incoming"</span></div>
+      <div>}</div>
+      <span class="pill">high-intent: on</span>
+    </div>
+
+    <!-- PHONE MOCKUP -->
+    <div class="phone-stage">
+      <div class="phone">
+        <div class="screen">
+          <div class="status-bar">
+            <span>14:23</span>
+            <div class="icons">
+              <div class="bar b1"></div>
+              <div class="bar b2"></div>
+              <div class="bar b3"></div>
+              <div class="bar b4"></div>
+              <div class="battery"><div class="fill"></div></div>
+            </div>
+          </div>
+
+          <div class="app-header">
+            <span class="brand">MomentMarkt</span>
+            <span class="quiet">quiet by default</span>
+          </div>
+
+          <div class="offer-card">
+            <span class="chip"><span class="drop"></span>Rain in 12 min</span>
+            <div class="headline">Heißer Kakao bei Café Bondi</div>
+            <div class="sub">80 m. 12% cashback. Bis 14:30.<br/>Auto-approved this morning under one rain rule.</div>
+            <div class="price-row">
+              <span class="price">€3.40</span>
+              <span class="save">save €0.50</span>
+            </div>
+            <div class="cta">Jetzt sichern</div>
+          </div>
+
+          <div class="meta-row">
+            <span>walk-ring · h3+1</span>
+            <span>silence: ok</span>
+          </div>
+
+          <div class="home-indicator"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BADGES -->
+    <div class="track-badge">DSV-Gruppe CITY WALLET · Hack-Nation 2026</div>
+    <div class="live-badge"><span class="pulse"></span>LIVE · Berlin Mitte</div>
+  </body>
+</html>
