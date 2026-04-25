@@ -12,6 +12,12 @@ pnpm install
 pnpm mobile:ios
 ```
 
+The mobile app now uses a local Expo development client instead of Expo Go.
+The first `pnpm mobile:ios` run compiles the native iOS app with Xcode and can
+take several minutes; after that, hot reload works against the native dev
+client. This is required for native modules such as Apple Maps via
+`react-native-maps`.
+
 Useful commands:
 
 ```bash
