@@ -1,5 +1,6 @@
+import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { type ReactElement, type ReactNode, useEffect, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import Animated, {
   Easing,
   Extrapolation,
@@ -23,10 +24,10 @@ type Props = {
   /** Short pulse-chip headline (e.g. "Rain in ~22 min"). */
   pulseLabel?: string;
   /**
-   * Bottom sheet animated index. Sheet snaps used by App.tsx are:
+   * Bottom sheet animated index. Sheet snaps used by App.tsx are (post-#89):
    *   0 → 25% (collapsed): only the clock + brand row visible
-   *   1 → 60% (medium): + weather widget, Berlin Mitte chip
-   *   2 → 95% (expanded): + offer slot (children)
+   *   1 → 55% (medium): + weather widget, Berlin Mitte chip
+   *   2 → 80% (expanded): + offer slot (children)
    * We fade the medium- and expanded-tier layers based on this value so
    * dragging the sheet up reveals more content with smooth opacity.
    */
@@ -36,13 +37,6 @@ type Props = {
    * Only rendered (and animated in) once the sheet passes the medium snap.
    */
   expandedSlot?: ReactNode;
-  /**
-   * Optional callback for the gear icon in the sheet header (issue #62).
-   * When provided, a small ⚙ button renders top-right of the brand row and
-   * tapping it opens the Settings overlay. Subtle (opacity 0.6) so it stays
-   * out of the consumer's primary scanning path.
-   */
-  onOpenSettings?: () => void;
 };
 
 /**
@@ -66,7 +60,6 @@ export function WalletSheetContent({
   pulseLabel = "Rain in ~22 min",
   animatedIndex,
   expandedSlot,
-  onOpenSettings,
 }: Props): ReactElement {
   const [now, setNow] = useState(() => new Date());
 
@@ -136,37 +129,19 @@ export function WalletSheetContent({
   const date = formatDateDe(now);
 
   return (
-    <View style={[...s("flex-1 px-5"), { paddingTop: 4, paddingBottom: 16 }]}>
-      {/* Gear icon (issue #62) — sits in the top-right corner of the sheet
-          header, absolute-positioned so it doesn't shift the centred brand +
-          clock typographic rhythm. Subtle (opacity 0.6) so it stays out of
-          the consumer's primary scanning path. */}
-      {onOpenSettings ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open settings"
-          onPress={onOpenSettings}
-          hitSlop={12}
-          style={({ pressed }) => [
-            {
-              position: "absolute",
-              top: 4,
-              right: 12,
-              width: 32,
-              height: 32,
-              alignItems: "center",
-              justifyContent: "center",
-              opacity: pressed ? 1 : 0.6,
-              zIndex: 5,
-            },
-          ]}
-        >
-          <Text style={[...s("text-base text-white"), { fontSize: 18, lineHeight: 20 }]}>
-            {"⚙"}
-          </Text>
-        </Pressable>
-      ) : null}
-
+    // Issue #88: wrap in BottomSheetScrollView so content scrolls when the
+    // sheet is at its top snap. Drag-down at scroll-top collapses the sheet
+    // (gorhom integrates the gestures); scrolling up scrolls content. The
+    // gear icon that previously lived top-right of the brand row is gone —
+    // Settings is now a 5th bottom-tab (issue #87), so the header is clean.
+    <BottomSheetScrollView
+      style={s("flex-1")}
+      contentContainerStyle={[
+        ...s("px-5"),
+        { paddingTop: 4, paddingBottom: 20 },
+      ]}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={s("items-center")}>
         <Text
           style={s(
@@ -264,7 +239,7 @@ export function WalletSheetContent({
           </View>
         )}
       </Animated.View>
-    </View>
+    </BottomSheetScrollView>
   );
 }
 

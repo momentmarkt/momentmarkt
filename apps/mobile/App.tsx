@@ -1,4 +1,6 @@
 import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
+// (BottomSheetView still used as wrapper for redeem/success steps; the
+// scroll-aware sheet content lives inside WalletSheetContent — issue #88.)
 import { StatusBar } from "expo-status-bar";
 import {
   type ComponentProps,
@@ -63,15 +65,23 @@ import { scoreSurfacing, type SurfacingInput } from "./src/surfacing/surfacingSc
 type DemoStep = "silent" | "surfacing" | "offer" | "redeeming" | "success";
 type WidgetVariant = keyof typeof demoWidgetSpecs;
 /** Top-level view selector. "demo" shows the wallet sheet + map + state
- *  machine; "history" pins the Verlauf screen above the wallet area. The
- *  Verlauf tab in the bottom menu replaces the old "Proof" tab (issue #39). */
-type AppView = "demo" | "history";
-/** What the bottom menu can request — either a demo step or the history view. */
-type BottomMenuTarget = DemoStep | "history";
+ *  machine; "history" pins the History screen above the wallet area;
+ *  "settings" pins the Settings screen above the wallet area (issue #87 —
+ *  Settings is now a 5th bottom-tab, no longer reachable via the removed
+ *  gear icon in the sheet header). */
+type AppView = "demo" | "history" | "settings";
+/** What the bottom menu can request — a demo step, history, or settings. */
+type BottomMenuTarget = DemoStep | "history" | "settings";
 
 const SIDE_BY_SIDE_BREAKPOINT = 820;
 const FALLBACK_CASHBACK_EUR = 1.85;
-const SHEET_SNAP_POINTS = ["25%", "60%", "95%"] as const;
+// Issue #89: lowered top snap from 95% → 80% so the full-bleed Apple Map
+// always peeks through the top strip ("wallet over a real city map" is the
+// persistent backdrop). Middle snap nudged 60→55 to keep distribution roughly
+// symmetric. All five demo steps verified to fit inside the 80% drawer; the
+// offer step now relies on BottomSheetScrollView (issue #88) inside
+// WalletSheetContent for any minor overflow on small phones.
+const SHEET_SNAP_POINTS = ["25%", "55%", "80%"] as const;
 // Intrinsic content height of <BottomMenu /> *above* the home-indicator inset
 // (paddingTop 8 + item paddingVertical 12 + icon line 20 + marginTop 3 + label
 // line 12 ≈ 55 → round up to 56). The actual home-indicator padding is added
@@ -189,9 +199,18 @@ export default function App() {
       setView("history");
       return;
     }
+    if (target === "settings") {
+      // Issue #87: Settings is now a real 5th bottom-tab. We toggle the
+      // top-level view AND open the SettingsScreen overlay so the existing
+      // visible-prop animation (slide-in from right) still plays. The
+      // bottom-menu highlight follows `view === 'settings'`.
+      setView("settings");
+      setSettingsOpen(true);
+      return;
+    }
     // Any demo-step tap returns us to the demo view (in case we were on
-    // Verlauf) and advances the underlying state machine. Demo presenter
-    // can keep the cut intact by simply not tapping during a beat.
+    // History or Settings) and advances the underlying state machine. Demo
+    // presenter can keep the cut intact by simply not tapping during a beat.
     setView("demo");
     setStep(target);
   }, []);
@@ -200,11 +219,11 @@ export default function App() {
     setSheetIndex(index);
   }, []);
 
-  const handleOpenSettings = useCallback(() => {
-    setSettingsOpen(true);
-  }, []);
   const handleCloseSettings = useCallback(() => {
+    // Issue #87: closing the Settings overlay (X in the header) also returns
+    // the top-level view to "demo" so the wallet sheet + map regain focus.
     setSettingsOpen(false);
+    setView((prev) => (prev === "settings" ? "demo" : prev));
   }, []);
   const handleOpenDevPanel = useCallback(() => {
     setDevPanelOpen(true);
@@ -333,22 +352,24 @@ export default function App() {
         handleStyle={{ paddingTop: 10, paddingBottom: 6 }}
         enablePanDownToClose={false}
       >
-        <BottomSheetView style={{ flex: 1, backgroundColor: "#17120f" }}>
-          <SheetBody
-            step={step}
-            city={city}
-            cityProfile={cityProfile}
-            widgetVariant={widgetVariant}
-            highIntent={highIntent}
-            aggressiveHeadline={aggressiveHeadline}
-            animatedIndex={animatedIndex}
-            onWidgetVariantChange={setWidgetVariant}
-            onWidgetCta={handleAdvanceFromOffer}
-            onRedeemComplete={handleRedeemComplete}
-            onSuccessDone={handleResetToSilent}
-            onOpenSettings={handleOpenSettings}
-          />
-        </BottomSheetView>
+        {/* Issue #88: SheetBody returns either WalletSheetContent (which now
+            wraps itself in BottomSheetScrollView for native scroll/sheet
+            gesture integration) OR a redeem/success screen wrapped in
+            BottomSheetView. Both cases produce a single direct child of
+            <BottomSheet />, which is what gorhom requires. */}
+        <SheetBody
+          step={step}
+          city={city}
+          cityProfile={cityProfile}
+          widgetVariant={widgetVariant}
+          highIntent={highIntent}
+          aggressiveHeadline={aggressiveHeadline}
+          animatedIndex={animatedIndex}
+          onWidgetVariantChange={setWidgetVariant}
+          onWidgetCta={handleAdvanceFromOffer}
+          onRedeemComplete={handleRedeemComplete}
+          onSuccessDone={handleResetToSilent}
+        />
       </BottomSheet>
 
       {/* Verlauf / History overlay (issue #39). Renders above the map+sheet
@@ -437,8 +458,6 @@ type SheetBodyProps = {
   onWidgetCta: () => void;
   onRedeemComplete: () => void;
   onSuccessDone: () => void;
-  /** Forwarded to WalletSheetContent — gear icon in the sheet header. */
-  onOpenSettings?: () => void;
 };
 
 function SheetBody({
@@ -453,24 +472,26 @@ function SheetBody({
   onWidgetCta,
   onRedeemComplete,
   onSuccessDone,
-  onOpenSettings,
 }: SheetBodyProps) {
+  // Redeem/Success screens own their own scroll surfaces internally, so a
+  // plain BottomSheetView wrapper is fine here — gorhom requires a direct
+  // child of <BottomSheet />.
   if (step === "redeeming") {
     return (
-      <View style={s("flex-1 bg-ink")}>
+      <BottomSheetView style={[...s("flex-1 bg-ink")]}>
         <RedeemFlow offer={miaRainOffer} onComplete={onRedeemComplete} />
-      </View>
+      </BottomSheetView>
     );
   }
 
   if (step === "success") {
     return (
-      <View style={s("flex-1 bg-ink")}>
+      <BottomSheetView style={[...s("flex-1 bg-ink")]}>
         <CheckoutSuccessScreen
           cashbackEur={FALLBACK_CASHBACK_EUR}
           onDone={onSuccessDone}
         />
-      </View>
+      </BottomSheetView>
     );
   }
 
@@ -485,6 +506,8 @@ function SheetBody({
       />
     ) : null;
 
+  // WalletSheetContent renders BottomSheetScrollView at its root (issue #88)
+  // so it doubles as the gorhom scroll surface — no extra wrapper needed.
   return (
     <WalletSheetContent
       cityLabel={cityProfile.cityLabel}
@@ -497,7 +520,6 @@ function SheetBody({
       pulseLabel={city === "berlin" ? "Rain in ~22 min" : "Clear · light breeze"}
       animatedIndex={animatedIndex}
       expandedSlot={offerSlot}
-      onOpenSettings={onOpenSettings}
     />
   );
 }
@@ -614,6 +636,17 @@ function BottomMenu({
           icon="◷"
           label="History"
           onPress={() => onSelect("history")}
+        />
+        {/* Settings — 5th tab (issue #87). Replaces the old gear icon that
+            lived inside the wallet sheet header. Tapping renders the
+            existing SettingsScreen as a full-page overlay. The DevPanel
+            "Demo & Debug" section inside Settings (issue #80) is still the
+            engineering surface entry point. */}
+        <BottomMenuItem
+          active={activeView === "settings"}
+          icon="⚙"
+          label="Settings"
+          onPress={() => onSelect("settings")}
         />
       </View>
     </View>
