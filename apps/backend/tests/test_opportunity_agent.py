@@ -102,8 +102,18 @@ class TestGenerateOfferContract:
             "demand_trigger",
         }
         assert triggers["weather_trigger"] == "rain_incoming"
-        assert triggers["event_trigger"] is True
+        assert triggers["event_trigger"] is False
         assert triggers["demand_trigger"] is True
+
+    def test_non_matching_weather_rule_does_not_persist_weather_trigger(self) -> None:
+        ctx = build_signal_context(
+            city="berlin", merchant_id="berlin-mitte-baeckerei-rosenthal"
+        )
+        result = _run(generate_offer(ctx, use_llm=False))
+        triggers = result["persisted_offer"]["trigger_reason"]
+        assert triggers["weather_trigger"] is None
+        assert triggers["event_trigger"] is False
+        assert triggers["demand_trigger"] is False
 
     def test_widget_spec_in_persisted_offer_matches_top_level(self) -> None:
         ctx = build_signal_context(city="berlin")

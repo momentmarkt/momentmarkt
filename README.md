@@ -93,8 +93,8 @@ headline rewrite per fired surface for Surfacing). Live demo runs on iOS
 Simulator: Mia spine end-to-end, three structurally different GenUI widgets
 for one merchant, on-screen `{intent_token, h3_cell_r8}` privacy boundary,
 high-intent dev-panel toggle, simulated girocard checkout, merchant inbox
-with the per-merchant demand-curve view, live `cities/berlin.yaml` ↔
-`cities/zurich.yaml` config swap.
+with the per-merchant demand-curve view, live `cities/berlin.json` ↔
+`cities/zurich.json` config swap.
 
 ### Stack lineup
 

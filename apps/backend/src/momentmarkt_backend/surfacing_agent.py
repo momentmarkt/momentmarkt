@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from .llm_agents import run_headline_rewrite_agent
@@ -10,6 +11,7 @@ THETA_SILENT = 0.72
 THETA_ACTIVE = 0.58
 BETA = 0.5
 ALPHA = 0.35
+WALK_RING_DISTANCE_M = 1_000
 
 
 async def evaluate_surface(
@@ -19,7 +21,10 @@ async def evaluate_surface(
     city_id: str | None = None,
     use_llm: bool = False,
 ) -> dict[str, Any]:
-    candidates = store.approved_offers(city_id=city_id)
+    candidates, exclusions = _filter_candidates(
+        store.approved_offers(city_id=city_id),
+        wrapped_user_context,
+    )
     scored = [_score_candidate(offer, wrapped_user_context) for offer in candidates]
     scored.sort(key=lambda item: item["score"], reverse=True)
 
@@ -84,6 +89,7 @@ async def evaluate_surface(
         "offer": top["offer"] if top and fired else None,
         "widget_spec": top["offer"]["widget_spec"] if top and fired else None,
         "candidate_count": len(candidates),
+        "excluded_candidates": exclusions,
         "scores": [
             {
                 "offer_id": item["offer"]["id"],
@@ -93,6 +99,30 @@ async def evaluate_surface(
             for item in scored
         ],
     }
+
+
+def _filter_candidates(
+    offers: list[dict[str, Any]],
+    context: dict[str, Any],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    now = datetime.fromisoformat(context["t"])
+    eligible: list[dict[str, Any]] = []
+    exclusions: list[dict[str, Any]] = []
+    for offer in offers:
+        valid_window = offer["valid_window"]
+        start = datetime.fromisoformat(valid_window["start"])
+        end = datetime.fromisoformat(valid_window["end"])
+        if now < start:
+            exclusions.append({"offer_id": offer["id"], "reason": "valid_window_not_started"})
+            continue
+        if now > end:
+            exclusions.append({"offer_id": offer["id"], "reason": "valid_window_expired"})
+            continue
+        if int(offer["distance_m"]) > WALK_RING_DISTANCE_M:
+            exclusions.append({"offer_id": offer["id"], "reason": "outside_walk_ring"})
+            continue
+        eligible.append(offer)
+    return eligible, exclusions
 
 
 def _score_candidate(offer: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:

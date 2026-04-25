@@ -57,9 +57,25 @@ class TestBerlinCanonicalContext:
         # forces it. If that override stops working, the demo loses its spine.
         assert ctx["weather"]["trigger"] == "rain_incoming"
 
-    def test_event_trigger_active_for_demo_window(self, ctx: dict) -> None:
-        assert ctx["event"]["ending_soon"] is True
-        assert ctx["event"]["event"]["id"] == "bln-005"
+    def test_event_trigger_is_deterministic_not_prescripted(self, ctx: dict) -> None:
+        assert ctx["event"]["ending_soon"] is False
+        assert ctx["event"]["event"] is None
+        assert "No event ending within 30 min" in ctx["event"]["reason"]
+
+    def test_trigger_evaluation_explains_fired_dimensions(self, ctx: dict) -> None:
+        triggers = ctx["trigger_evaluation"]
+        assert triggers["fired"] is True
+        assert triggers["weather"]["fired"] is True
+        assert triggers["demand"]["fired"] is True
+        assert triggers["event"]["fired"] is False
+        assert any("weather:" in reason for reason in triggers["summary"])
+        assert any("demand:" in reason for reason in triggers["summary"])
+
+    def test_intent_extractor_stub_is_visible(self, ctx: dict) -> None:
+        assert ctx["intent_extractor"] == {
+            "intent_token": "lunch_break.cold",
+            "mode": "demo stub / prod on-device SLM",
+        }
 
     def test_privacy_envelope_present_in_three_places(self, ctx: dict) -> None:
         # The on-screen dev-panel privacy log + wrapped_user_context +
@@ -137,6 +153,9 @@ class TestZurichConfigSwap:
 
     def test_surface_input_carries_clear_trigger(self, ctx: dict) -> None:
         assert ctx["surface"]["weatherTrigger"] == "clear"
+
+    def test_zurich_intent_extractor_uses_weekend_wander(self, ctx: dict) -> None:
+        assert ctx["intent_extractor"]["intent_token"] == "weekend_wander"
 
 
 class TestUnknownCity:

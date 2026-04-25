@@ -260,3 +260,130 @@ def test_redeem_records_checkout_and_updates_budget() -> None:
     assert summary.status_code == 200
     assert summary.json()["redeemed"] == 1
     assert summary.json()["budget_spent"] == 3.0
+
+
+def test_approve_and_reject_endpoints_control_surfacing_pool() -> None:
+    generated = client.post(
+        "/opportunity/generate",
+        json={"city": "berlin", "merchant_id": "berlin-mitte-baeckerei-rosenthal"},
+    ).json()
+    offer_id = generated["persisted_offer"]["id"]
+    assert generated["persisted_offer"]["status"] == "pending_approval"
+
+    before = client.post(
+        "/surfacing/evaluate",
+        json={"city": "berlin", "seed_offer": False},
+    ).json()
+    assert before["candidate_count"] == 0
+
+    approved = client.post(f"/offers/{offer_id}/approve", json={})
+    assert approved.status_code == 200
+    assert approved.json()["offer"]["status"] == "approved"
+
+    after_approve = client.post(
+        "/surfacing/evaluate",
+        json={"city": "berlin", "seed_offer": False},
+    ).json()
+    assert after_approve["candidate_count"] == 1
+
+    rejected = client.post(f"/offers/{offer_id}/reject", json={})
+    assert rejected.status_code == 200
+    assert rejected.json()["offer"]["status"] == "rejected"
+
+    after_reject = client.post(
+        "/surfacing/evaluate",
+        json={"city": "berlin", "seed_offer": False},
+    ).json()
+    assert after_reject["candidate_count"] == 0
+
+
+def test_status_endpoint_unknown_offer_is_404() -> None:
+    response = client.post("/offers/missing/approve", json={})
+    assert response.status_code == 404
+
+
+def test_batch_opportunity_skips_merchants_without_trigger() -> None:
+    response = client.post("/opportunity/batch", json={"city": "berlin"})
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["drafted_count"] == 3
+    assert payload["skipped_count"] == 1
+    drafted_ids = {offer["merchant_id"] for offer in payload["drafted"]}
+    skipped_ids = {entry["merchant_id"] for entry in payload["skipped"]}
+    assert "berlin-mitte-cafe-bondi" in drafted_ids
+    assert "berlin-mitte-kiezbuchhandlung-august" in drafted_ids
+    assert "berlin-mitte-eisgarten-weinmeister" in drafted_ids
+    assert skipped_ids == {"berlin-mitte-baeckerei-rosenthal"}
+
+
+def test_rejected_offer_suppresses_near_duplicate_generation() -> None:
+    first = client.post("/opportunity/generate", json={"city": "berlin"}).json()
+    offer_id = first["persisted_offer"]["id"]
+    rejected = client.post(f"/offers/{offer_id}/reject", json={})
+    assert rejected.status_code == 200
+
+    second = client.post("/opportunity/generate", json={"city": "berlin"})
+    assert second.status_code == 200
+    payload = second.json()
+    assert payload["suppressed"] is True
+    assert payload["suppression_reason"] == "similar_recent_rejection"
+    assert "suppressed_by_recent_rejection" in payload["generation_log"]
+    assert store.merchant_summary("berlin-mitte-cafe-bondi")["offer_count"] == 1
+
+
+def test_surfacing_filters_expired_and_out_of_ring_candidates() -> None:
+    generated = client.post("/opportunity/generate", json={"city": "berlin"}).json()
+    expired = generated["persisted_offer"]
+    expired["valid_window"] = {
+        "start": "2026-04-25T11:00:00+02:00",
+        "end": "2026-04-25T12:00:00+02:00",
+    }
+    store.upsert_offer(expired)
+
+    expired_eval = client.post(
+        "/surfacing/evaluate",
+        json={"city": "berlin", "seed_offer": False},
+    ).json()
+    assert expired_eval["candidate_count"] == 0
+    assert expired_eval["excluded_candidates"][0]["reason"] == "valid_window_expired"
+
+    store.reset()
+    out_of_ring = client.post("/opportunity/generate", json={"city": "berlin"}).json()[
+        "persisted_offer"
+    ]
+    out_of_ring["distance_m"] = 1_250
+    store.upsert_offer(out_of_ring)
+    ring_eval = client.post(
+        "/surfacing/evaluate",
+        json={"city": "berlin", "seed_offer": False},
+    ).json()
+    assert ring_eval["candidate_count"] == 0
+    assert ring_eval["excluded_candidates"][0]["reason"] == "outside_walk_ring"
+
+
+def test_demand_chart_endpoint_returns_curve_shape() -> None:
+    response = client.get("/merchants/berlin-mitte-cafe-bondi/demand-chart")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["merchant_id"] == "berlin-mitte-cafe-bondi"
+    assert len(payload["typical_curve"]) >= 6
+    assert len(payload["live_curve"]) >= 4
+    assert payload["highlight"]["time_local"] == "2026-04-25T13:30:00+02:00"
+    assert payload["highlight"]["triggers_demand_gap"] is True
+
+
+def test_demand_chart_unknown_merchant_is_404() -> None:
+    response = client.get("/merchants/missing/demand-chart")
+    assert response.status_code == 404
+
+
+def test_demo_reset_and_seed_restore_recording_state() -> None:
+    seeded = client.post("/demo/seed", json={"city": "berlin"})
+    assert seeded.status_code == 200
+    assert seeded.json()["drafted_count"] == 3
+    assert store.merchant_summary("berlin-mitte-cafe-bondi")["offer_count"] == 1
+
+    reset = client.post("/demo/reset")
+    assert reset.status_code == 200
+    assert reset.json() == {"status": "reset"}
+    assert store.merchant_summary("berlin-mitte-cafe-bondi")["offer_count"] == 0

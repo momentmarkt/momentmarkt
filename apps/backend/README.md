@@ -23,9 +23,15 @@ Open `http://127.0.0.1:8000/docs`.
 Key endpoints:
 
 - `POST /opportunity/generate` drafts and persists an Opportunity Agent offer.
+- `POST /opportunity/batch` evaluates all city merchants and drafts only those with fired triggers.
 - `POST /surfacing/evaluate` evaluates the top approved offer for a wrapped user context.
 - `POST /redeem` records a simulated checkout and decrements merchant budget.
+- `POST /offers/{id}/approve` and `/reject` update merchant review status.
 - `GET /merchants/{merchant_id}/summary` returns offer counters and budget state.
+- `GET /merchants/{merchant_id}/demand-chart` returns the typical/live curve and highlighted gap.
+- `POST /demo/reset` and `/demo/seed` restore recording state.
+
+City configuration is loaded from `cities/*.json` (`berlin.json`, `zurich.json`).
 
 ## Validate
 

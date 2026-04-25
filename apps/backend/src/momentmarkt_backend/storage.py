@@ -116,6 +116,7 @@ class DemoStore:
               copy_seed=excluded.copy_seed,
               widget_spec=excluded.widget_spec,
               valid_window=excluded.valid_window,
+              distance_m=excluded.distance_m,
               currency=excluded.currency,
               budget_total=excluded.budget_total,
               cashback_eur=excluded.cashback_eur
@@ -153,6 +154,25 @@ class DemoStore:
         self._connection.commit()
         return self.get_offer(persisted_offer["id"])
 
+    def set_offer_status(self, offer_id: str, status: str, t: str) -> dict[str, Any]:
+        if status not in {"pending_approval", "approved", "auto_approved", "rejected"}:
+            raise ValueError(f"Unsupported offer status: {status}")
+        self.get_offer(offer_id)
+        self._connection.execute(
+            "UPDATE offers SET status = ? WHERE id = ?",
+            (status, offer_id),
+        )
+        offer = self.get_offer(offer_id)
+        self._connection.execute(
+            """
+            INSERT INTO inbox_events (merchant_id, offer_id, event_type, t)
+            VALUES (?, ?, ?, ?)
+            """,
+            (offer["merchant_id"], offer_id, f"offer_{status}", t),
+        )
+        self._connection.commit()
+        return self.get_offer(offer_id)
+
     def get_offer(self, offer_id: str) -> dict[str, Any]:
         row = self._connection.execute("SELECT * FROM offers WHERE id = ?", (offer_id,)).fetchone()
         if row is None:
@@ -172,6 +192,26 @@ class DemoStore:
             params,
         ).fetchall()
         return [_offer_from_row(row) for row in rows]
+
+    def has_recent_rejection(self, draft: dict[str, Any]) -> bool:
+        rows = self._connection.execute(
+            """
+            SELECT * FROM offers
+            WHERE merchant_id = ? AND status = 'rejected'
+            ORDER BY created_at DESC
+            LIMIT 20
+            """,
+            (draft["merchant_id"],),
+        ).fetchall()
+        headline = draft["copy_seed"].get("headline_de")
+        trigger_reason = draft["trigger_reason"]
+        for row in rows:
+            offer = _offer_from_row(row)
+            if offer["copy_seed"].get("headline_de") == headline:
+                return True
+            if offer["trigger_reason"] == trigger_reason:
+                return True
+        return False
 
     def merchant_summary(self, merchant_id: str) -> dict[str, Any]:
         rows = self._connection.execute(

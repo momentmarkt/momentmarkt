@@ -95,6 +95,7 @@ def _normalize_draft(value: dict[str, Any]) -> dict[str, Any]:
 
 def _persisted_offer_preview(context: SignalContext, draft: dict[str, Any]) -> dict[str, Any]:
     merchant = context["merchant"]
+    triggers = context["trigger_evaluation"]
     return {
         "id": f"offer-{merchant['id']}-1330",
         "city_id": context["city_id"],
@@ -105,9 +106,11 @@ def _persisted_offer_preview(context: SignalContext, draft: dict[str, Any]) -> d
         if merchant.get("autopilot_rule_hints", {}).get("approved")
         else "pending_approval",
         "trigger_reason": {
-            "weather_trigger": context["weather"]["trigger"],
-            "event_trigger": context["event"]["ending_soon"],
-            "demand_trigger": merchant["demand_gap"].get("triggers_demand_gap", False),
+            "weather_trigger": context["weather"]["trigger"]
+            if triggers["weather"]["fired"]
+            else None,
+            "event_trigger": triggers["event"]["fired"],
+            "demand_trigger": triggers["demand"]["fired"],
         },
         "copy_seed": draft["offer"]["copy_seed"],
         "widget_spec": draft["widget_spec"],

@@ -8,6 +8,18 @@ from .fixtures import load_city_config, load_density, load_events, load_weather
 
 
 SignalContext = dict[str, Any]
+THETA_DEMAND = 0.2
+MAX_EVENT_ENDING_MINUTES = 30
+MAX_EVENT_WALK_MINUTES = 10
+WALK_SPEED_M_PER_MIN = 75
+
+INTENT_TOKENS = {
+    "lunch_break.cold",
+    "commute.evening_rushed",
+    "tourist.midday_browsing",
+    "weekend_wander",
+    "late_night.solo",
+}
 
 
 def build_signal_context(city: str, merchant_id: str | None = None) -> SignalContext:
@@ -16,11 +28,22 @@ def build_signal_context(city: str, merchant_id: str | None = None) -> SignalCon
     events = load_events(city)
     density = load_density(config["density_fixture"])
     merchant = _select_merchant(density["merchants"], merchant_id)
-    event = _select_event(events.get("events", []), config["demo"].get("event_id"))
     weather_trigger = _weather_trigger(config, weather)
-    demand_gap = merchant["demand_gap"]
     privacy = config["demo"]["privacy_envelope"]
-    wrapped_user_context = _wrapped_user_context(config, weather_trigger, privacy)
+    intent = extract_intent_token(_raw_user_signals(config, weather_trigger, privacy))
+    wrapped_user_context = _wrapped_user_context(
+        config,
+        weather_trigger,
+        privacy,
+        intent["intent_token"],
+    )
+    trigger_evaluation = evaluate_triggers(
+        config=config,
+        merchant=merchant,
+        weather_trigger=weather_trigger,
+        events=events.get("events", []),
+    )
+    event = trigger_evaluation["event"]["event"]
 
     return {
         "city": config["city"],
@@ -36,14 +59,61 @@ def build_signal_context(city: str, merchant_id: str | None = None) -> SignalCon
         },
         "event": {
             "source": "events fixture",
-            "ending_soon": bool(event),
+            "ending_soon": trigger_evaluation["event"]["fired"],
             "summary": _event_summary(event),
             "event": event,
+            "reason": trigger_evaluation["event"]["reason"],
         },
         "merchant": _merchant_signal(merchant),
+        "trigger_evaluation": trigger_evaluation,
         "privacy": privacy,
+        "intent_extractor": intent,
         "wrapped_user_context": wrapped_user_context,
-        "surface": _surface_input(config, merchant, weather_trigger),
+        "surface": _surface_input(config, merchant, weather_trigger, trigger_evaluation),
+    }
+
+
+def build_all_signal_contexts(city: str) -> list[SignalContext]:
+    config = load_city_config(city)
+    density = load_density(config["density_fixture"])
+    return [
+        build_signal_context(city=city, merchant_id=merchant["id"])
+        for merchant in density["merchants"]
+    ]
+
+
+def extract_intent_token(raw_signals: dict[str, Any]) -> dict[str, str]:
+    configured = raw_signals.get("configured_intent_token")
+    if configured in INTENT_TOKENS:
+        token = configured
+    elif raw_signals.get("weather_state") == "rain_incoming":
+        token = "lunch_break.cold"
+    elif raw_signals.get("is_weekend"):
+        token = "weekend_wander"
+    else:
+        token = "tourist.midday_browsing"
+
+    return {
+        "intent_token": token,
+        "mode": "demo stub / prod on-device SLM",
+    }
+
+
+def evaluate_triggers(
+    config: dict[str, Any],
+    merchant: dict[str, Any],
+    weather_trigger: str,
+    events: list[dict[str, Any]],
+) -> dict[str, Any]:
+    weather = _evaluate_weather_trigger(weather_trigger, merchant)
+    event = _evaluate_event_trigger(config, merchant, events)
+    demand = _evaluate_demand_trigger(merchant)
+    return {
+        "fired": weather["fired"] or event["fired"] or demand["fired"],
+        "weather": weather,
+        "event": event,
+        "demand": demand,
+        "summary": _trigger_summary(weather, event, demand),
     }
 
 
@@ -92,6 +162,87 @@ def _event_summary(event: dict[str, Any] | None) -> str:
     return f"{event['name']} crowd moves after {event['end']}"
 
 
+def _evaluate_weather_trigger(weather_trigger: str, merchant: dict[str, Any]) -> dict[str, Any]:
+    merchant_matches = weather_trigger in merchant.get("trigger_tags", [])
+    fired = weather_trigger != "clear" and merchant_matches
+    if fired:
+        reason = f"{weather_trigger} matches merchant trigger tags"
+    elif weather_trigger == "clear":
+        reason = "Weather is clear"
+    else:
+        reason = f"{merchant['display_name']} has no {weather_trigger} weather rule"
+    return {"fired": fired, "state": weather_trigger, "reason": reason}
+
+
+def _evaluate_event_trigger(
+    config: dict[str, Any],
+    merchant: dict[str, Any],
+    events: list[dict[str, Any]],
+) -> dict[str, Any]:
+    now = parse_demo_time(config["demo"]["time_local"])
+    merchant_location = merchant.get("location", {})
+    eligible: list[dict[str, Any]] = []
+    for event in events:
+        end = parse_demo_time(event["end"])
+        minutes_until_end = (end - now).total_seconds() / 60
+        walk_m = distance_m(
+            float(merchant_location.get("lat", 0)),
+            float(merchant_location.get("lon", 0)),
+            float(event.get("lat", 0)),
+            float(event.get("lng", 0)),
+        )
+        walk_minutes = round(walk_m / WALK_SPEED_M_PER_MIN, 1)
+        if (
+            0 <= minutes_until_end <= MAX_EVENT_ENDING_MINUTES
+            and walk_minutes <= MAX_EVENT_WALK_MINUTES
+        ):
+            eligible.append(
+                {
+                    **event,
+                    "ends_in_minutes": round(minutes_until_end, 1),
+                    "walk_minutes": walk_minutes,
+                    "walk_distance_m": walk_m,
+                }
+            )
+
+    event = eligible[0] if eligible else None
+    return {
+        "fired": event is not None,
+        "event": event,
+        "reason": "No event ending within 30 min and 10 min walk"
+        if event is None
+        else (
+            f"{event['name']} ends in {event['ends_in_minutes']} min, "
+            f"{event['walk_minutes']} min walk"
+        ),
+    }
+
+
+def _evaluate_demand_trigger(merchant: dict[str, Any]) -> dict[str, Any]:
+    gap = merchant["demand_gap"]
+    ratio = float(gap.get("gap_ratio", 0))
+    threshold = float(gap.get("threshold_ratio", THETA_DEMAND))
+    fired = gap.get("status") == "below_typical" and ratio >= threshold
+    return {
+        "fired": fired,
+        "gap_ratio": ratio,
+        "threshold_ratio": threshold,
+        "reason": gap.get("reason", "No demand-gap reason provided"),
+    }
+
+
+def _trigger_summary(
+    weather: dict[str, Any],
+    event: dict[str, Any],
+    demand: dict[str, Any],
+) -> list[str]:
+    reasons = []
+    for name, trigger in (("weather", weather), ("event", event), ("demand", demand)):
+        if trigger["fired"]:
+            reasons.append(f"{name}: {trigger['reason']}")
+    return reasons or ["No Opportunity trigger fired"]
+
+
 def _merchant_signal(merchant: dict[str, Any]) -> dict[str, Any]:
     gap = merchant["demand_gap"]
     return {
@@ -112,11 +263,16 @@ def _merchant_signal(merchant: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _surface_input(config: dict[str, Any], merchant: dict[str, Any], weather_trigger: str) -> dict[str, Any]:
+def _surface_input(
+    config: dict[str, Any],
+    merchant: dict[str, Any],
+    weather_trigger: str,
+    trigger_evaluation: dict[str, Any],
+) -> dict[str, Any]:
     privacy = config["demo"]["privacy_envelope"]
     return {
         "weatherTrigger": weather_trigger,
-        "eventEndingSoon": True,
+        "eventEndingSoon": trigger_evaluation["event"]["fired"],
         "demandGapRatio": merchant["demand_gap"]["gap_ratio"],
         "distanceM": merchant["distance_m"],
         "intent_token": privacy["intent_token"],
@@ -128,9 +284,10 @@ def _wrapped_user_context(
     config: dict[str, Any],
     weather_trigger: str,
     privacy: dict[str, Any],
+    intent_token: str,
 ) -> dict[str, Any]:
     return {
-        "intent_token": privacy["intent_token"],
+        "intent_token": intent_token,
         "h3_cell_r8": privacy["h3_cell_r8"],
         "weather_state": weather_trigger,
         "t": config["demo"]["time_local"],
@@ -139,6 +296,20 @@ def _wrapped_user_context(
             "map_app_foreground_recent": False,
             "coupon_browse_recent": False,
         },
+    }
+
+
+def _raw_user_signals(
+    config: dict[str, Any],
+    weather_trigger: str,
+    privacy: dict[str, Any],
+) -> dict[str, Any]:
+    now = parse_demo_time(config["demo"]["time_local"])
+    return {
+        "configured_intent_token": privacy.get("intent_token"),
+        "weather_state": weather_trigger,
+        "hour": now.hour,
+        "is_weekend": now.weekday() >= 5,
     }
 
 
