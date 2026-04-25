@@ -1,9 +1,16 @@
 # Pre-staged datasets — bulky and/or trivially refetchable.
 # Refresh recipes live in data/README.md and data/fsq/FETCH_LATER.md.
-data/weather/
+# Per-city weather + events JSONs are tiny (~13 KB total) and required
+# at runtime by the backend fixture loader, so they are tracked
+# explicitly while bulk dirs (osm/, gtfs/) and other assets stay ignored.
+data/weather/*
+!data/weather/berlin.json
+!data/weather/zurich.json
 data/osm/
 data/gtfs/
 data/events/*.json
+!data/events/berlin-events.json
+!data/events/zurich-events.json
 data/fsq/*.parquet
 
 # OS junk
