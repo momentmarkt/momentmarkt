@@ -5,7 +5,9 @@ import {
   apiBase,
   fetchHealth,
   fetchMerchantSummary,
+  fetchOpportunityMeta,
   type MerchantSummary,
+  type OpportunityMeta,
 } from "../lib/api";
 import { s } from "../styles";
 
@@ -108,6 +110,10 @@ export function DevPanel(props: Props): ReactElement | null {
   const [privacyExpanded, setPrivacyExpanded] = useState(false);
   const { apiHealthy, lastChecked } = useApiHealthPoll(10_000);
   const merchantSummary = useMerchantSummaryPoll("berlin-mitte-cafe-bondi", 15_000);
+  const opportunityMeta = useOpportunityMetaPoll(
+    { city: "berlin", merchant_id: "berlin-mitte-cafe-bondi", use_llm: true },
+    20_000,
+  );
 
   const togglePrivacy = useCallback(() => {
     setPrivacyExpanded((prev) => !prev);
@@ -130,6 +136,7 @@ export function DevPanel(props: Props): ReactElement | null {
       {merchantSummary ? (
         <MerchantLivePill summary={merchantSummary} />
       ) : null}
+      <GenerationProvenancePill meta={opportunityMeta} />
 
       <SectionLabel>composite_state</SectionLabel>
       <View style={s("bg-gh-chip rounded-md px-3 py-2 mb-4 border border-gh")}>
@@ -486,6 +493,49 @@ function useMerchantSummaryPoll(
   return summary;
 }
 
+/**
+ * Polls `/opportunity/generate` so the DevPanel can surface whether the
+ * latest displayed offer was synthesised by the real Pydantic AI / Azure
+ * agent or fell back to the deterministic fixture (issue #67).
+ *
+ * The body is JSON-stringified into the dep key so callers can pass an
+ * inline literal without forcing a memoised reference.
+ */
+function useOpportunityMetaPoll(
+  body: { city?: string; merchant_id?: string; high_intent?: boolean; use_llm?: boolean },
+  intervalMs: number,
+): OpportunityMeta | null {
+  const [meta, setMeta] = useState<OpportunityMeta | null>(null);
+  const cancelledRef = useRef(false);
+  const bodyKey = JSON.stringify(body);
+
+  useEffect(() => {
+    cancelledRef.current = false;
+    let abort = new AbortController();
+    const parsed = JSON.parse(bodyKey) as typeof body;
+
+    const tick = async () => {
+      abort.abort();
+      abort = new AbortController();
+      const res = await fetchOpportunityMeta(parsed, abort.signal);
+      if (cancelledRef.current) return;
+      // Keep the last known result on transient failures so the badge
+      // doesn't flicker to grey mid-demo.
+      if (res) setMeta(res);
+    };
+
+    tick();
+    const id = setInterval(tick, intervalMs);
+    return () => {
+      cancelledRef.current = true;
+      clearInterval(id);
+      abort.abort();
+    };
+  }, [bodyKey, intervalMs]);
+
+  return meta;
+}
+
 function ApiHealthPill({
   apiHealthy,
   lastChecked,
@@ -554,6 +604,93 @@ function MerchantLivePill({ summary }: { summary: MerchantSummary }) {
         <LiveCounter label="offers" value={summary.offer_count} />
       </View>
     </View>
+  );
+}
+
+/**
+ * Provenance badge for the displayed opportunity (issue #67).
+ *
+ *   green  · LLM                    — pydantic_ai && widget_valid && !used_fallback
+ *   yellow · LLM (fallback widget)  — pydantic_ai but widget invalid OR used_fallback
+ *   grey   · fixture                — anything else (incl. backend down / null)
+ *
+ * Tap toggles a vertical list of `generation_log` entries. Mirrors the
+ * privacy_envelope pattern (Pressable + local expand state) so the panel
+ * stays consistent and we don't pull in a modal lib.
+ */
+function GenerationProvenancePill({ meta }: { meta: OpportunityMeta | null }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const isLlm = meta?.generated_by === "pydantic_ai";
+  const widgetClean =
+    isLlm && meta?.widget_valid === true && meta?.used_fallback === false;
+  const widgetDegraded = isLlm && !widgetClean;
+
+  const tone: "good" | "warn" | "low" = widgetClean
+    ? "good"
+    : widgetDegraded
+      ? "warn"
+      : "low";
+  const label = widgetClean
+    ? "LLM"
+    : widgetDegraded
+      ? "LLM (fallback widget)"
+      : "fixture";
+  const dot = widgetClean ? "\u{1F7E2}" : widgetDegraded ? "\u{1F7E1}" : "⚪";
+
+  const toneStyle =
+    tone === "good"
+      ? s("text-gh-good")
+      : tone === "warn"
+        ? s("text-gh-warn")
+        : s("text-gh-low");
+
+  const log = meta?.generation_log ?? [];
+
+  return (
+    <Pressable
+      onPress={() => setExpanded((prev) => !prev)}
+      style={s("bg-gh-chip rounded-md px-3 py-2 mb-3 border border-gh")}
+    >
+      <View style={[...s("flex-row items-center"), { gap: 8 }]}>
+        <Text style={s("text-[11px]")}>{dot}</Text>
+        <View style={s("flex-1")}>
+          <Text style={s("mono text-[10px] uppercase tracking-[0.5px] text-gh-low")}>
+            generation
+          </Text>
+          <Text
+            style={[...s("mono text-[11px] font-semibold"), ...toneStyle]}
+            numberOfLines={1}
+          >
+            {label}
+          </Text>
+        </View>
+        <Text style={s("mono text-[10px] text-gh-low")}>
+          {expanded ? "−" : "+"}
+        </Text>
+      </View>
+      {expanded ? (
+        <View style={s("mt-2 gap-1")}>
+          <Text style={s("mono text-[10px] text-gh-low")}>
+            generation_log
+          </Text>
+          {log.length === 0 ? (
+            <Text style={s("mono text-[10px] text-gh-low")}>
+              {meta ? "(empty)" : "(no response yet)"}
+            </Text>
+          ) : (
+            log.map((entry, idx) => (
+              <Text
+                key={`${idx}-${entry}`}
+                style={s("mono text-[10px] text-white")}
+              >
+                · {entry}
+              </Text>
+            ))
+          )}
+        </View>
+      ) : null}
+    </Pressable>
   );
 }
 
