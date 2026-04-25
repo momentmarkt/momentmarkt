@@ -153,11 +153,11 @@ Figma / slide tool) before recording — it is the opening 8s.
 ### Beat A (0:00–0:08) — "Stack and two agents."
 
 **VISUAL:** Architecture slide image full-frame. Highlight: RN + Expo phone
-on the left, FastAPI + SQLite back, Azure OpenAI behind LiteLLM, two agent
-boxes labelled **Opportunity Agent** and **Surfacing Agent**.
+on the left, FastAPI + SQLite back, Azure OpenAI (`gpt-5.5`) via Pydantic AI,
+two agent boxes labelled **Opportunity Agent** and **Surfacing Agent**.
 **Say:** "React Native and Expo on the phone, FastAPI backend, Azure OpenAI
-through LiteLLM. Two agents — Opportunity drafts, Surfacing decides."
-**Do:** Mouse hovers over each agent box in turn, then over the LiteLLM
+gpt-5.5 through Pydantic AI. Two agents — Opportunity drafts, Surfacing decides."
+**Do:** Mouse hovers over each agent box in turn, then over the Pydantic AI
 arrow.
 
 ### Beat B (0:08–0:24) — "Three triggers → JSON layout spec."

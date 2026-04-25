@@ -158,7 +158,7 @@ If any step fails the fallback widget renders instead — demo is always safe.
 
 ```mermaid
 flowchart LR
-  LLM["LLM\n(Azure OpenAI\nvia LiteLLM)"]
+  LLM["LLM\n(Azure OpenAI gpt-5.5\nvia Pydantic AI)"]
 
   subgraph CONTRACT["widget_spec contract"]
     direction TB
