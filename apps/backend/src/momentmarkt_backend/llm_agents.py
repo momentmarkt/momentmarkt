@@ -93,7 +93,7 @@ async def run_headline_rewrite_agent(
 
 
 async def _run_structured_agent(
-    model: str,
+    model: Any,
     output_type: type[BaseModel],
     instructions: str,
     prompt: dict[str, Any],
@@ -105,14 +105,57 @@ async def _run_structured_agent(
     return result.output
 
 
-def _model_name() -> str:
-    model = os.environ.get("MOMENTMARKT_PYDANTIC_AI_MODEL") or os.environ.get(
-        "MOMENTMARKT_LLM_MODEL"
+def _model_name() -> Any:
+    """Build a pydantic-ai model from env config.
+
+    Dispatches on MOMENTMARKT_LLM_PROVIDER:
+      azure       → OpenAIChatModel + AzureProvider (AZURE_OPENAI_ENDPOINT/API_KEY).
+      openrouter  → OpenAIChatModel + OpenAIProvider with OpenRouter base_url.
+      (unset)     → string form like "openai:gpt-5.2" passed straight to Agent.
+    """
+    provider = os.environ.get("MOMENTMARKT_LLM_PROVIDER", "").strip().lower()
+    model_name = os.environ.get("MOMENTMARKT_LLM_MODEL") or os.environ.get(
+        "MOMENTMARKT_PYDANTIC_AI_MODEL"
     )
-    if not model:
-        raise RuntimeError("MOMENTMARKT_PYDANTIC_AI_MODEL is not set")
-    if ":" not in model:
-        raise RuntimeError(
-            "Pydantic AI model names must include a provider prefix, e.g. openai:gpt-5.2"
+    if not model_name:
+        raise RuntimeError("MOMENTMARKT_LLM_MODEL is not set")
+
+    if provider == "azure":
+        from pydantic_ai.models.openai import OpenAIChatModel
+        from pydantic_ai.providers.azure import AzureProvider
+
+        endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT")
+        api_key = os.environ.get("AZURE_OPENAI_API_KEY")
+        if not endpoint or not api_key:
+            raise RuntimeError(
+                "MOMENTMARKT_LLM_PROVIDER=azure requires AZURE_OPENAI_ENDPOINT "
+                "and AZURE_OPENAI_API_KEY"
+            )
+        return OpenAIChatModel(
+            model_name,
+            provider=AzureProvider(azure_endpoint=endpoint, api_key=api_key),
         )
-    return model
+
+    if provider == "openrouter":
+        from pydantic_ai.models.openai import OpenAIChatModel
+        from pydantic_ai.providers.openai import OpenAIProvider
+
+        api_key = os.environ.get("OPENROUTER_API_KEY")
+        if not api_key:
+            raise RuntimeError(
+                "MOMENTMARKT_LLM_PROVIDER=openrouter requires OPENROUTER_API_KEY"
+            )
+        return OpenAIChatModel(
+            model_name,
+            provider=OpenAIProvider(
+                api_key=api_key,
+                base_url="https://openrouter.ai/api/v1",
+            ),
+        )
+
+    if ":" not in model_name:
+        raise RuntimeError(
+            "When MOMENTMARKT_LLM_PROVIDER is unset, MOMENTMARKT_LLM_MODEL must "
+            "include a provider prefix, e.g. openai:gpt-5.2"
+        )
+    return model_name
