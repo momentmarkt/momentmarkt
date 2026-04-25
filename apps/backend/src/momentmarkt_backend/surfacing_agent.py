@@ -208,9 +208,28 @@ def _trigger_strength(trigger_reason: dict[str, Any], weather_state: str) -> flo
 
 
 def _intent_boost(high_intent: dict[str, Any]) -> float:
-    screen_time = min(float(high_intent.get("active_screen_time_recent_s", 0)) / 120, 1)
-    map_foreground = 1.0 if high_intent.get("map_app_foreground_recent") else 0.0
-    coupon_browse = 1.0 if high_intent.get("coupon_browse_recent") else 0.0
+    # Accept canonical AGENT_IO.md keys plus the looser aliases the spec / mobile
+    # toggle / partner repros tend to use. Without this, callers that send
+    # `active_screen_time_min` / `map_app_foreground` / `in_app_coupon_browsing`
+    # get boost=0.0 silently and the high-intent toggle has no effect on the
+    # threshold or score (see issue #72).
+    screen_time_s = float(
+        high_intent.get(
+            "active_screen_time_recent_s",
+            high_intent.get("active_screen_time_min", 0) * 60
+            if "active_screen_time_min" in high_intent
+            else 0,
+        )
+    )
+    screen_time = min(screen_time_s / 120, 1)
+    map_foreground = 1.0 if (
+        high_intent.get("map_app_foreground_recent")
+        or high_intent.get("map_app_foreground")
+    ) else 0.0
+    coupon_browse = 1.0 if (
+        high_intent.get("coupon_browse_recent")
+        or high_intent.get("in_app_coupon_browsing")
+    ) else 0.0
     return round((screen_time + map_foreground + coupon_browse) / 3, 3)
 
 
