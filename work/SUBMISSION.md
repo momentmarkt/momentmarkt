@@ -1,6 +1,6 @@
-ARTIFACT_ID: submission-v02
+ARTIFACT_ID: submission-v03
 ARTIFACT_TYPE: submission
-PARENT_IDS: spec-v03, submission-v01
+PARENT_IDS: spec-v04, agent-io-v01, submission-v02
 STATUS: blocked
 
 # Submission draft
@@ -26,7 +26,7 @@ Two cooperating agents, one neutral wallet UI, three live triggers:
 - **Opportunity Agent** (periodic, merchant-side): reads weather (Open-Meteo), the OSM merchant catalog, an events stub, and a per-merchant transaction-density fixture; detects when **any of three triggers** fires — *weather* shift, *event* ending nearby, *demand* gap below the typical day-of-week / time-of-day curve — and drafts an offer **and** a matching GenUI widget layout spec. Routes them to a merchant inbox where the owner can approve one-by-one or promote a draft to "always auto-approve like this."
 - **Surfacing Agent** (real-time, user-side): scores already-approved offers against the user's current context with a deterministic function. The score is **boosted by high-intent surfacing signals** — active screen time, map-app foreground time, in-app coupon browsing — so when the user is in-market the bar to fire is lower and the headline variant is more aggressive. Silence is the default, and a feature. The LLM is used only to rewrite the headline of the one offer that fires.
 - **GenUI rendering on React Native**: the LLM emits a JSON layout spec composing **6 React Native primitives** (`View`, `Text`, `Image`, `Pressable`, `ScrollView`, plus one composed widget primitive). A schema validator gates each generation; a known-good fallback render protects the demo. Widgets render natively on iOS Simulator via Expo.
-- **Merchant inbox** (small static React + Vite web app) with one live-toggleable rain auto-approve rule on stage, demonstrating the trust gradient from one-by-one approval to autopilot.
+- **Merchant inbox** (small static React + Vite web app) with one live-toggleable auto-approve rule on stage, demonstrating the trust gradient from one-by-one approval to autopilot. The inbox also renders a **per-merchant demand-curve view**: typical day-of-week / time-of-day curve drawn faintly behind, today's live transaction-density curve in front, current gap highlighted; auto-approved offer cards point at the gap moment that triggered them. This is where the Payone production story lives visually, not in the consumer-side dev tooling.
 - **Privacy boundary**: surfacing input is wrapped as `{intent_token, h3_cell_r8}` in code and rendered on-screen in a dev panel during the demo. The SLM extractor runs server-side for the MVP; on-device is roadmap.
 - **High-intent dev-panel toggle**: flipping the toggle on stage re-surfaces the same offer with a lower threshold and a more aggressive headline variant, making the in-market boost legible to judges.
 - **Simulated checkout**: QR scan → success screen → cashback budget decrement. No real POS, no real Web Push, no real bank API.
@@ -122,7 +122,7 @@ City Wallet, DSV-Gruppe, Sparkassen, Payone, Berlin, Zürich, two-agent system, 
 | 0:21–0:30 | Card expands into a full GenUI widget — `ImageBleedHero`, rainy-window mood, walk-time chip, single CTA — composed at runtime from a JSON layout spec the LLM just emitted, rendered through 6 RN primitives. | "Generated at runtime. The LLM emitted this layout as JSON, schema-validated, six React Native primitives." |
 | 0:30–0:36 | Presenter flips the dev-panel **high-intent** toggle to on. Same offer re-surfaces with a lower threshold and a more aggressive headline variant. | "High-intent on. Same offer, lower bar, sharper copy — the in-market dial." |
 | 0:36–0:44 | Tap CTA → QR appears → simulated POS scans → success screen, cashback budget decrements. | "QR redeems through the rail the bank already operates. Simulated checkout, real flow." |
-| 0:44–0:51 | Cut to merchant inbox (web): same offer card, marked "Auto-approved 3h ago — rain rule." Toggle a second auto-approve rule on. | "The merchant didn't write this. They tapped one rule. AI proposed; they stayed in control." |
+| 0:44–0:51 | Cut to merchant inbox (web): per-merchant demand curve on screen — typical Saturday curve faint behind, today's live curve dipping below it, gap highlighted. Same offer card sits next to the dip, marked "Auto-approved 3h ago — demand-gap rule." Toggle a second rule on. | "The merchant sees the dip. AI drafted an offer to fill it. They tapped one rule — auto-approved every time the curve drops like this." |
 | 0:51–0:55 | Drop down to a config selector: switch from `berlin.yaml` to `zurich.yaml`. Map re-skins to Zürich HB, weather repulls, prices flip to CHF, copy to Swiss-German. | "One config swap — same engine, new city. That's the product." |
 
 ## Tech video script (max 60 sec)
@@ -141,7 +141,7 @@ City Wallet, DSV-Gruppe, Sparkassen, Payone, Berlin, Zürich, two-agent system, 
 - **Architecture diagram** (used in tech video and pinned in README): RN+Expo phone ↔ FastAPI ↔ SQLite; Opportunity vs. Surfacing agent split with cadences and inputs labelled; LiteLLM/Azure OpenAI box; explicit `{intent_token, h3_cell_r8}` boundary line; **three OpenAI-demo "production swap" callouts** (push, SLM, Payone); Opportunity Agent annotated as "periodic job — Helm chart / scheduled worker in prod"; high-intent boost input arrow into the Surfacing Agent.
 - **README hero gif**: 6-second loop of the rain-trigger in-app surface → GenUI widget render on iOS Simulator → high-intent toggle re-skin → redeem success.
 - **Three-up GenUI screenshot**: same merchant, three contexts (rain / quiet / pre-event), rendered side-by-side from three different LLM-emitted layout specs on iOS Simulator.
-- **Merchant inbox screenshot** (web): the four demo merchants, the rain auto-approve rule visible and toggled on.
+- **Merchant inbox screenshot** (web): the four demo merchants, the demand-curve view visible (typical-vs-live with today's gap highlighted), the auto-approve rule toggled on, an auto-approved offer card anchored to the gap moment.
 - **Zürich swap screenshot**: phone frame after `cities/zurich.yaml` is loaded — CHF prices, Swiss-German copy, Zürich HB map fragment.
 - **Privacy-boundary + high-intent slide**: zoomed view of the on-screen dev panel showing the live `{intent_token, h3_cell_r8}` payload and the high-intent toggle state.
 - **README assets to ship**: MIT licence, dataset attribution block (Open-Meteo, OSM/Overpass, VBB GTFS), Expo + FastAPI run instructions, fetch script for the GTFS zips kept out of the repo.
