@@ -159,7 +159,10 @@ def _persisted_offer_preview(context: SignalContext, draft: dict[str, Any]) -> d
     merchant = context["merchant"]
     return {
         "id": f"offer-{merchant['id']}-1330",
+        "city_id": context["city_id"],
         "merchant_id": merchant["id"],
+        "merchant_name": merchant["name"],
+        "category": merchant["category"],
         "status": "auto_approved"
         if merchant.get("autopilot_rule_hints", {}).get("approved")
         else "pending_approval",
@@ -172,6 +175,10 @@ def _persisted_offer_preview(context: SignalContext, draft: dict[str, Any]) -> d
         "widget_spec": draft["widget_spec"],
         "valid_window": draft["offer"]["valid_window"],
         "created_at": context["demo_time_local"],
+        "distance_m": merchant["distance_m"],
+        "currency": context["currency"],
+        "budget_total": merchant.get("offer_budget", {}).get("total_budget_eur", 0),
+        "cashback_eur": merchant.get("offer_budget", {}).get("max_cashback_eur", 0),
     }
 
 

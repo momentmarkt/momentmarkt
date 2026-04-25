@@ -1,0 +1,315 @@
+from __future__ import annotations
+
+import json
+import os
+import sqlite3
+from pathlib import Path
+from typing import Any
+
+
+class DemoStore:
+    def __init__(self, path: str | None = None) -> None:
+        default_path = os.environ.get("MOMENTMARKT_DB_PATH", "/tmp/momentmarkt-demo.sqlite3")
+        self.path = path or default_path
+        self._connection = sqlite3.connect(self.path, check_same_thread=False)
+        self._connection.row_factory = sqlite3.Row
+        self.migrate()
+
+    def migrate(self) -> None:
+        self._connection.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS offers (
+              id TEXT PRIMARY KEY,
+              city_id TEXT NOT NULL,
+              merchant_id TEXT NOT NULL,
+              merchant_name TEXT NOT NULL,
+              category TEXT NOT NULL,
+              status TEXT NOT NULL,
+              trigger_reason TEXT NOT NULL,
+              copy_seed TEXT NOT NULL,
+              widget_spec TEXT NOT NULL,
+              valid_window TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              distance_m INTEGER NOT NULL,
+              currency TEXT NOT NULL,
+              budget_total REAL NOT NULL,
+              budget_spent REAL NOT NULL DEFAULT 0,
+              cashback_eur REAL NOT NULL DEFAULT 0,
+              redemptions INTEGER NOT NULL DEFAULT 0
+            );
+
+            CREATE TABLE IF NOT EXISTS inbox_events (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              merchant_id TEXT NOT NULL,
+              offer_id TEXT NOT NULL,
+              event_type TEXT NOT NULL,
+              t TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS headline_cache (
+              offer_id TEXT NOT NULL,
+              weather_state TEXT NOT NULL,
+              intent_state TEXT NOT NULL,
+              headline_final TEXT NOT NULL,
+              PRIMARY KEY (offer_id, weather_state, intent_state)
+            );
+
+            CREATE TABLE IF NOT EXISTS surface_events (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              user_id TEXT NOT NULL,
+              offer_id TEXT,
+              score REAL NOT NULL,
+              threshold REAL NOT NULL,
+              intent_state TEXT NOT NULL,
+              fired INTEGER NOT NULL,
+              t TEXT NOT NULL,
+              headline_final TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS redemptions (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              user_id TEXT NOT NULL,
+              offer_id TEXT NOT NULL,
+              token TEXT NOT NULL,
+              amount REAL NOT NULL,
+              t TEXT NOT NULL
+            );
+            """
+        )
+        self._ensure_column("offers", "currency", "TEXT NOT NULL DEFAULT 'EUR'")
+        self._ensure_column("offers", "city_id", "TEXT NOT NULL DEFAULT 'berlin'")
+        self._connection.commit()
+
+    def _ensure_column(self, table: str, column: str, definition: str) -> None:
+        columns = {
+            row["name"]
+            for row in self._connection.execute(f"PRAGMA table_info({table})").fetchall()
+        }
+        if column not in columns:
+            self._connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+    def reset(self) -> None:
+        self._connection.executescript(
+            """
+            DELETE FROM redemptions;
+            DELETE FROM surface_events;
+            DELETE FROM headline_cache;
+            DELETE FROM inbox_events;
+            DELETE FROM offers;
+            """
+        )
+        self._connection.commit()
+
+    def upsert_offer(self, persisted_offer: dict[str, Any]) -> dict[str, Any]:
+        self._connection.execute(
+            """
+            INSERT INTO offers (
+              id, city_id, merchant_id, merchant_name, category, status, trigger_reason,
+              copy_seed, widget_spec, valid_window, created_at, distance_m,
+              currency, budget_total, budget_spent, cashback_eur, redemptions
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0)
+            ON CONFLICT(id) DO UPDATE SET
+              city_id=excluded.city_id,
+              status=excluded.status,
+              trigger_reason=excluded.trigger_reason,
+              copy_seed=excluded.copy_seed,
+              widget_spec=excluded.widget_spec,
+              valid_window=excluded.valid_window,
+              currency=excluded.currency,
+              budget_total=excluded.budget_total,
+              cashback_eur=excluded.cashback_eur
+            """,
+            (
+                persisted_offer["id"],
+                persisted_offer["city_id"],
+                persisted_offer["merchant_id"],
+                persisted_offer["merchant_name"],
+                persisted_offer["category"],
+                persisted_offer["status"],
+                _dumps(persisted_offer["trigger_reason"]),
+                _dumps(persisted_offer["copy_seed"]),
+                _dumps(persisted_offer["widget_spec"]),
+                _dumps(persisted_offer["valid_window"]),
+                persisted_offer["created_at"],
+                persisted_offer["distance_m"],
+                persisted_offer["currency"],
+                persisted_offer["budget_total"],
+                persisted_offer["cashback_eur"],
+            ),
+        )
+        self._connection.execute(
+            """
+            INSERT INTO inbox_events (merchant_id, offer_id, event_type, t)
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                persisted_offer["merchant_id"],
+                persisted_offer["id"],
+                "offer_drafted",
+                persisted_offer["created_at"],
+            ),
+        )
+        self._connection.commit()
+        return self.get_offer(persisted_offer["id"])
+
+    def get_offer(self, offer_id: str) -> dict[str, Any]:
+        row = self._connection.execute("SELECT * FROM offers WHERE id = ?", (offer_id,)).fetchone()
+        if row is None:
+            raise KeyError(f"Unknown offer_id: {offer_id}")
+        return _offer_from_row(row)
+
+    def approved_offers(self, city_id: str | None = None) -> list[dict[str, Any]]:
+        city_filter = "" if city_id is None else "AND city_id = ?"
+        params: tuple[str, ...] = () if city_id is None else (city_id,)
+        rows = self._connection.execute(
+            f"""
+            SELECT * FROM offers
+            WHERE status IN ('approved', 'auto_approved')
+            {city_filter}
+            ORDER BY created_at DESC
+            """,
+            params,
+        ).fetchall()
+        return [_offer_from_row(row) for row in rows]
+
+    def merchant_summary(self, merchant_id: str) -> dict[str, Any]:
+        rows = self._connection.execute(
+            "SELECT * FROM offers WHERE merchant_id = ? ORDER BY created_at DESC",
+            (merchant_id,),
+        ).fetchall()
+        offers = [_offer_from_row(row) for row in rows]
+        return {
+            "merchant_id": merchant_id,
+            "offer_count": len(offers),
+            "surfaced": self._count_surface_events(merchant_id),
+            "redeemed": sum(offer["redemptions"] for offer in offers),
+            "budget_total": round(sum(offer["budget_total"] for offer in offers), 2),
+            "budget_spent": round(sum(offer["budget_spent"] for offer in offers), 2),
+            "offers": offers,
+        }
+
+    def _count_surface_events(self, merchant_id: str) -> int:
+        row = self._connection.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM surface_events
+            JOIN offers ON offers.id = surface_events.offer_id
+            WHERE offers.merchant_id = ? AND surface_events.fired = 1
+            """,
+            (merchant_id,),
+        ).fetchone()
+        return int(row["count"])
+
+    def cached_headline(self, offer_id: str, weather_state: str, intent_state: str) -> str | None:
+        row = self._connection.execute(
+            """
+            SELECT headline_final FROM headline_cache
+            WHERE offer_id = ? AND weather_state = ? AND intent_state = ?
+            """,
+            (offer_id, weather_state, intent_state),
+        ).fetchone()
+        return None if row is None else str(row["headline_final"])
+
+    def set_cached_headline(
+        self,
+        offer_id: str,
+        weather_state: str,
+        intent_state: str,
+        headline_final: str,
+    ) -> None:
+        self._connection.execute(
+            """
+            INSERT OR REPLACE INTO headline_cache
+              (offer_id, weather_state, intent_state, headline_final)
+            VALUES (?, ?, ?, ?)
+            """,
+            (offer_id, weather_state, intent_state, headline_final),
+        )
+        self._connection.commit()
+
+    def record_surface(
+        self,
+        user_id: str,
+        offer_id: str | None,
+        score: float,
+        threshold: float,
+        intent_state: str,
+        fired: bool,
+        t: str,
+        headline_final: str | None,
+    ) -> None:
+        self._connection.execute(
+            """
+            INSERT INTO surface_events
+              (user_id, offer_id, score, threshold, intent_state, fired, t, headline_final)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (user_id, offer_id, score, threshold, intent_state, int(fired), t, headline_final),
+        )
+        self._connection.commit()
+
+    def redeem(self, offer_id: str, user_id: str, t: str) -> dict[str, Any]:
+        offer = self.get_offer(offer_id)
+        amount = min(offer["cashback_eur"], max(0.0, offer["budget_total"] - offer["budget_spent"]))
+        token = f"{offer['merchant_id'].split('-')[-1][:4].upper()}-{offer_id[-4:]}"
+        self._connection.execute(
+            """
+            UPDATE offers
+            SET redemptions = redemptions + 1,
+                budget_spent = budget_spent + ?
+            WHERE id = ?
+            """,
+            (amount, offer_id),
+        )
+        self._connection.execute(
+            """
+            INSERT INTO redemptions (user_id, offer_id, token, amount, t)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (user_id, offer_id, token, amount, t),
+        )
+        self._connection.commit()
+        updated_offer = self.get_offer(offer_id)
+        return {
+            "offer_id": offer_id,
+            "user_id": user_id,
+            "token": token,
+            "cashback_amount": amount,
+            "currency": offer["currency"],
+            "merchant_counter": updated_offer["redemptions"],
+            "budget_remaining": round(updated_offer["budget_total"] - updated_offer["budget_spent"], 2),
+            "status": "cashback_confirmed",
+        }
+
+
+def _offer_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "id": row["id"],
+        "city_id": row["city_id"],
+        "merchant_id": row["merchant_id"],
+        "merchant_name": row["merchant_name"],
+        "category": row["category"],
+        "status": row["status"],
+        "trigger_reason": json.loads(row["trigger_reason"]),
+        "copy_seed": json.loads(row["copy_seed"]),
+        "widget_spec": json.loads(row["widget_spec"]),
+        "valid_window": json.loads(row["valid_window"]),
+        "created_at": row["created_at"],
+        "distance_m": row["distance_m"],
+        "currency": row["currency"],
+        "budget_total": row["budget_total"],
+        "budget_spent": row["budget_spent"],
+        "cashback_eur": row["cashback_eur"],
+        "redemptions": row["redemptions"],
+    }
+
+
+def _dumps(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=True, sort_keys=True)
+
+
+def remove_default_database() -> None:
+    path = Path(os.environ.get("MOMENTMARKT_DB_PATH", "/tmp/momentmarkt-demo.sqlite3"))
+    if path.exists():
+        path.unlink()
