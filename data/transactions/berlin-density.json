@@ -1,0 +1,295 @@
+{
+  "fixture_id": "berlin-mitte-payone-density-v1",
+  "description": "Small deterministic Payone-style transaction-density fixture for the MomentMarkt Berlin demo.",
+  "city": "Berlin",
+  "currency": "EUR",
+  "timezone": "Europe/Berlin",
+  "density_unit": "index_0_100",
+  "sample_granularity_minutes": 15,
+  "demo_context": {
+    "day_of_week": "saturday",
+    "demo_time_local": "2026-04-25T13:30:00+02:00",
+    "mia_position": {
+      "label": "Mia demo position near Rosenthaler Platz",
+      "lat": 52.5301,
+      "lon": 13.4012,
+      "h3_cell_r8": "881f1d489dfffff"
+    },
+    "weather_trigger": "rain_incoming",
+    "notes": "Synthetic aggregate density only; no personal transaction records. Typical values model Saturday lunch baseline, live samples script the demo moment."
+  },
+  "merchants": [
+    {
+      "id": "berlin-mitte-cafe-bondi",
+      "display_name": "Cafe Bondi",
+      "category": "cafe",
+      "canonical_demo_merchant": true,
+      "location": {
+        "label": "Torstrasse / Rosenthaler Platz, Berlin Mitte",
+        "lat": 52.5306,
+        "lon": 13.4021
+      },
+      "distance_m": 82,
+      "currency": "EUR",
+      "timezone": "Europe/Berlin",
+      "opening_hours": {
+        "saturday": "08:00-18:00"
+      },
+      "demo_window": {
+        "start_local": "2026-04-25T12:00:00+02:00",
+        "end_local": "2026-04-25T15:00:00+02:00"
+      },
+      "typical_density_curve": {
+        "day_of_week": "saturday",
+        "time_zone": "Europe/Berlin",
+        "points": [
+          { "time": "12:00", "density": 58, "expected_transactions": 14 },
+          { "time": "12:30", "density": 72, "expected_transactions": 18 },
+          { "time": "13:00", "density": 80, "expected_transactions": 20 },
+          { "time": "13:30", "density": 82, "expected_transactions": 21 },
+          { "time": "14:00", "density": 74, "expected_transactions": 18 },
+          { "time": "14:30", "density": 56, "expected_transactions": 13 }
+        ]
+      },
+      "live_samples": [
+        { "time_local": "2026-04-25T13:00:00+02:00", "density": 54, "observed_transactions": 13 },
+        { "time_local": "2026-04-25T13:15:00+02:00", "density": 47, "observed_transactions": 11 },
+        { "time_local": "2026-04-25T13:30:00+02:00", "density": 38, "observed_transactions": 9 },
+        { "time_local": "2026-04-25T13:45:00+02:00", "density": 42, "observed_transactions": 10 }
+      ],
+      "demand_gap": {
+        "evaluated_at_local": "2026-04-25T13:30:00+02:00",
+        "typical_density": 82,
+        "live_density": 38,
+        "gap_density_points": 44,
+        "gap_ratio": 0.54,
+        "threshold_ratio": 0.2,
+        "status": "below_typical",
+        "triggers_demand_gap": true,
+        "reason": "Saturday lunch traffic is 54% below the typical 13:30 baseline."
+      },
+      "trigger_tags": ["rain_incoming", "demand_gap", "saturday_lunch", "hot_drink", "nearby"],
+      "merchant_goal": "Fill quiet lunch seats before the rain front reaches Mitte.",
+      "inventory_goal": {
+        "item": "hot_cocoa_and_banana_bread",
+        "target_redemptions": 12,
+        "expires_local": "2026-04-25T15:00:00+02:00"
+      },
+      "offer_budget": {
+        "max_discount_percent": 20,
+        "max_cashback_eur": 3.0,
+        "total_budget_eur": 60.0
+      },
+      "autopilot_rule_hints": {
+        "approved": true,
+        "rule_id": "bondi-rain-gap-lunch",
+        "conditions": ["weather_trigger=rain_incoming", "demand_gap.gap_ratio>=0.20", "distance_m<=250"],
+        "surface_copy_hint": "Es regnet bald. 80 m bis zum heissen Kakao."
+      }
+    },
+    {
+      "id": "berlin-mitte-baeckerei-rosenthal",
+      "display_name": "Backerei Rosenthal",
+      "category": "bakery",
+      "canonical_demo_merchant": false,
+      "location": {
+        "label": "Rosenthaler Strasse, Berlin Mitte",
+        "lat": 52.5294,
+        "lon": 13.4027
+      },
+      "distance_m": 128,
+      "currency": "EUR",
+      "timezone": "Europe/Berlin",
+      "opening_hours": {
+        "saturday": "07:00-16:00"
+      },
+      "demo_window": {
+        "start_local": "2026-04-25T12:00:00+02:00",
+        "end_local": "2026-04-25T15:00:00+02:00"
+      },
+      "typical_density_curve": {
+        "day_of_week": "saturday",
+        "time_zone": "Europe/Berlin",
+        "points": [
+          { "time": "12:00", "density": 64, "expected_transactions": 22 },
+          { "time": "12:30", "density": 70, "expected_transactions": 24 },
+          { "time": "13:00", "density": 68, "expected_transactions": 23 },
+          { "time": "13:30", "density": 61, "expected_transactions": 20 },
+          { "time": "14:00", "density": 50, "expected_transactions": 16 },
+          { "time": "14:30", "density": 39, "expected_transactions": 12 }
+        ]
+      },
+      "live_samples": [
+        { "time_local": "2026-04-25T13:00:00+02:00", "density": 63, "observed_transactions": 21 },
+        { "time_local": "2026-04-25T13:15:00+02:00", "density": 59, "observed_transactions": 19 },
+        { "time_local": "2026-04-25T13:30:00+02:00", "density": 55, "observed_transactions": 18 },
+        { "time_local": "2026-04-25T13:45:00+02:00", "density": 52, "observed_transactions": 17 }
+      ],
+      "demand_gap": {
+        "evaluated_at_local": "2026-04-25T13:30:00+02:00",
+        "typical_density": 61,
+        "live_density": 55,
+        "gap_density_points": 6,
+        "gap_ratio": 0.1,
+        "threshold_ratio": 0.2,
+        "status": "near_typical",
+        "triggers_demand_gap": false,
+        "reason": "Lunch traffic is slightly below baseline but not enough to trigger a demand-gap offer."
+      },
+      "trigger_tags": ["saturday_lunch", "bakery", "nearby"],
+      "merchant_goal": "Move fresh sandwiches before the afternoon drop-off.",
+      "inventory_goal": {
+        "item": "sandwiches_and_pastries",
+        "target_redemptions": 8,
+        "expires_local": "2026-04-25T15:30:00+02:00"
+      },
+      "offer_budget": {
+        "max_discount_percent": 10,
+        "max_cashback_eur": 1.5,
+        "total_budget_eur": 35.0
+      },
+      "autopilot_rule_hints": {
+        "approved": false,
+        "rule_id": "bakery-afternoon-surplus",
+        "conditions": ["demand_gap.gap_ratio>=0.25", "time_between=13:00-15:30", "distance_m<=300"],
+        "surface_copy_hint": "Frische Stulle um die Ecke, bevor der Regen kommt."
+      }
+    },
+    {
+      "id": "berlin-mitte-kiezbuchhandlung-august",
+      "display_name": "Kiezbuchhandlung August",
+      "category": "bookstore",
+      "canonical_demo_merchant": false,
+      "location": {
+        "label": "Auguststrasse, Berlin Mitte",
+        "lat": 52.5276,
+        "lon": 13.3978
+      },
+      "distance_m": 356,
+      "currency": "EUR",
+      "timezone": "Europe/Berlin",
+      "opening_hours": {
+        "saturday": "10:00-19:00"
+      },
+      "demo_window": {
+        "start_local": "2026-04-25T12:00:00+02:00",
+        "end_local": "2026-04-25T15:00:00+02:00"
+      },
+      "typical_density_curve": {
+        "day_of_week": "saturday",
+        "time_zone": "Europe/Berlin",
+        "points": [
+          { "time": "12:00", "density": 32, "expected_transactions": 5 },
+          { "time": "12:30", "density": 38, "expected_transactions": 6 },
+          { "time": "13:00", "density": 44, "expected_transactions": 7 },
+          { "time": "13:30", "density": 47, "expected_transactions": 8 },
+          { "time": "14:00", "density": 55, "expected_transactions": 9 },
+          { "time": "14:30", "density": 62, "expected_transactions": 10 }
+        ]
+      },
+      "live_samples": [
+        { "time_local": "2026-04-25T13:00:00+02:00", "density": 43, "observed_transactions": 7 },
+        { "time_local": "2026-04-25T13:15:00+02:00", "density": 45, "observed_transactions": 7 },
+        { "time_local": "2026-04-25T13:30:00+02:00", "density": 49, "observed_transactions": 8 },
+        { "time_local": "2026-04-25T13:45:00+02:00", "density": 53, "observed_transactions": 9 }
+      ],
+      "demand_gap": {
+        "evaluated_at_local": "2026-04-25T13:30:00+02:00",
+        "typical_density": 47,
+        "live_density": 49,
+        "gap_density_points": -2,
+        "gap_ratio": -0.04,
+        "threshold_ratio": 0.2,
+        "status": "above_typical",
+        "triggers_demand_gap": false,
+        "reason": "Browsing traffic is healthy for a rainy Saturday lunch window."
+      },
+      "trigger_tags": ["rain_incoming", "browse_indoor", "bookstore"],
+      "merchant_goal": "Bring nearby walkers indoors for low-friction browsing.",
+      "inventory_goal": {
+        "item": "paperback_table",
+        "target_redemptions": 5,
+        "expires_local": "2026-04-25T18:00:00+02:00"
+      },
+      "offer_budget": {
+        "max_discount_percent": 8,
+        "max_cashback_eur": 2.0,
+        "total_budget_eur": 25.0
+      },
+      "autopilot_rule_hints": {
+        "approved": false,
+        "rule_id": "bookstore-rain-browse",
+        "conditions": ["weather_trigger=rain_incoming", "intent_token=leisure_browse", "distance_m<=450"],
+        "surface_copy_hint": "Regenpause mit einem neuen Taschenbuch."
+      }
+    },
+    {
+      "id": "berlin-mitte-eisgarten-weinmeister",
+      "display_name": "Eisgarten Weinmeister",
+      "category": "ice_cream",
+      "canonical_demo_merchant": false,
+      "location": {
+        "label": "Weinmeisterstrasse, Berlin Mitte",
+        "lat": 52.5259,
+        "lon": 13.4054
+      },
+      "distance_m": 545,
+      "currency": "EUR",
+      "timezone": "Europe/Berlin",
+      "opening_hours": {
+        "saturday": "11:00-20:00"
+      },
+      "demo_window": {
+        "start_local": "2026-04-25T12:00:00+02:00",
+        "end_local": "2026-04-25T15:00:00+02:00"
+      },
+      "typical_density_curve": {
+        "day_of_week": "saturday",
+        "time_zone": "Europe/Berlin",
+        "points": [
+          { "time": "12:00", "density": 40, "expected_transactions": 9 },
+          { "time": "12:30", "density": 52, "expected_transactions": 12 },
+          { "time": "13:00", "density": 67, "expected_transactions": 16 },
+          { "time": "13:30", "density": 73, "expected_transactions": 18 },
+          { "time": "14:00", "density": 76, "expected_transactions": 19 },
+          { "time": "14:30", "density": 79, "expected_transactions": 20 }
+        ]
+      },
+      "live_samples": [
+        { "time_local": "2026-04-25T13:00:00+02:00", "density": 50, "observed_transactions": 12 },
+        { "time_local": "2026-04-25T13:15:00+02:00", "density": 48, "observed_transactions": 11 },
+        { "time_local": "2026-04-25T13:30:00+02:00", "density": 46, "observed_transactions": 11 },
+        { "time_local": "2026-04-25T13:45:00+02:00", "density": 43, "observed_transactions": 10 }
+      ],
+      "demand_gap": {
+        "evaluated_at_local": "2026-04-25T13:30:00+02:00",
+        "typical_density": 73,
+        "live_density": 46,
+        "gap_density_points": 27,
+        "gap_ratio": 0.37,
+        "threshold_ratio": 0.2,
+        "status": "below_typical",
+        "triggers_demand_gap": true,
+        "reason": "Ice cream traffic is down as rain approaches, but distance makes it a weaker surface for Mia."
+      },
+      "trigger_tags": ["rain_incoming", "demand_gap", "dessert", "weather_sensitive"],
+      "merchant_goal": "Convert dessert demand before the weather suppresses walk-ins.",
+      "inventory_goal": {
+        "item": "two_scoop_cups",
+        "target_redemptions": 6,
+        "expires_local": "2026-04-25T16:00:00+02:00"
+      },
+      "offer_budget": {
+        "max_discount_percent": 15,
+        "max_cashback_eur": 2.0,
+        "total_budget_eur": 30.0
+      },
+      "autopilot_rule_hints": {
+        "approved": true,
+        "rule_id": "eisgarten-rain-save-traffic",
+        "conditions": ["weather_trigger=rain_incoming", "demand_gap.gap_ratio>=0.30", "distance_m<=700"],
+        "surface_copy_hint": "Noch schnell ein Eis, bevor der Schauer startet."
+      }
+    }
+  ]
+}
