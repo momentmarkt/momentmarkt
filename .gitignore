@@ -8,3 +8,21 @@ data/fsq/*.parquet
 
 # OS junk
 .DS_Store
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Dependency/build caches
+node_modules/
+.next/
+.expo/
+dist/
+build/
+coverage/
+
+# Python local env/cache
+.venv/
+__pycache__/
+*.pyc
