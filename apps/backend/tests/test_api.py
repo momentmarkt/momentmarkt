@@ -299,19 +299,60 @@ def test_redeem_records_checkout_and_updates_budget() -> None:
 
 
 def test_mia_spine_e2e_regression_path() -> None:
+    # Stage 0: clean recording state.
     reset = client.post("/demo/reset")
     assert reset.status_code == 200
     assert store.merchant_summary("berlin-mitte-cafe-bondi")["offer_count"] == 0
 
-    generated = client.post("/opportunity/generate", json={"city": "berlin"})
-    assert generated.status_code == 200
-    draft = generated.json()
-    offer_id = draft["persisted_offer"]["id"]
-    assert draft["widget_valid"] is True
-    assert draft["persisted_offer"]["status"] == "auto_approved"
-    assert draft["signal_context"]["wrapped_user_context"]["intent_token"] == "lunch_break.cold"
-    assert draft["signal_context"]["privacy"]["h3_cell_r8"] == "881f1d489dfffff"
+    # Stage 1: signals line up before any offer exists.
+    signals = client.get("/signals/berlin")
+    assert signals.status_code == 200
+    signal_payload = signals.json()
+    assert signal_payload["weather"]["trigger"] == "rain_incoming"
+    assert signal_payload["merchant"]["demand_gap"] == {
+        "computed_from": "typical_density_curve + live_samples",
+        "evaluated_at_local": "2026-04-25T13:30:00+02:00",
+        "gap_density_points": 44,
+        "gap_ratio": 0.54,
+        "live_density": 38,
+        "reason": "Live density is 54% below the typical 13:30 baseline.",
+        "status": "below_typical",
+        "threshold_ratio": 0.2,
+        "triggers_demand_gap": True,
+        "typical_density": 82,
+    }
+    assert signal_payload["wrapped_user_context"] == {
+        "intent_token": "lunch_break.cold",
+        "h3_cell_r8": "881f1d489dfffff",
+        "weather_state": "rain_incoming",
+        "t": "2026-04-25T13:30:00+02:00",
+        "high_intent": {
+            "active_screen_time_recent_s": 0,
+            "map_app_foreground_recent": False,
+            "coupon_browse_recent": False,
+        },
+    }
 
+    # Stage 2: periodic Opportunity pass drafts and persists eligible offers.
+    seeded = client.post("/demo/seed", json={"city": "berlin"})
+    assert seeded.status_code == 200
+    seed_payload = seeded.json()
+    assert seed_payload["drafted_count"] == 3
+    assert seed_payload["skipped_count"] == 1
+    bondi_offer = next(
+        offer
+        for offer in seed_payload["drafted"]
+        if offer["merchant_id"] == "berlin-mitte-cafe-bondi"
+    )
+    offer_id = bondi_offer["id"]
+    assert bondi_offer["status"] == "auto_approved"
+    assert bondi_offer["trigger_reason"] == {
+        "weather_trigger": "rain_incoming",
+        "event_trigger": False,
+        "demand_trigger": True,
+    }
+
+    # Stage 3: first Surfacing pass fires the top approved offer.
     surfaced = client.post(
         "/surfacing/evaluate",
         json={"city": "berlin", "seed_offer": False},
@@ -322,7 +363,10 @@ def test_mia_spine_e2e_regression_path() -> None:
     assert surface_payload["offer"]["id"] == offer_id
     assert surface_payload["widget_spec"]["type"] == "ScrollView"
     assert surface_payload["wrapped_user_context"]["h3_cell_r8"] == "881f1d489dfffff"
+    assert surface_payload["scores"][0]["parts"]["novelty"] == 1.0
+    assert surface_payload["scores"][0]["parts"]["novelty_source"] == "no_recent_surfaces"
 
+    # Stage 4: high-intent lowers the threshold and uses the active headline.
     high_intent_surface = client.post(
         "/surfacing/evaluate",
         json={
@@ -342,7 +386,30 @@ def test_mia_spine_e2e_regression_path() -> None:
     assert high_payload["threshold"] == 0.58
     assert high_payload["boost"] > surface_payload["boost"]
     assert high_payload["score"] > surface_payload["score"]
+    assert high_payload["headline_final"].startswith("Jetzt passt es:")
+    assert high_payload["scores"][0]["parts"]["novelty_source"] == "semantic_novelty_unconfigured"
 
+    # Stage 5: the active headline is cached for a second high-intent render.
+    cached_high_intent_surface = client.post(
+        "/surfacing/evaluate",
+        json={
+            "city": "berlin",
+            "seed_offer": False,
+            "high_intent": {
+                "active_screen_time_recent_s": 120,
+                "map_app_foreground_recent": True,
+                "coupon_browse_recent": True,
+            },
+        },
+    )
+    assert cached_high_intent_surface.status_code == 200
+    cached_payload = cached_high_intent_surface.json()
+    assert cached_payload["fired"] is True
+    assert cached_payload["cache_hit"] is True
+    assert cached_payload["headline_generated_by"] == "cache"
+    assert cached_payload["headline_final"] == high_payload["headline_final"]
+
+    # Stage 6: redemption records checkout and decrements the budget.
     redeem = client.post("/redeem", json={"offer_id": offer_id, "user_id": "mia"})
     assert redeem.status_code == 200
     redeem_payload = redeem.json()
@@ -350,6 +417,7 @@ def test_mia_spine_e2e_regression_path() -> None:
     assert redeem_payload["merchant_counter"] == 1
     assert redeem_payload["cashback_amount"] == 3.0
 
+    # Stage 7: merchant view sees the same surface/redeem state.
     summary = client.get("/merchants/berlin-mitte-cafe-bondi/summary")
     assert summary.status_code == 200
     summary_payload = summary.json()
@@ -358,12 +426,14 @@ def test_mia_spine_e2e_regression_path() -> None:
     assert summary_payload["redeemed"] == 1
     assert summary_payload["budget_spent"] == 3.0
 
+    # Stage 8: demand chart exposes the computed gap for the merchant cut.
     demand_chart = client.get("/merchants/berlin-mitte-cafe-bondi/demand-chart")
     assert demand_chart.status_code == 200
     chart_payload = demand_chart.json()
     assert chart_payload["highlight"]["triggers_demand_gap"] is True
     assert chart_payload["trigger_evaluation"]["fired"] is True
 
+    # Stage 9: reset restores recording state.
     final_reset = client.post("/demo/reset")
     assert final_reset.status_code == 200
     assert store.merchant_summary("berlin-mitte-cafe-bondi")["offer_count"] == 0
