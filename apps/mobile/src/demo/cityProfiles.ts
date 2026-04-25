@@ -59,10 +59,10 @@ export const cityProfiles: Record<DemoCityId, DemoCityProfile> = {
         // German headline matches the wallet's hero copy; cashback is
         // monospace-rendered downstream so the digits read as a sticker.
         offer: {
-          headline: "Es regnet bald. 80 m bis zum heissen Kakao.",
-          body: "82 m · läuft 15:00 ab",
+          headline: "Rain in 12 min. 80 m to hot cocoa.",
+          body: "82 m · expires 15:00",
           cashbackLabel: "15% cashback",
-          ctaHint: "Tippen → Wallet",
+          ctaHint: "Tap → Wallet",
         },
       },
       { id: "backerei-mitte", name: "Backerei Mitte", lat: 52.5225, lng: 13.4108, category: "bakery" },

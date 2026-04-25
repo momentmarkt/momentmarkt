@@ -44,7 +44,11 @@ async def run_opportunity_agent(context: dict[str, Any]) -> dict[str, Any]:
         "and one React Native GenUI widget spec. Return only the structured "
         "output. The widget tree may only use View, ScrollView, Text, Image, "
         "and Pressable. Pressable must use action='redeem'. Do not use high "
-        "intent signals; Surfacing owns per-user behavior.\n"
+        "intent signals; Surfacing owns per-user behavior. Write the English "
+        "copy first as the source of truth (headline_en, body_en, and the "
+        "widget text); then translate to German for headline_de and body_de. "
+        "All visible widget Text nodes (incl. the redeem button) must be in "
+        "English.\n"
         "\n"
         "WIDGET SCHEMA (strict — every node must conform or the spec is rejected):\n"
         "- Root: { type: 'View'|'ScrollView', className?: string, children: WidgetNode[] }\n"
@@ -63,10 +67,12 @@ async def run_opportunity_agent(context: dict[str, Any]) -> dict[str, Any]:
         "required_contract": "{ offer, widget_spec }",
         "signal_context": context,
         "copy_rules": [
+            "Write English copy first (headline_en, body_en, widget text); German is a translation of the English source.",
             "Use the fired weather/event/demand signals.",
             "Keep card copy short enough for a phone.",
             "Use neutral product UI language and no Sparkassen branding.",
             "Keep discount inside the merchant budget.",
+            "All visible widget Text nodes (incl. the redeem button) must be in English.",
         ],
     }
     output = await _run_structured_agent(
@@ -87,12 +93,14 @@ async def run_headline_rewrite_agent(
     instructions = (
         "You are the MomentMarkt Surfacing Agent headline rewriter. Rewrite "
         "only the final in-app card headline for the already-approved offer. "
-        "Do not change discount, widget layout, or offer body. Keep it short."
+        "Do not change discount, widget layout, or offer body. Keep it short. "
+        "Write the rewritten headline in English."
     )
     prompt = {
-        "task": "Rewrite one headline for the current wrapped user context.",
+        "task": "Rewrite one English headline for the current wrapped user context.",
         "offer_copy_seed": offer["copy_seed"],
         "wrapped_user_context": wrapped_user_context,
+        "language": "English",
         "style": "more direct and conversion-oriented" if aggressive else "gentle and contextual",
     }
     output = await _run_structured_agent(

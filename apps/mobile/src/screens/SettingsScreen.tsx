@@ -135,11 +135,11 @@ export function SettingsScreen(props: Props): ReactElement | null {
         ]}
       >
         <Text style={[...s("text-3xl font-black text-ink"), { letterSpacing: -0.5 }]}>
-          Einstellungen
+          Settings
         </Text>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Einstellungen schliessen"
+          accessibilityLabel="Close settings"
           onPress={onClose}
           hitSlop={10}
           style={[
@@ -167,7 +167,7 @@ export function SettingsScreen(props: Props): ReactElement | null {
         showsVerticalScrollIndicator={false}
       >
         {/* ── Account ──────────────────────────────────────────────────── */}
-        <SectionHeader>Konto</SectionHeader>
+        <SectionHeader>Account</SectionHeader>
         <GroupedSection>
           <View
             style={[
@@ -193,37 +193,37 @@ export function SettingsScreen(props: Props): ReactElement | null {
             </View>
           </View>
           <RowSeparator />
-          <ActionRow label="Persona wechseln" />
+          <ActionRow label="Switch persona" />
         </GroupedSection>
 
         {/* ── Privacy & Daten ─────────────────────────────────────────── */}
-        <SectionHeader>Privacy & Daten</SectionHeader>
+        <SectionHeader>Privacy & data</SectionHeader>
         <GroupedSection>
           <ToggleRow
-            label="Intent-Erkennung lokal"
+            label="On-device intent detection"
             initialValue={true}
             cosmetic
           />
           <RowSeparator />
           <ToggleRow
-            label="Aggregierte Statistik teilen"
+            label="Share aggregate analytics"
             initialValue={true}
             cosmetic
           />
           <RowSeparator />
           <ToggleRow
-            label="Privacy-Envelope im Dev-Panel zeigen"
+            label="Show privacy envelope in dev panel"
             value={showPrivacyEnvelope}
             onValueChange={onTogglePrivacyEnvelope}
           />
         </GroupedSection>
         <SectionFooter>
-          Standortdaten verlassen das Gerät nicht. Nur ein anonymer Intent-Token
-          wird gesendet.
+          Location data never leaves the device. Only an anonymous intent
+          token is sent.
         </SectionFooter>
 
         {/* ── Sprache ─────────────────────────────────────────────────── */}
-        <SectionHeader>Sprache</SectionHeader>
+        <SectionHeader>Language</SectionHeader>
         <GroupedSection>
           <View
             style={[
@@ -274,15 +274,14 @@ export function SettingsScreen(props: Props): ReactElement | null {
               />
             </View>
             <SectionFooter>
-              Engineering-Sidecar inline. Auf nicht-Silent-Schritten ist die
-              kleine Werkzeug-Schaltfläche oben rechts ausgeblendet — alle
-              Hebel leben hier.
+              Engineering sidecar inline. On non-silent steps the small wrench
+              button in the top-right is hidden — all the levers live here.
             </SectionFooter>
           </>
         ) : null}
 
         {/* ── Demo-Steuerung ──────────────────────────────────────────── */}
-        <SectionHeader>Demo-Steuerung</SectionHeader>
+        <SectionHeader>Demo controls</SectionHeader>
         <View
           style={[
             ...s("rounded-2xl bg-white"),
@@ -307,21 +306,21 @@ export function SettingsScreen(props: Props): ReactElement | null {
             ]}
           >
             <Text style={s("text-base font-bold text-ink")}>
-              Demo zurücksetzen
+              Reset demo
             </Text>
             <Text style={[...s("text-base text-spark"), { lineHeight: 18 }]}>↺</Text>
           </Pressable>
         </View>
         <SectionFooter>
-          Beim Aufnehmen vor jedem Take ausführen.
+          Run this before every take when recording.
         </SectionFooter>
 
         {/* ── Über MomentMarkt ────────────────────────────────────────── */}
-        <SectionHeader>Über MomentMarkt</SectionHeader>
+        <SectionHeader>About MomentMarkt</SectionHeader>
         <GroupedSection>
           <InfoRow label="Version" value="0.1.0 · spec-v04" />
           <RowSeparator />
-          <InfoRow label="Entwickelt von" value="Doruk Tan Ozturk · Mehmet Efe Akça" />
+          <InfoRow label="Built by" value="Doruk Tan Ozturk · Mehmet Efe Akça" />
           <RowSeparator />
           <InfoRow label="GitHub" value="github.com/mmtftr/momentmarkt" />
           <RowSeparator />
@@ -336,7 +335,7 @@ export function SettingsScreen(props: Props): ReactElement | null {
             { marginTop: 24 },
           ]}
         >
-          MomentMarkt · Demo-Build
+          MomentMarkt · Demo build
         </Text>
       </ScrollView>
     </Animated.View>

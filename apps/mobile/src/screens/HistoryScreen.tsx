@@ -43,8 +43,8 @@ const REDEMPTIONS: Redemption[] = [
     merchant: "Café Bondi",
     address: "Torstr. 174",
     cashback: 1.85,
-    date: "Heute, 13:31",
-    context: "Regen-Trigger",
+    date: "Today, 13:31",
+    context: "Rain trigger",
     photo: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=200",
   },
   {
@@ -52,8 +52,8 @@ const REDEMPTIONS: Redemption[] = [
     merchant: "Backstube Mitte",
     address: "Linienstr. 88",
     cashback: 0.62,
-    date: "Gestern, 16:48",
-    context: "Quiet-Period",
+    date: "Yesterday, 16:48",
+    context: "Quiet period",
     photo: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=200",
   },
   {
@@ -61,8 +61,8 @@ const REDEMPTIONS: Redemption[] = [
     merchant: "Volksbar 8",
     address: "Karl-Marx-Allee 12",
     cashback: 2.4,
-    date: "Mi, 19:02",
-    context: "Pre-Event Crowd",
+    date: "Wed, 19:02",
+    context: "Pre-event crowd",
     photo: "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=200",
   },
   {
@@ -70,8 +70,8 @@ const REDEMPTIONS: Redemption[] = [
     merchant: "Sprüngli HB",
     address: "Am Hauptbahnhof",
     cashback: 0.8,
-    date: "Mo, 12:14",
-    context: "Lunch-Break",
+    date: "Mon, 12:14",
+    context: "Lunch break",
     photo: "https://images.unsplash.com/photo-1486427944299-d1955d23e34d?w=200",
   },
   {
@@ -79,8 +79,8 @@ const REDEMPTIONS: Redemption[] = [
     merchant: "Madami",
     address: "Rosa-Luxemburg-Platz",
     cashback: 1.2,
-    date: "So, 18:30",
-    context: "Weekend-Wander",
+    date: "Sun, 18:30",
+    context: "Weekend wander",
     photo: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=200",
   },
   {
@@ -88,8 +88,8 @@ const REDEMPTIONS: Redemption[] = [
     merchant: "Kiosk 24",
     address: "Alexanderplatz",
     cashback: 0.45,
-    date: "Sa, 22:11",
-    context: "Late-Night",
+    date: "Sat, 22:11",
+    context: "Late night",
     photo: "https://images.unsplash.com/photo-1553531384-cc64ac80f931?w=200",
   },
   {
@@ -97,8 +97,8 @@ const REDEMPTIONS: Redemption[] = [
     merchant: "Brasserie Mitte",
     address: "Friedrichstr. 100",
     cashback: 3.1,
-    date: "Fr, 20:44",
-    context: "Date-Night",
+    date: "Fri, 20:44",
+    context: "Date night",
     photo: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=200",
   },
   {
@@ -106,8 +106,8 @@ const REDEMPTIONS: Redemption[] = [
     merchant: "Eisdiele Cremoso",
     address: "Hackescher Markt",
     cashback: 0.55,
-    date: "Do, 15:20",
-    context: "Hot-Day",
+    date: "Thu, 15:20",
+    context: "Hot day",
     photo: "https://images.unsplash.com/photo-1488900128323-21503983a07e?w=200",
   },
 ];
@@ -171,10 +171,10 @@ export function HistoryScreen({
       <View style={s("flex-1 bg-cream items-center justify-center px-5")}>
         <Text style={[{ fontSize: 60 }]}>🪙</Text>
         <Text style={[...s("mt-4 text-ink"), { fontSize: 18, fontWeight: "800" }]}>
-          Noch keine Cashbacks. Geh raus!
+          No cashbacks yet. Get out there!
         </Text>
         <Text style={s("mt-2 text-center text-sm text-neutral-600")}>
-          Beim ersten Einkauf erscheint dein Verlauf hier.
+          Your history will show up after your first purchase.
         </Text>
       </View>
     );
@@ -197,10 +197,10 @@ export function HistoryScreen({
         {/* Header — big title + dynamic monthly subtotal. */}
         <View style={s("py-6")}>
           <Text style={[...s("text-ink"), { fontSize: 32, fontWeight: "800" }]}>
-            Cashback-Verlauf
+            Cashback history
           </Text>
           <Text style={s("mt-2 text-sm text-neutral-600")}>
-            Du hast €{formatEuro(total)} gespart diesen Monat
+            You saved €{formatEuro(total)} this month
           </Text>
         </View>
 
@@ -220,7 +220,7 @@ export function HistoryScreen({
             €{formatEuro(total)}
           </Text>
           <Text style={s("mt-1 text-xs text-neutral-600")}>
-            Diesen Monat · {redemptions.length} Einkäufe
+            This month · {redemptions.length} purchases
           </Text>
 
           {/* Mini bar chart — 12 vertical bars, last 12 days, oldest→newest. */}
@@ -264,7 +264,7 @@ export function HistoryScreen({
                     "text-[11px] font-bold uppercase tracking-[1px] text-spark",
                   )}
                 >
-                  Höchstes Cashback
+                  Top cashback
                 </Text>
               </View>
               <Text style={[...s("text-xs text-ink"), { marginLeft: 8 }]}>
@@ -286,7 +286,7 @@ export function HistoryScreen({
             },
           ]}
         >
-          Letzte Einkäufe
+          Recent purchases
         </Text>
 
         {redemptions.map((r) => (
@@ -295,7 +295,7 @@ export function HistoryScreen({
 
         <View style={s("py-6")}>
           <Text style={s("text-center text-xs text-neutral-600")}>
-            Synthetische Daten · Demo-Build
+            Synthetic data · Demo build
           </Text>
         </View>
       </ScrollView>
