@@ -24,6 +24,35 @@ pnpm mobile:typecheck
 The Expo app lives in `apps/mobile`. It is the canonical consumer demo surface;
 the older untracked Next.js scaffold under `src/` is obsolete per `spec-v03`.
 
+## Run The Merchant Inbox
+
+```bash
+pnpm merchant:dev
+```
+
+Useful commands:
+
+```bash
+pnpm merchant:typecheck
+pnpm merchant:build
+```
+
+The merchant inbox lives in `apps/merchant`. It shows the Cafe Bondi Opportunity
+Agent draft, auto-approved rain+demand rule, a second rule toggle, and aggregate
+surfaced/accepted/redeemed/budget counters for the 20-30s merchant cut.
+
+## Current Demo Spine
+
+1. Mia opens MomentMarkt in Berlin Mitte; wallet stays silent.
+2. Rain + Cafe Bondi demand gap triggers the Surfacing Agent.
+3. A generated-looking React Native widget renders from JSON primitives.
+4. The dev panel shows `{intent_token, h3_cell_r8}` and score/threshold reasons.
+5. High-intent toggle lowers the threshold and changes the headline.
+6. Mia redeems through a QR/token screen and simulated girocard cashback.
+7. Merchant inbox shows the same offer auto-approved 3h earlier.
+
+Architecture slide source lives in `assets/architecture-slide.md`.
+
 ## Planning Workflow
 
 A file-driven multi-agent workflow for hackathon planning with a data-exploration
