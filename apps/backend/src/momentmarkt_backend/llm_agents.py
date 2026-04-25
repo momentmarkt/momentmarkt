@@ -44,7 +44,19 @@ async def run_opportunity_agent(context: dict[str, Any]) -> dict[str, Any]:
         "and one React Native GenUI widget spec. Return only the structured "
         "output. The widget tree may only use View, ScrollView, Text, Image, "
         "and Pressable. Pressable must use action='redeem'. Do not use high "
-        "intent signals; Surfacing owns per-user behavior."
+        "intent signals; Surfacing owns per-user behavior.\n"
+        "\n"
+        "WIDGET SCHEMA (strict — every node must conform or the spec is rejected):\n"
+        "- Root: { type: 'View'|'ScrollView', className?: string, children: WidgetNode[] }\n"
+        "- View / ScrollView: { type, className?: string, children: WidgetNode[] }\n"
+        "- Text: { type: 'Text', className?: string, text: string }\n"
+        "- Image: { type: 'Image', className?: string, source: string, accessibilityLabel: string }\n"
+        "- Pressable: { type: 'Pressable', className?: string, action: 'redeem', text: string }\n"
+        "- children: ALWAYS a list of valid nodes, never null, never undefined, never an object.\n"
+        "- Image.accessibilityLabel is REQUIRED on every Image node (short human description).\n"
+        "- Pressable.action MUST be the literal lowercase string 'redeem' (case-sensitive). "
+        "Never 'Redeem', 'submit', 'buy', or any other value.\n"
+        "- No extra fields beyond those listed. Max nesting depth: 12 levels."
     )
     prompt = {
         "task": "Draft one Opportunity Agent output for a merchant inbox.",
