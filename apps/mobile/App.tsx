@@ -1,172 +1,400 @@
 import { StatusBar } from "expo-status-bar";
-
-import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { type ComponentProps, useCallback, useMemo, useState } from "react";
+import { Pressable, Text, useWindowDimensions, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { CityMap } from "./src/components/CityMap";
+import { DevPanel, type DevPanelSignal } from "./src/components/DevPanel";
+import { RedeemFlow } from "./src/components/RedeemFlow";
+import { SurfaceNotification } from "./src/components/SurfaceNotification";
 import { WidgetRenderer } from "./src/components/WidgetRenderer";
-import { cityProfiles, type DemoCityId } from "./src/demo/cityProfiles";
+import { cityProfiles, type DemoCityId, type DemoCityProfile } from "./src/demo/cityProfiles";
 import { miaRainOffer } from "./src/demo/miaOffer";
 import { demoWidgetSpecs } from "./src/demo/widgetSpecs";
+import { CheckoutSuccessScreen } from "./src/screens/CheckoutSuccessScreen";
+import { LockScreen } from "./src/screens/LockScreen";
 import { s } from "./src/styles";
-import { scoreSurfacing } from "./src/surfacing/surfacingScore";
+import { scoreSurfacing, type SurfacingInput } from "./src/surfacing/surfacingScore";
 
-type DemoStep = "silent" | "surface" | "redeem" | "success";
+/**
+ * App.tsx — demo state machine (issue #29).
+ *
+ * Drives the 11-beat demo cut from SPEC §The demo:
+ *   silent → surfacing → offer → redeeming → success → silent
+ *
+ * Layout
+ *   - Wide viewports (≥820px logical width — landscape iPad / Mac sim window):
+ *     phone area + DevPanel sidecar render side-by-side.
+ *   - Narrow (phone portrait): they stack; DevPanel collapses to a pill that
+ *     expands on tap to keep the phone canvas readable.
+ *
+ * High-intent toggle
+ *   - DevPanel switch flips `highIntent`; surfacing score recomputes (lower
+ *     threshold + boost). On the offer step we render an extra "in-market"
+ *     headline chip above the WidgetRenderer using the surfacing decision's
+ *     headline copy. The widget spec stays static (the SPEC describes
+ *     "more aggressive headline" — chip is the cleanest demo-recordable
+ *     channel without forking widgetSpecs.ts).
+ */
+
+type DemoStep = "silent" | "surfacing" | "offer" | "redeeming" | "success";
 type WidgetVariant = keyof typeof demoWidgetSpecs;
+
+const SIDE_BY_SIDE_BREAKPOINT = 820;
+const FALLBACK_CASHBACK_EUR = 1.85;
 
 export default function App() {
   const [step, setStep] = useState<DemoStep>("silent");
-  const [widgetVariant, setWidgetVariant] = useState<WidgetVariant>("rainHero");
   const [highIntent, setHighIntent] = useState(false);
-  const [cityId, setCityId] = useState<DemoCityId>("berlin");
+  const [city, setCity] = useState<DemoCityId>("berlin");
+  const [widgetVariant, setWidgetVariant] = useState<WidgetVariant>("rainHero");
+  const [devPanelExpanded, setDevPanelExpanded] = useState(false);
+
   const insets = useSafeAreaInsets();
-  const city = cityProfiles[cityId];
-  const surfacing = scoreSurfacing({
-    ...city.surfacingInput,
+  const { width } = useWindowDimensions();
+  const sideBySide = width >= SIDE_BY_SIDE_BREAKPOINT;
+
+  const cityProfile = cityProfiles[city];
+  const surfacing = useMemo(
+    () => scoreSurfacing({ ...cityProfile.surfacingInput, highIntent }),
+    [cityProfile, highIntent],
+  );
+
+  const breakdown = useMemo(
+    () => buildBreakdown(cityProfile.surfacingInput, highIntent),
+    [cityProfile, highIntent],
+  );
+
+  const compositeState = useMemo(() => {
+    const weatherChip = city === "berlin" ? "rain_incoming" : "clear";
+    const demandChip =
+      cityProfile.surfacingInput.demandGapRatio >= 0.4 ? "demand_gap" : "demand_normal";
+    const intentChip = highIntent ? "in_market" : "browsing";
+    return `${weatherChip} · ${demandChip} · ${intentChip}`;
+  }, [city, cityProfile, highIntent]);
+
+  const signals = useMemo<DevPanelSignal[]>(
+    () => [
+      {
+        label: "weather",
+        value: city === "berlin" ? "rain ~12m" : "clear",
+        tone: city === "berlin" ? "warning" : "neutral",
+      },
+      {
+        label: "demand",
+        value: `${Math.round(cityProfile.surfacingInput.demandGapRatio * 100)}% gap`,
+        tone: cityProfile.surfacingInput.demandGapRatio >= 0.4 ? "warning" : "neutral",
+      },
+      {
+        label: "proximity",
+        value: `${cityProfile.surfacingInput.distanceM} m`,
+        tone: cityProfile.surfacingInput.distanceM <= 100 ? "good" : "neutral",
+      },
+    ],
+    [city, cityProfile],
+  );
+
+  // Headline shown above the widget when high-intent is on. Demonstrates the
+  // visible mutation called out in SPEC §Communication & Presentation.
+  const aggressiveHeadline = highIntent ? surfacing.headline : null;
+
+  const handleRunSurfacing = useCallback(() => {
+    // The dev-panel "Run Surfacing Agent" button always advances to the
+    // surfacing-banner beat for demo determinism. The "will fire" delta is
+    // surfaced visibly inside DevPanel (the bar + caption) so judges can
+    // see the silent-vs-fire delta when toggling high-intent.
+    setStep("surfacing");
+  }, []);
+
+  const handleSwapCity = useCallback(() => {
+    setCity((prev) => (prev === "berlin" ? "zurich" : "berlin"));
+    setStep("silent");
+  }, []);
+
+  const handleToggleHighIntent = useCallback(() => {
+    setHighIntent((prev) => !prev);
+  }, []);
+
+  const handleSurfaceTap = useCallback(() => {
+    setStep("offer");
+  }, []);
+
+  const handleSurfaceDismiss = useCallback(() => {
+    setStep("silent");
+  }, []);
+
+  const handleAdvanceFromOffer = useCallback(() => {
+    setStep("redeeming");
+  }, []);
+
+  const handleRedeemComplete = useCallback(() => {
+    setStep("success");
+  }, []);
+
+  const handleResetToSilent = useCallback(() => {
+    setStep("silent");
+  }, []);
+
+  const handleBottomMenu = useCallback((target: DemoStep) => {
+    setStep(target);
+  }, []);
+
+  const devPanelProps: ComponentProps<typeof DevPanel> = {
+    compositeState,
+    signals,
+    score: surfacing.score,
+    threshold: surfacing.threshold,
+    breakdown,
+    intentToken: cityProfile.privacy.intent_token,
+    h3Cell: cityProfile.privacy.h3_cell_r8,
     highIntent,
-  });
+    onToggleHighIntent: handleToggleHighIntent,
+    city,
+    onSwapCity: handleSwapCity,
+    onRunSurfacing: handleRunSurfacing,
+  };
 
   return (
-    <SafeAreaView style={s("flex-1 bg-cream")}>
+    <View style={s("flex-1 bg-cream")}>
       <StatusBar style="dark" />
-      <View style={[...s("flex-1 px-5 py-6"), { paddingBottom: Math.max(insets.bottom, 12) + 72 }]}>
-        <View style={s("mb-5 flex-row items-center justify-between")}>
-          <View>
-            <Text style={s("text-xs font-semibold uppercase tracking-[3px] text-rain")}>
-              MomentMarkt
-            </Text>
-            <Text style={s("mt-1 text-2xl font-bold text-ink")}>{city.greeting}</Text>
-          </View>
-          <View style={s("rounded-full bg-spark px-3 py-2")}>
-            <Text style={s("text-xs font-bold text-white")}>{city.currency}</Text>
-          </View>
-        </View>
+      <SafeAreaView style={s("flex-1")} edges={["top", "left", "right"]}>
+        <View style={[...s("flex-1"), { flexDirection: sideBySide ? "row" : "column" }]}>
+          <PhoneArea
+            step={step}
+            city={city}
+            cityProfile={cityProfile}
+            widgetVariant={widgetVariant}
+            highIntent={highIntent}
+            aggressiveHeadline={aggressiveHeadline}
+            insetBottom={insets.bottom}
+            onWidgetVariantChange={setWidgetVariant}
+            onSurfaceTap={handleSurfaceTap}
+            onSurfaceDismiss={handleSurfaceDismiss}
+            onWidgetCta={handleAdvanceFromOffer}
+            onRedeemComplete={handleRedeemComplete}
+            onSuccessDone={handleResetToSilent}
+            onBottomMenu={handleBottomMenu}
+          />
 
-        <View style={s("rounded-[32px] bg-white p-5 shadow-sm")}>
-          <View style={s("mb-4 flex-row gap-2")}>
-            <CityButton
-              active={cityId === "berlin"}
-              label="Berlin"
-              onPress={() => {
-                setCityId("berlin");
-                setStep("silent");
-              }}
-            />
-            <CityButton
-              active={cityId === "zurich"}
-              label="Zurich"
-              onPress={() => {
-                setCityId("zurich");
-                setStep("silent");
-              }}
-            />
-          </View>
-          <Text style={s("text-sm font-semibold uppercase tracking-[2px] text-rain")}>
-            {city.cityLabel}
-          </Text>
-          {step === "silent" ? (
-            <>
-              <Text style={s("mt-3 text-3xl font-black leading-9 text-ink")}>
-                {city.silentTitle}
-              </Text>
-              <Text style={s("mt-4 text-base leading-6 text-neutral-600")}>
-                {city.silentBody}
-              </Text>
-            </>
+          {sideBySide ? (
+            <DevPanel {...devPanelProps} />
           ) : (
-            <>
-              <Text style={s("mt-3 text-3xl font-black leading-9 text-ink")}>
-                {surfacing.headline}
-              </Text>
-              <Text style={s("mt-4 text-base leading-6 text-neutral-600")}>
-                {cityId === "berlin"
-                  ? `${miaRainOffer.discount} · ${miaRainOffer.distanceM} m away · expires ${miaRainOffer.expiresAt}`
-                  : city.offerSummary}
-              </Text>
-            </>
+            <CollapsibleDevPanel
+              expanded={devPanelExpanded}
+              onToggle={() => setDevPanelExpanded((v) => !v)}
+              devPanelProps={{
+                ...devPanelProps,
+                onRunSurfacing: () => {
+                  setDevPanelExpanded(false);
+                  handleRunSurfacing();
+                },
+              }}
+            />
           )}
-
-          <View style={s("mt-6 gap-3")}>
-            <Signal label="City config" value={`${city.cityConfigLabel} · ${city.weatherLabel}`} />
-            <Signal label="Privacy" value={`{${city.privacy.intent_token}, ${city.privacy.h3_cell_r8}}`} />
-          </View>
-
-          <Pressable
-            style={s("mt-4 rounded-2xl px-5 py-3", highIntent ? "bg-spark" : "bg-rain")}
-            onPress={() => setHighIntent((value) => !value)}
-          >
-            <Text style={s("text-center text-sm font-black text-white")}>
-              High-intent surfacing: {highIntent ? "ON" : "OFF"}
-            </Text>
-          </Pressable>
-
-          {step === "silent" ? (
-            <Pressable
-              style={s("mt-4 rounded-2xl bg-ink px-5 py-4")}
-              onPress={() => (surfacing.shouldSurface ? setStep("surface") : setStep("silent"))}
-            >
-              <Text style={s("text-center text-base font-black text-cream")}>
-                Run Surfacing Agent
-              </Text>
-            </Pressable>
-          ) : null}
         </View>
-
-        <View style={s("mt-5 flex-1")}>
-          {step === "surface" ? (
-            <>
-              <View style={s("mb-3 flex-row gap-2")}>
-                <VariantButton
-                  active={widgetVariant === "rainHero"}
-                  label="Rain"
-                  onPress={() => setWidgetVariant("rainHero")}
-                />
-                <VariantButton
-                  active={widgetVariant === "quietStack"}
-                  label="Quiet"
-                  onPress={() => setWidgetVariant("quietStack")}
-                />
-                <VariantButton
-                  active={widgetVariant === "preEventTicket"}
-                  label="Event"
-                  onPress={() => setWidgetVariant("preEventTicket")}
-                />
-              </View>
-              <WidgetRenderer node={demoWidgetSpecs[widgetVariant]} onRedeem={() => setStep("redeem")} />
-            </>
-          ) : null}
-
-          {step === "redeem" ? <RedeemCard onConfirm={() => setStep("success")} /> : null}
-
-          {step === "success" ? <SuccessCard onReset={() => setStep("silent")} /> : null}
-        </View>
-      </View>
-      <BottomMenu
-        activeStep={step}
-        bottomInset={insets.bottom}
-        onHome={() => setStep("silent")}
-        onOffer={() => setStep("surface")}
-        onProof={() => setStep("success")}
-        onQr={() => setStep("redeem")}
-      />
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
+
+// ─── PhoneArea ──────────────────────────────────────────────────────────────
+
+type PhoneAreaProps = {
+  step: DemoStep;
+  city: DemoCityId;
+  cityProfile: DemoCityProfile;
+  widgetVariant: WidgetVariant;
+  highIntent: boolean;
+  aggressiveHeadline: string | null;
+  insetBottom: number;
+  onWidgetVariantChange: (variant: WidgetVariant) => void;
+  onSurfaceTap: () => void;
+  onSurfaceDismiss: () => void;
+  onWidgetCta: () => void;
+  onRedeemComplete: () => void;
+  onSuccessDone: () => void;
+  onBottomMenu: (step: DemoStep) => void;
+};
+
+function PhoneArea({
+  step,
+  city,
+  cityProfile,
+  widgetVariant,
+  highIntent,
+  aggressiveHeadline,
+  insetBottom,
+  onWidgetVariantChange,
+  onSurfaceTap,
+  onSurfaceDismiss,
+  onWidgetCta,
+  onRedeemComplete,
+  onSuccessDone,
+  onBottomMenu,
+}: PhoneAreaProps) {
+  return (
+    <View style={[...s("flex-1 bg-cream"), { position: "relative" }]}>
+      <View style={[...s("flex-1"), { paddingBottom: 64 + Math.max(insetBottom, 8) }]}>
+        {step === "silent" ? (
+          <SilentScreen city={city} cityProfile={cityProfile} />
+        ) : null}
+
+        {step === "offer" ? (
+          <OfferScreen
+            widgetVariant={widgetVariant}
+            highIntent={highIntent}
+            aggressiveHeadline={aggressiveHeadline}
+            onWidgetVariantChange={onWidgetVariantChange}
+            onWidgetCta={onWidgetCta}
+          />
+        ) : null}
+
+        {step === "redeeming" ? (
+          <RedeemFlow offer={miaRainOffer} onComplete={onRedeemComplete} />
+        ) : null}
+
+        {step === "success" ? (
+          <CheckoutSuccessScreen
+            cashbackEur={FALLBACK_CASHBACK_EUR}
+            onDone={onSuccessDone}
+          />
+        ) : null}
+      </View>
+
+      {/* SurfaceNotification floats over whatever silent visual is rendered. */}
+      <SurfaceNotification
+        visible={step === "surfacing"}
+        title={city === "berlin" ? "Es regnet bald" : "Heads-up"}
+        body={
+          city === "berlin"
+            ? "80 m bis zum heißen Kakao bei Café Bondi. 15% cashback."
+            : cityProfile.offerSummary
+        }
+        emoji={city === "berlin" ? "☔" : "☀️"}
+        timeLabel="now"
+        onTap={onSurfaceTap}
+        onDismiss={onSurfaceDismiss}
+      />
+
+      {/* Bottom menu — always visible inside the phone area (per #30). */}
+      <BottomMenu activeStep={step} bottomInset={insetBottom} onSelect={onBottomMenu} />
+    </View>
+  );
+}
+
+// ─── Silent screen: CityMap header + LockScreen body ────────────────────────
+
+function SilentScreen({
+  city,
+  cityProfile,
+}: {
+  city: DemoCityId;
+  cityProfile: DemoCityProfile;
+}) {
+  const { width } = useWindowDimensions();
+  // Map fills the phone-area horizontally minus 40px padding (px-5 each side).
+  // Cap at 480 to keep the map framed and avoid sprawl on tablets / wide sims.
+  const mapWidth = Math.min(480, Math.max(280, width - 40));
+
+  return (
+    <View style={s("flex-1")}>
+      {/* Map header — small inset so judges see the city framing. */}
+      <View style={[...s("px-5 py-3 items-center"), { backgroundColor: "#17120f" }]}>
+        <CityMap
+          centerLat={cityProfile.mapCenter.lat}
+          centerLng={cityProfile.mapCenter.lng}
+          pins={cityProfile.mapPins}
+          width={mapWidth}
+          height={140}
+        />
+      </View>
+
+      {/* LockScreen fills remaining space. */}
+      <View style={s("flex-1")}>
+        <LockScreen
+          personaName="Mia"
+          cityLabel={cityProfile.cityLabel}
+          tempC={city === "berlin" ? 11 : 14}
+          weatherLabel={
+            city === "berlin"
+              ? "overcast • rain in ~22 min"
+              : "clear • light breeze"
+          }
+        />
+      </View>
+    </View>
+  );
+}
+
+// ─── Offer screen: widget variant tabs + WidgetRenderer ─────────────────────
+
+function OfferScreen({
+  widgetVariant,
+  highIntent,
+  aggressiveHeadline,
+  onWidgetVariantChange,
+  onWidgetCta,
+}: {
+  widgetVariant: WidgetVariant;
+  highIntent: boolean;
+  aggressiveHeadline: string | null;
+  onWidgetVariantChange: (variant: WidgetVariant) => void;
+  onWidgetCta: () => void;
+}) {
+  return (
+    <View style={s("flex-1 bg-cream px-5 py-6")}>
+      {aggressiveHeadline ? (
+        <View style={s("mb-4 rounded-2xl bg-spark px-4 py-3")}>
+          <Text style={s("text-xs font-bold uppercase tracking-[2px] text-white")}>
+            High-intent boost
+          </Text>
+          <Text style={s("mt-1 text-base font-black leading-6 text-white")}>
+            {aggressiveHeadline}
+          </Text>
+        </View>
+      ) : null}
+
+      <View style={s("mb-3 flex-row gap-2")}>
+        <VariantButton
+          active={widgetVariant === "rainHero"}
+          label="Rain"
+          onPress={() => onWidgetVariantChange("rainHero")}
+        />
+        <VariantButton
+          active={widgetVariant === "quietStack"}
+          label="Quiet"
+          onPress={() => onWidgetVariantChange("quietStack")}
+        />
+        <VariantButton
+          active={widgetVariant === "preEventTicket"}
+          label="Event"
+          onPress={() => onWidgetVariantChange("preEventTicket")}
+        />
+      </View>
+
+      <View style={s("flex-1")}>
+        <WidgetRenderer node={demoWidgetSpecs[widgetVariant]} onRedeem={onWidgetCta} />
+      </View>
+
+      {!highIntent ? (
+        <Text style={s("mt-4 text-xs text-neutral-600 text-center")}>
+          Toggle high-intent in the dev panel to re-skin the headline.
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+// ─── Bottom menu (kept inline to honor #30 ded6acf shape) ───────────────────
 
 function BottomMenu({
   activeStep,
   bottomInset,
-  onHome,
-  onOffer,
-  onProof,
-  onQr,
+  onSelect,
 }: {
   activeStep: DemoStep;
   bottomInset: number;
-  onHome: () => void;
-  onOffer: () => void;
-  onProof: () => void;
-  onQr: () => void;
+  onSelect: (step: DemoStep) => void;
 }) {
   return (
     <View pointerEvents="box-none" style={{ bottom: 0, left: 0, position: "absolute", right: 0 }}>
@@ -181,10 +409,30 @@ function BottomMenu({
           paddingTop: 8,
         }}
       >
-        <BottomMenuItem active={activeStep === "silent"} icon="⌂" label="Home" onPress={onHome} />
-        <BottomMenuItem active={activeStep === "surface"} icon="✦" label="Offer" onPress={onOffer} />
-        <BottomMenuItem active={activeStep === "redeem"} icon="▣" label="QR" onPress={onQr} />
-        <BottomMenuItem active={activeStep === "success"} icon="✓" label="Proof" onPress={onProof} />
+        <BottomMenuItem
+          active={activeStep === "silent"}
+          icon="⌂"
+          label="Home"
+          onPress={() => onSelect("silent")}
+        />
+        <BottomMenuItem
+          active={activeStep === "offer"}
+          icon="✦"
+          label="Offer"
+          onPress={() => onSelect("offer")}
+        />
+        <BottomMenuItem
+          active={activeStep === "redeeming"}
+          icon="▣"
+          label="QR"
+          onPress={() => onSelect("redeeming")}
+        />
+        <BottomMenuItem
+          active={activeStep === "success"}
+          icon="✓"
+          label="Proof"
+          onPress={() => onSelect("success")}
+        />
       </View>
     </View>
   );
@@ -211,27 +459,6 @@ function BottomMenuItem({
   );
 }
 
-function CityButton({
-  active,
-  label,
-  onPress,
-}: {
-  active: boolean;
-  label: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      style={s("flex-1 rounded-2xl px-3 py-3", active ? "bg-rain" : "bg-cream")}
-      onPress={onPress}
-    >
-      <Text style={s("text-center text-xs font-black", active ? "text-white" : "text-ink")}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
 function VariantButton({
   active,
   label,
@@ -253,47 +480,56 @@ function VariantButton({
   );
 }
 
-function Signal({ label, value }: { label: string; value: string }) {
+// ─── Collapsible DevPanel for narrow viewports ──────────────────────────────
+
+function CollapsibleDevPanel({
+  expanded,
+  onToggle,
+  devPanelProps,
+}: {
+  expanded: boolean;
+  onToggle: () => void;
+  devPanelProps: ComponentProps<typeof DevPanel>;
+}) {
   return (
-    <View style={s("rounded-2xl border border-neutral-200 bg-cream px-4 py-3")}>
-      <Text style={s("text-xs font-semibold uppercase tracking-[2px] text-rain")}>{label}</Text>
-      <Text style={s("mt-1 text-base font-semibold text-ink")}>{value}</Text>
+    <View style={[{ backgroundColor: "#0d1117" }]}>
+      <Pressable
+        onPress={onToggle}
+        style={[
+          ...s("flex-row items-center justify-between px-4 py-3"),
+          { borderTopColor: "#30363d", borderTopWidth: 1 },
+        ]}
+      >
+        <Text style={s("mono text-[10px] uppercase tracking-[0.5px] text-gh-low")}>
+          dev_panel · {devPanelProps.compositeState}
+        </Text>
+        <Text style={s("mono text-[13px] text-white")}>{expanded ? "—" : "+"}</Text>
+      </Pressable>
+      {expanded ? <DevPanel {...devPanelProps} /> : null}
     </View>
   );
 }
 
-function RedeemCard({ onConfirm }: { onConfirm: () => void }) {
-  return (
-    <View style={s("rounded-[34px] bg-ink p-5")}>
-      <Text style={s("text-xs font-bold uppercase tracking-[3px] text-cream/60")}>Dynamic token</Text>
-      <View style={s("my-6 items-center rounded-3xl bg-cream p-6")}>
-        <View style={s("h-36 w-36 items-center justify-center rounded-2xl border-4 border-cocoa bg-white")}>
-          <Text style={s("text-center text-sm font-black text-cocoa")}>QR{"\n"}BNDI-1330</Text>
-        </View>
-      </View>
-      <Text style={s("text-base leading-6 text-cream/80")}>
-        Simulated checkout: scan token, tap girocard, receive cashback credit.
-      </Text>
-      <Pressable style={s("mt-5 rounded-2xl bg-cream px-5 py-4")} onPress={onConfirm}>
-        <Text style={s("text-center text-base font-black text-cocoa")}>Tap girocard</Text>
-      </Pressable>
-    </View>
-  );
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+/**
+ * Mirrors the per-feature math inside `scoreSurfacing()` so the DevPanel can
+ * render a per-dimension breakdown bar chart. Kept here (not in surfacingScore.ts)
+ * so the existing `reasons` shape and its pinned tests stay untouched.
+ */
+function buildBreakdown(
+  input: Omit<SurfacingInput, "highIntent">,
+  highIntent: boolean,
+) {
+  const weather = input.weatherTrigger === "rain_incoming" ? 0.28 : 0;
+  const event = input.eventEndingSoon ? 0.08 : 0;
+  const demand = clamp(input.demandGapRatio, 0, 0.6) * 0.7;
+  const proximity =
+    input.distanceM <= 100 ? 0.2 : input.distanceM <= 250 ? 0.12 : 0.04;
+  const highIntentBoost = highIntent ? 0.16 : 0;
+  return { weather, event, demand, proximity, highIntent: highIntentBoost };
 }
 
-function SuccessCard({ onReset }: { onReset: () => void }) {
-  return (
-    <View style={s("rounded-[34px] bg-spark p-5")}>
-      <Text style={s("text-xs font-bold uppercase tracking-[3px] text-white/70")}>Cashback confirmed</Text>
-      <Text style={s("mt-3 text-3xl font-black leading-9 text-white")}>
-        Cafe Bondi redeemed. Merchant counter +1.
-      </Text>
-      <Text style={s("mt-4 text-base leading-6 text-white/80")}>
-        The fallback loop is recordable: trigger, GenUI-style widget, token, simulated checkout.
-      </Text>
-      <Pressable style={s("mt-5 rounded-2xl bg-white px-5 py-4")} onPress={onReset}>
-        <Text style={s("text-center text-base font-black text-spark")}>Reset demo</Text>
-      </Pressable>
-    </View>
-  );
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }
