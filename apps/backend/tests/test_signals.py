@@ -17,6 +17,7 @@ from momentmarkt_backend.fixtures import (
 )
 from momentmarkt_backend.signals import (
     build_signal_context,
+    compute_demand_gap,
     distance_m,
     parse_demo_time,
 )
@@ -93,6 +94,9 @@ class TestBerlinCanonicalContext:
     def test_merchant_signal_summary_for_below_typical(self, ctx: dict) -> None:
         # Bondi triggers demand-gap → summary should say "% below baseline".
         assert "below" in ctx["merchant"]["summary"].lower()
+        assert ctx["merchant"]["demand_gap"]["computed_from"] == (
+            "typical_density_curve + live_samples"
+        )
 
     def test_high_intent_defaults_to_off(self, ctx: dict) -> None:
         hi = ctx["wrapped_user_context"]["high_intent"]
@@ -195,6 +199,40 @@ class TestWeatherTriggerLogic:
         }
         config = {"demo": {}}  # no forced override key
         assert signals_mod._weather_trigger(config, weather) == "clear"
+
+
+class TestComputedDemandGap:
+    def test_computes_gap_from_curves_not_authored_gap(self) -> None:
+        merchant = load_density("berlin")["merchants"][0] | {
+            "demand_gap": {
+                "typical_density": 1,
+                "live_density": 1,
+                "gap_density_points": 0,
+                "gap_ratio": 0,
+                "threshold_ratio": 0.2,
+                "status": "near_typical",
+                "triggers_demand_gap": False,
+                "reason": "stale authored value",
+            }
+        }
+
+        gap = compute_demand_gap(merchant, "2026-04-25T13:30:00+02:00")
+
+        assert gap["typical_density"] == 82
+        assert gap["live_density"] == 38
+        assert gap["gap_density_points"] == 44
+        assert gap["gap_ratio"] == 0.54
+        assert gap["triggers_demand_gap"] is True
+
+    def test_interpolates_between_curve_points(self) -> None:
+        merchant = load_density("berlin")["merchants"][0]
+
+        gap = compute_demand_gap(merchant, "2026-04-25T13:22:30+02:00")
+
+        assert gap["typical_density"] == 81.5
+        assert gap["live_density"] == 42.5
+        assert gap["gap_density_points"] == 39
+        assert gap["gap_ratio"] == 0.48
 
     def test_forced_value_overrides_dynamic_inference(self) -> None:
         from momentmarkt_backend import signals as signals_mod

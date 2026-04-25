@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Any
 
 from .llm_agents import run_headline_rewrite_agent
+from .semantic_novelty import NoveltyResult, semantic_novelty
 from .storage import DemoStore
 
 
@@ -25,7 +26,16 @@ async def evaluate_surface(
         store.approved_offers(city_id=city_id),
         wrapped_user_context,
     )
-    scored = [_score_candidate(offer, wrapped_user_context) for offer in candidates]
+    recent_surfaces = store.recent_surface_offer_texts(user_id=user_id, city_id=city_id)
+    novelty = await _semantic_novelty_scores(candidates, recent_surfaces)
+    scored = [
+        _score_candidate(
+            offer,
+            wrapped_user_context,
+            novelty.get(offer["id"], NoveltyResult(novelty=1.0, source="not_evaluated")),
+        )
+        for offer in candidates
+    ]
     scored.sort(key=lambda item: item["score"], reverse=True)
 
     boost = _intent_boost(wrapped_user_context.get("high_intent", {}))
@@ -125,11 +135,15 @@ def _filter_candidates(
     return eligible, exclusions
 
 
-def _score_candidate(offer: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+def _score_candidate(
+    offer: dict[str, Any],
+    context: dict[str, Any],
+    novelty_result: NoveltyResult,
+) -> dict[str, Any]:
     relevance = _relevance(offer["category"], context["intent_token"])
     proximity = max(0.35, 1 - (offer["distance_m"] / 1000))
     trigger_strength = _trigger_strength(offer["trigger_reason"], context["weather_state"])
-    novelty = 1.0
+    novelty = novelty_result.novelty
     boost = _intent_boost(context.get("high_intent", {}))
     base = relevance * proximity * trigger_strength * novelty
     score = round(base * (1 + ALPHA * boost), 3)
@@ -141,8 +155,23 @@ def _score_candidate(offer: dict[str, Any], context: dict[str, Any]) -> dict[str
             "proximity": round(proximity, 3),
             "trigger_strength": round(trigger_strength, 3),
             "novelty": novelty,
+            "novelty_source": novelty_result.source,
+            "semantic_similarity": novelty_result.max_similarity,
+            "matched_recent_offer_id": novelty_result.matched_offer_id,
             "boost": boost,
         },
+    }
+
+
+async def _semantic_novelty_scores(
+    candidates: list[dict[str, Any]],
+    recent_surfaces: list[dict[str, Any]],
+) -> dict[str, NoveltyResult]:
+    if not candidates:
+        return {}
+    return {
+        offer["id"]: await semantic_novelty(offer, recent_surfaces)
+        for offer in candidates
     }
 
 

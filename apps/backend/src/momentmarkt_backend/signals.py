@@ -37,9 +37,10 @@ def build_signal_context(city: str, merchant_id: str | None = None) -> SignalCon
         privacy,
         intent["intent_token"],
     )
+    merchant_signal = _merchant_signal(merchant, config["demo"]["time_local"])
     trigger_evaluation = evaluate_triggers(
         config=config,
-        merchant=merchant,
+        merchant=merchant_signal,
         weather_trigger=weather_trigger,
         events=events.get("events", []),
     )
@@ -64,12 +65,12 @@ def build_signal_context(city: str, merchant_id: str | None = None) -> SignalCon
             "event": event,
             "reason": trigger_evaluation["event"]["reason"],
         },
-        "merchant": _merchant_signal(merchant),
+        "merchant": merchant_signal,
         "trigger_evaluation": trigger_evaluation,
         "privacy": privacy,
         "intent_extractor": intent,
         "wrapped_user_context": wrapped_user_context,
-        "surface": _surface_input(config, merchant, weather_trigger, trigger_evaluation),
+        "surface": _surface_input(config, merchant_signal, weather_trigger, trigger_evaluation),
     }
 
 
@@ -243,13 +244,16 @@ def _trigger_summary(
     return reasons or ["No Opportunity trigger fired"]
 
 
-def _merchant_signal(merchant: dict[str, Any]) -> dict[str, Any]:
-    gap = merchant["demand_gap"]
+def _merchant_signal(merchant: dict[str, Any], evaluated_at: str) -> dict[str, Any]:
+    gap = compute_demand_gap(merchant, evaluated_at)
     return {
         "source": "OSM + Payone-style density fixture",
         "id": merchant["id"],
         "name": merchant["display_name"],
+        "display_name": merchant["display_name"],
         "category": merchant["category"],
+        "location": merchant.get("location", {}),
+        "trigger_tags": merchant.get("trigger_tags", []),
         "distance_m": merchant["distance_m"],
         "merchant_goal": merchant["merchant_goal"],
         "inventory_goal": merchant.get("inventory_goal", {}),
@@ -273,7 +277,7 @@ def _surface_input(
     return {
         "weatherTrigger": weather_trigger,
         "eventEndingSoon": trigger_evaluation["event"]["fired"],
-        "demandGapRatio": merchant["demand_gap"]["gap_ratio"],
+        "demandGapRatio": merchant["demand_gap_ratio"],
         "distanceM": merchant["distance_m"],
         "intent_token": privacy["intent_token"],
         "h3_cell_r8": privacy["h3_cell_r8"],
@@ -325,3 +329,92 @@ def distance_m(lat1: float, lon1: float, lat2: float, lon2: float) -> int:
 
 def parse_demo_time(value: str) -> datetime:
     return datetime.fromisoformat(value)
+
+
+def compute_demand_gap(merchant: dict[str, Any], evaluated_at: str) -> dict[str, Any]:
+    """Compute the demand gap from the typical curve and live samples.
+
+    The fixture carries a precomputed `demand_gap` block for readability in
+    demos, but the backend should not trust it as the source of truth. This
+    function derives the live-vs-typical gap at the evaluation time and keeps
+    only the fixture threshold/reason as authoring hints.
+    """
+
+    authored_gap = merchant.get("demand_gap", {})
+    threshold = float(authored_gap.get("threshold_ratio", THETA_DEMAND))
+    evaluated = parse_demo_time(evaluated_at)
+    minute = _datetime_to_minute(evaluated)
+
+    typical_points = [
+        (_time_to_minute(point["time"]), float(point["density"]))
+        for point in merchant["typical_density_curve"]["points"]
+    ]
+    live_points = [
+        (_datetime_to_minute(parse_demo_time(sample["time_local"])), float(sample["density"]))
+        for sample in merchant["live_samples"]
+    ]
+
+    typical_density = _interpolated_density(typical_points, minute)
+    live_density = _interpolated_density(live_points, minute)
+    gap_density_points = round(typical_density - live_density, 2)
+    gap_ratio = 0.0 if typical_density <= 0 else round(gap_density_points / typical_density, 2)
+    status = (
+        "below_typical"
+        if gap_density_points > 0
+        else "above_typical"
+        if gap_density_points < 0
+        else "at_typical"
+    )
+    triggers = status == "below_typical" and gap_ratio >= threshold
+    reason = (
+        f"Live density is {round(gap_ratio * 100)}% below the typical "
+        f"{evaluated:%H:%M} baseline."
+        if triggers
+        else authored_gap.get("reason", "Live density is not far enough below baseline.")
+    )
+
+    return {
+        "evaluated_at_local": evaluated_at,
+        "typical_density": _clean_number(typical_density),
+        "live_density": _clean_number(live_density),
+        "gap_density_points": _clean_number(gap_density_points),
+        "gap_ratio": gap_ratio,
+        "threshold_ratio": threshold,
+        "status": status,
+        "triggers_demand_gap": triggers,
+        "reason": reason,
+        "computed_from": "typical_density_curve + live_samples",
+    }
+
+
+def _interpolated_density(points: list[tuple[float, float]], minute: float) -> float:
+    if not points:
+        raise ValueError("Cannot compute density from an empty curve")
+
+    ordered = sorted(points)
+    if minute <= ordered[0][0]:
+        return ordered[0][1]
+    if minute >= ordered[-1][0]:
+        return ordered[-1][1]
+
+    for (left_minute, left_value), (right_minute, right_value) in zip(ordered, ordered[1:]):
+        if left_minute <= minute <= right_minute:
+            if right_minute == left_minute:
+                return left_value
+            ratio = (minute - left_minute) / (right_minute - left_minute)
+            return round(left_value + ((right_value - left_value) * ratio), 2)
+
+    return ordered[-1][1]
+
+
+def _time_to_minute(value: str) -> float:
+    hour, minute = value.split(":", maxsplit=1)
+    return int(hour) * 60 + int(minute)
+
+
+def _datetime_to_minute(value: datetime) -> float:
+    return (value.hour * 60) + value.minute + (value.second / 60)
+
+
+def _clean_number(value: float) -> int | float:
+    return int(value) if float(value).is_integer() else value

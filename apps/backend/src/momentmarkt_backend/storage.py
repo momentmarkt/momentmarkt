@@ -241,6 +241,51 @@ class DemoStore:
         ).fetchone()
         return int(row["count"])
 
+    def recent_surface_offer_texts(
+        self,
+        user_id: str,
+        city_id: str | None = None,
+        limit: int = 12,
+    ) -> list[dict[str, Any]]:
+        city_filter = "" if city_id is None else "AND offers.city_id = ?"
+        params: tuple[Any, ...] = (
+            (user_id, limit)
+            if city_id is None
+            else (user_id, city_id, limit)
+        )
+        rows = self._connection.execute(
+            f"""
+            SELECT
+              offers.id AS offer_id,
+              offers.merchant_name,
+              offers.category,
+              offers.copy_seed,
+              offers.trigger_reason,
+              surface_events.headline_final,
+              surface_events.t
+            FROM surface_events
+            JOIN offers ON offers.id = surface_events.offer_id
+            WHERE surface_events.user_id = ?
+              AND surface_events.fired = 1
+              {city_filter}
+            ORDER BY surface_events.id DESC
+            LIMIT ?
+            """,
+            params,
+        ).fetchall()
+        return [
+            {
+                "offer_id": row["offer_id"],
+                "merchant_name": row["merchant_name"],
+                "category": row["category"],
+                "copy_seed": json.loads(row["copy_seed"]),
+                "trigger_reason": json.loads(row["trigger_reason"]),
+                "headline_final": row["headline_final"],
+                "t": row["t"],
+            }
+            for row in rows
+        ]
+
     def cached_headline(self, offer_id: str, weather_state: str, intent_state: str) -> str | None:
         row = self._connection.execute(
             """

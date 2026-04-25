@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 import pytest
 
 from momentmarkt_backend.main import app, store
+from momentmarkt_backend.semantic_novelty import NoveltyResult
 
 
 client = TestClient(app)
@@ -177,6 +178,41 @@ def test_surfacing_headline_cache_hits_on_second_fire() -> None:
     assert second.json()["cache_hit"] is True
     assert second.json()["intent_state"] == "active"
     assert second.json()["headline_final"].startswith("Jetzt passt es:")
+
+
+def test_surfacing_semantic_novelty_downweights_repeated_offer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fake_novelty(candidates: list[dict], recent_surfaces: list[dict]) -> dict:
+        assert len(candidates) == 1
+        assert len(recent_surfaces) == 1
+        return {
+            candidates[0]["id"]: NoveltyResult(
+                novelty=0.35,
+                source="azure_ai_foundry_embeddings",
+                max_similarity=0.99,
+                matched_offer_id=recent_surfaces[0]["offer_id"],
+            )
+        }
+
+    first = client.post("/surfacing/evaluate", json={"city": "berlin"})
+    assert first.status_code == 200
+    assert first.json()["fired"] is True
+
+    monkeypatch.setattr(
+        "momentmarkt_backend.surfacing_agent._semantic_novelty_scores",
+        fake_novelty,
+    )
+    second = client.post(
+        "/surfacing/evaluate",
+        json={"city": "berlin", "seed_offer": False},
+    )
+    assert second.status_code == 200
+    payload = second.json()
+    assert payload["fired"] is False
+    assert payload["scores"][0]["parts"]["novelty"] == 0.35
+    assert payload["scores"][0]["parts"]["novelty_source"] == "azure_ai_foundry_embeddings"
+    assert payload["scores"][0]["parts"]["semantic_similarity"] == 0.99
 
 
 def test_surfacing_uses_pydantic_ai_headline_on_cache_miss(

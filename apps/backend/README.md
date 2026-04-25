@@ -9,7 +9,8 @@ FastAPI service for the demo-safe backend path:
 - Persists drafted offers, inbox events, surfacing events, headline cache entries,
   and simulated redemptions to SQLite.
 - Evaluates the Surfacing Agent with deterministic scoring, silence thresholds,
-  high-intent boost, and top-1 selection.
+  high-intent boost, optional Azure AI Foundry semantic novelty downweighting,
+  and top-1 selection.
 - Falls back to deterministic known-good JSON when Pydantic AI or provider credentials are unavailable.
 
 ## Run
@@ -83,6 +84,25 @@ Per the agent contract, high-intent signals are ignored by Opportunity
 generation. Surfacing uses them later for thresholding and headline rewrites.
 Set `use_llm: true` on `/surfacing/evaluate` to use the Pydantic AI headline
 rewrite agent on cache misses.
+
+## Optional semantic novelty
+
+The Surfacing Agent can downweight offers that are semantically too similar to
+recently surfaced offers for the same user. Local/dev default is neutral
+`novelty=1.0`; production can enable Azure embeddings:
+
+```bash
+MOMENTMARKT_SEMANTIC_NOVELTY=azure
+MOMENTMARKT_EMBEDDING_ENDPOINT=https://your-foundry-endpoint/embeddings
+MOMENTMARKT_EMBEDDING_MODEL=text-embedding-3-small
+MOMENTMARKT_EMBEDDING_API_KEY=...
+```
+
+If `MOMENTMARKT_EMBEDDING_ENDPOINT` is unset, the backend derives an Azure
+OpenAI embeddings URL from `AZURE_OPENAI_ENDPOINT`,
+`AZURE_OPENAI_EMBEDDING_DEPLOYMENT`, and `AZURE_OPENAI_API_VERSION`.
+Provider failures are non-blocking and return neutral novelty so the demo stays
+recordable.
 
 ## Request flow
 
