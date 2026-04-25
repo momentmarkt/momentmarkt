@@ -86,8 +86,16 @@ Implications for the planner and critic:
 - Demo video — **1 minute hard cap**
 - Tech video — **1 minute hard cap**
 - Public GitHub repo
-- 16:9 cover image
-- _verify the full required-asset list on Devpost after the track is accepted_
+- 16:9 cover image — **no file size or format limit**, 16:9 aspect ratio is the only constraint (confirmed 2026-04-25)
+- Devpost form fields (confirmed 2026-04-25 from the live form — required fields marked `*`):
+  - **Short Description ***
+  - **Structured Project Description** (parent section)
+    1. **Problem & Challenge ***  — "What problem does your project solve? What pain point are you addressing?"
+    2. **Target Audience ***  — "Who benefits from your solution? Who is your main target group?"
+    3. **Solution & Core Features ***  — "How do you solve the problem? What are your main functionalities?"
+    4. **Unique Selling Proposition (USP) ***  — "What makes your project better or different from existing solutions?"
+    5. **Implementation & Technology ***  — "How did you technically implement the solution? What technologies do you use?"
+    6. **Results & Impact ***
 
 ## Late submission policy
 
@@ -95,7 +103,6 @@ Implications for the planner and critic:
 
 ## Still-unknown — fill in as you find out
 
-- **Cover image specs**: file format, file size limit (aspect is 16:9)
 - **Communication channel**: Discord / Slack URL for questions and mentor access
 - **Office hours / mentor schedule**: when, where, how to book
 - **IP / licensing rules**: license required on the public repo, ownership terms
