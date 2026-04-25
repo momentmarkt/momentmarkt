@@ -17,10 +17,27 @@
 ## Coordination Rules
 
 - Before editing implementation files, claim or create a GitHub issue in `mmtftr/momentmarkt` and comment that you are taking it.
+- Assign the GitHub issue to yourself when you take it. If you cannot assign yourself, leave a clear comment with your GitHub username / machine / agent.
 - One issue per laptop/agent at a time unless explicitly coordinated.
+- Push the completed work before closing the issue.
+- Only close issues after the relevant commit is on `origin/main` or after a PR is merged.
+- When closing an issue, comment with the commit hash or PR link and a short completion note.
 - Do not delete or overwrite another teammate's untracked work without a direct sync.
 - Do not revive the obsolete Next.js phone-frame direction unless `work/SPEC.md` changes.
 - Keep the hour-5 fallback recordable: Expo app + one hand-authored offer + one rendered widget + fake redeem.
+
+## Issue Workflow
+
+1. Read `work/SPEC.md`, `context/PARTNER_DISCUSSION.md`, and this file.
+2. Pick one open GitHub issue from `https://github.com/mmtftr/momentmarkt/issues`.
+3. Comment `Taking this on <machine/agent>` and assign it to yourself.
+4. Pull/rebase latest `origin/main` before editing.
+5. Make the smallest scoped change for that issue.
+6. Validate locally with the fastest relevant command.
+7. Commit with a concise message.
+8. Pull/rebase again, then push.
+9. Close the issue only after push/merge, referencing the commit.
+10. Move to the next unclaimed issue.
 
 ## Build Priorities
 
