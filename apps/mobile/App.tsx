@@ -28,6 +28,7 @@ import { miaRainOffer } from "./src/demo/miaOffer";
 import { demoWidgetSpecs } from "./src/demo/widgetSpecs";
 import { CheckoutSuccessScreen } from "./src/screens/CheckoutSuccessScreen";
 import { HistoryScreen } from "./src/screens/HistoryScreen";
+import { SettingsScreen } from "./src/screens/SettingsScreen";
 import { s } from "./src/styles";
 import { scoreSurfacing, type SurfacingInput } from "./src/surfacing/surfacingScore";
 
@@ -78,6 +79,13 @@ export default function App() {
   const [widgetVariant, setWidgetVariant] = useState<WidgetVariant>("rainHero");
   const [devPanelExpanded, setDevPanelExpanded] = useState(false);
   const [sheetIndex, setSheetIndex] = useState(0);
+  // Settings overlay state (issue #62). `settingsOpen` drives the slide-in
+  // overlay; the two settings below are the *real* toggles wired through to
+  // DevPanel + (cosmetically) WalletSheetContent. Cosmetic toggles inside
+  // SettingsScreen own their own local state — no need to lift them up.
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showPrivacyEnvelope, setShowPrivacyEnvelope] = useState(true);
+  const [language, setLanguage] = useState<"de" | "en">("de");
 
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -180,6 +188,24 @@ export default function App() {
     setSheetIndex(index);
   }, []);
 
+  const handleOpenSettings = useCallback(() => {
+    setSettingsOpen(true);
+  }, []);
+  const handleCloseSettings = useCallback(() => {
+    setSettingsOpen(false);
+  }, []);
+  const handleTogglePrivacyEnvelope = useCallback(() => {
+    setShowPrivacyEnvelope((prev) => !prev);
+  }, []);
+  const handleSetLanguage = useCallback((lang: "de" | "en") => {
+    setLanguage(lang);
+  }, []);
+  const handleResetDemoFromSettings = useCallback(() => {
+    setStep("silent");
+    setView("demo");
+    setSettingsOpen(false);
+  }, []);
+
   const devPanelProps: ComponentProps<typeof DevPanel> = {
     compositeState,
     signals,
@@ -193,6 +219,7 @@ export default function App() {
     city,
     onSwapCity: handleSwapCity,
     onRunSurfacing: handleRunSurfacing,
+    showPrivacyEnvelope,
   };
 
   const mapOverlayStyle = useAnimatedStyle(() => {
@@ -262,6 +289,7 @@ export default function App() {
             onWidgetCta={handleAdvanceFromOffer}
             onRedeemComplete={handleRedeemComplete}
             onSuccessDone={handleResetToSilent}
+            onOpenSettings={handleOpenSettings}
           />
         </BottomSheetView>
       </BottomSheet>
@@ -286,6 +314,20 @@ export default function App() {
         activeView={view}
         bottomInset={insets.bottom}
         onSelect={handleBottomMenu}
+      />
+
+      {/* Settings overlay (issue #62). Rendered last inside walletArea so it
+          stacks above the sheet, history overlay, and bottom menu. The
+          SettingsScreen itself returns null when not visible — no perf cost
+          while closed, full slide-in animation when opened. */}
+      <SettingsScreen
+        visible={settingsOpen}
+        onClose={handleCloseSettings}
+        showPrivacyEnvelope={showPrivacyEnvelope}
+        onTogglePrivacyEnvelope={handleTogglePrivacyEnvelope}
+        language={language}
+        onSetLanguage={handleSetLanguage}
+        onResetDemo={handleResetDemoFromSettings}
       />
     </View>
   );
@@ -331,6 +373,8 @@ type SheetBodyProps = {
   onWidgetCta: () => void;
   onRedeemComplete: () => void;
   onSuccessDone: () => void;
+  /** Forwarded to WalletSheetContent — gear icon in the sheet header. */
+  onOpenSettings?: () => void;
 };
 
 function SheetBody({
@@ -345,6 +389,7 @@ function SheetBody({
   onWidgetCta,
   onRedeemComplete,
   onSuccessDone,
+  onOpenSettings,
 }: SheetBodyProps) {
   if (step === "redeeming") {
     return (
@@ -388,6 +433,7 @@ function SheetBody({
       pulseLabel={city === "berlin" ? "Rain in ~22 min" : "Clear · light breeze"}
       animatedIndex={animatedIndex}
       expandedSlot={offerSlot}
+      onOpenSettings={onOpenSettings}
     />
   );
 }

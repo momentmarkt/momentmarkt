@@ -1,5 +1,5 @@
 import { type ReactElement, type ReactNode, useEffect, useState } from "react";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import Animated, {
   Easing,
   Extrapolation,
@@ -36,6 +36,13 @@ type Props = {
    * Only rendered (and animated in) once the sheet passes the medium snap.
    */
   expandedSlot?: ReactNode;
+  /**
+   * Optional callback for the gear icon in the sheet header (issue #62).
+   * When provided, a small ⚙ button renders top-right of the brand row and
+   * tapping it opens the Settings overlay. Subtle (opacity 0.6) so it stays
+   * out of the consumer's primary scanning path.
+   */
+  onOpenSettings?: () => void;
 };
 
 /**
@@ -59,6 +66,7 @@ export function WalletSheetContent({
   pulseLabel = "Rain in ~22 min",
   animatedIndex,
   expandedSlot,
+  onOpenSettings,
 }: Props): ReactElement {
   const [now, setNow] = useState(() => new Date());
 
@@ -129,6 +137,36 @@ export function WalletSheetContent({
 
   return (
     <View style={[...s("flex-1 px-5"), { paddingTop: 4, paddingBottom: 16 }]}>
+      {/* Gear icon (issue #62) — sits in the top-right corner of the sheet
+          header, absolute-positioned so it doesn't shift the centred brand +
+          clock typographic rhythm. Subtle (opacity 0.6) so it stays out of
+          the consumer's primary scanning path. */}
+      {onOpenSettings ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Einstellungen öffnen"
+          onPress={onOpenSettings}
+          hitSlop={12}
+          style={({ pressed }) => [
+            {
+              position: "absolute",
+              top: 4,
+              right: 12,
+              width: 32,
+              height: 32,
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: pressed ? 1 : 0.6,
+              zIndex: 5,
+            },
+          ]}
+        >
+          <Text style={[...s("text-base text-white"), { fontSize: 18, lineHeight: 20 }]}>
+            {"⚙"}
+          </Text>
+        </Pressable>
+      ) : null}
+
       <View style={s("items-center")}>
         <Text
           style={s(

@@ -76,6 +76,13 @@ type Props = {
   widgetVariant?: DevPanelWidgetVariant;
   /** Switch the rendered widget variant from the engineering surface. */
   onWidgetVariantChange?: (variant: DevPanelWidgetVariant) => void;
+  /**
+   * Visibility of the {intent_token, h3_cell_r8} privacy envelope chip
+   * (issue #62). Toggled from Settings; defaults to true so existing demo
+   * cuts keep the privacy moment visible. When false, the entire envelope
+   * section (label + chip) is hidden.
+   */
+  showPrivacyEnvelope?: boolean;
 };
 
 export function DevPanel(props: Props): ReactElement | null {
@@ -95,6 +102,7 @@ export function DevPanel(props: Props): ReactElement | null {
     onRunSurfacing,
     widgetVariant,
     onWidgetVariantChange,
+    showPrivacyEnvelope = true,
   } = props;
 
   const [privacyExpanded, setPrivacyExpanded] = useState(false);
@@ -170,28 +178,32 @@ export function DevPanel(props: Props): ReactElement | null {
         />
       </View>
 
-      <SectionLabel>privacy_envelope</SectionLabel>
-      <Pressable
-        onPress={togglePrivacy}
-        style={s("bg-gh-chip rounded-md px-3 py-2 mb-4 border border-gh")}
-      >
-        <View style={s("flex-row items-center gap-2")}>
-          <Text style={s("text-[10px]")}>{"\u{1F512}"}</Text>
-          <Text style={s("mono text-[10px] text-white")} numberOfLines={1}>
-            {"{intent_token, h3_cell_r8}"}
-          </Text>
-        </View>
-        {privacyExpanded ? (
-          <View style={s("mt-2 gap-1")}>
-            <Text style={s("mono text-[10px] text-gh-low")}>intent_token</Text>
-            <Text style={s("mono text-[10px] text-white")}>{intentToken}</Text>
-            <Text style={s("mono text-[10px] text-gh-low mt-1")}>h3_cell_r8</Text>
-            <Text style={s("mono text-[10px] text-white")}>{h3Cell}</Text>
-          </View>
-        ) : (
-          <Text style={s("mono text-[10px] text-gh-low mt-1")}>tap to expand</Text>
-        )}
-      </Pressable>
+      {showPrivacyEnvelope ? (
+        <>
+          <SectionLabel>privacy_envelope</SectionLabel>
+          <Pressable
+            onPress={togglePrivacy}
+            style={s("bg-gh-chip rounded-md px-3 py-2 mb-4 border border-gh")}
+          >
+            <View style={s("flex-row items-center gap-2")}>
+              <Text style={s("text-[10px]")}>{"\u{1F512}"}</Text>
+              <Text style={s("mono text-[10px] text-white")} numberOfLines={1}>
+                {"{intent_token, h3_cell_r8}"}
+              </Text>
+            </View>
+            {privacyExpanded ? (
+              <View style={s("mt-2 gap-1")}>
+                <Text style={s("mono text-[10px] text-gh-low")}>intent_token</Text>
+                <Text style={s("mono text-[10px] text-white")}>{intentToken}</Text>
+                <Text style={s("mono text-[10px] text-gh-low mt-1")}>h3_cell_r8</Text>
+                <Text style={s("mono text-[10px] text-white")}>{h3Cell}</Text>
+              </View>
+            ) : (
+              <Text style={s("mono text-[10px] text-gh-low mt-1")}>tap to expand</Text>
+            )}
+          </Pressable>
+        </>
+      ) : null}
 
       <SectionLabel>high_intent_boost</SectionLabel>
       <View
