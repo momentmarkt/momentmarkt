@@ -252,7 +252,11 @@ export default function App() {
 
   const walletArea = (
     <View style={s("flex-1")}>
-      {/* Full-bleed Apple Map background. */}
+      {/* Full-bleed Apple Map background. Tapping a merchant's offer
+          callout (issue #43) advances the demo to the offer beat so the
+          wallet sheet snaps to its full snap and the GenUI widget reveals
+          — the callout is the in-context anchor, the sheet is the rich
+          surface. */}
       <View style={StyleSheet.absoluteFill}>
         <CityMap
           centerLat={cityProfile.mapCenter.lat}
@@ -260,6 +264,7 @@ export default function App() {
           pins={cityProfile.mapPins}
           interactive={mapInteractive}
           style={StyleSheet.absoluteFill}
+          onOfferPress={() => setStep("offer")}
         />
       </View>
 

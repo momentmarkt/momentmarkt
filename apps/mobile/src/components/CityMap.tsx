@@ -7,7 +7,7 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
-import MapView, { Marker, PROVIDER_DEFAULT } from "react-native-maps";
+import MapView, { Callout, Marker, PROVIDER_DEFAULT } from "react-native-maps";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -27,6 +27,24 @@ export type MerchantCategory =
   | "supermarket"
   | "default";
 
+/**
+ * Compact offer payload rendered as a native Apple Maps callout (issue
+ * #43). Stays text-only on purpose — the rich GenUI widget keeps living
+ * inside the wallet drawer; the callout is just the in-context anchor on
+ * the merchant pin. Headline is German per demo copy; `cashbackLabel`
+ * shows the amount/percent in monospace so it reads like a deal sticker.
+ */
+export type CityMapPinOffer = {
+  /** German one-liner — kept short so the callout never wraps awkwardly. */
+  headline: string;
+  /** Optional second line: distance + expiry, e.g. "82 m · bis 15:00". */
+  body?: string;
+  /** Cashback chip text, e.g. "15% cashback" or "€2.40 zurück". */
+  cashbackLabel: string;
+  /** Optional CTA hint shown under the cashback chip ("Tippen → Wallet"). */
+  ctaHint?: string;
+};
+
 export type CityMapPin = {
   id: string;
   name: string;
@@ -38,6 +56,13 @@ export type CityMapPin = {
    * pin when missing so the component never blows up on legacy data.
    */
   category?: MerchantCategory;
+  /**
+   * Offer payload surfaced as an Apple Maps callout when present (issue
+   * #43). Only the highlighted pin needs this in the demo, but any pin
+   * may carry one — the renderer just hangs a `<Callout>` off the marker
+   * so the native MapKit callout drives the open/close animation.
+   */
+  offer?: CityMapPinOffer;
 };
 
 type Props = {
@@ -56,6 +81,13 @@ type Props = {
    * styling.
    */
   style?: StyleProp<ViewStyle>;
+  /**
+   * Fires when the user taps a pin's offer callout. Receives the pin id
+   * so the screen layer can pivot — e.g. expand the bottom-sheet wallet
+   * to its full snap so the GenUI widget reveals (issue #43 hybrid). No-op
+   * by default; safe to omit when the screen does not need to react.
+   */
+  onOfferPress?: (pinId: string) => void;
 };
 
 // Inline brand color (styles.ts does not export the palette).
@@ -87,6 +119,12 @@ const DEFAULT_BERLIN_PINS: CityMapPin[] = [
     lng: 13.413,
     highlighted: true,
     category: "cafe",
+    offer: {
+      headline: "Es regnet bald. 80 m bis zum heissen Kakao.",
+      body: "82 m · läuft 15:00 ab",
+      cashbackLabel: "15% cashback",
+      ctaHint: "Tippen → Wallet",
+    },
   },
   { id: "backerei-mitte", name: "Backerei Mitte", lat: 52.5225, lng: 13.4108, category: "bakery" },
   { id: "buchladen-rosa", name: "Buchladen Rosa", lat: 52.5198, lng: 13.4155, category: "bookstore" },
@@ -113,6 +151,7 @@ export function CityMap({
   interactive = false,
   showCompass = false,
   style,
+  onOfferPress,
 }: Props): JSX.Element {
   const resolvedPins = pins ?? DEFAULT_BERLIN_PINS;
 
@@ -151,7 +190,7 @@ export function CityMap({
         toolbarEnabled={false}
       >
         {resolvedPins.map((pin) => (
-          <MerchantMarker key={pin.id} pin={pin} />
+          <MerchantMarker key={pin.id} pin={pin} onOfferPress={onOfferPress} />
         ))}
       </MapView>
     </View>
@@ -168,15 +207,28 @@ export function CityMap({
  * round bubbles + emoji are immediately scannable on top of street
  * tiles, while the halo + color shift directs the eye to the offer.
  */
-function MerchantMarker({ pin }: { pin: CityMapPin }): JSX.Element {
+function MerchantMarker({
+  pin,
+  onOfferPress,
+}: {
+  pin: CityMapPin;
+  onOfferPress?: (pinId: string) => void;
+}): JSX.Element {
   const isHighlighted = Boolean(pin.highlighted);
   const glyph = CATEGORY_GLYPH[pin.category ?? "default"] ?? CATEGORY_GLYPH.default;
+  const hasOffer = Boolean(pin.offer);
 
   return (
     <Marker
       coordinate={{ latitude: pin.lat, longitude: pin.lng }}
-      title={pin.name}
+      // Strip the system title when we render a custom callout — otherwise
+      // MapKit shows both the default tooltip and the custom view stacked,
+      // which double-renders the merchant name.
+      title={hasOffer ? undefined : pin.name}
       anchor={{ x: 0.5, y: 0.5 }}
+      // Lift the callout slightly above the bubble so MapKit's anchor line
+      // points at the pin's center instead of clipping the marker chrome.
+      calloutAnchor={{ x: 0.5, y: 0 }}
       // Halo animation requires React-side redraws — let the highlighted
       // marker view track changes so the pulse animates. Static markers
       // skip this for perf.
@@ -192,7 +244,68 @@ function MerchantMarker({ pin }: { pin: CityMapPin }): JSX.Element {
           </View>
         </View>
       )}
+
+      {pin.offer ? (
+        <Callout
+          tooltip
+          alphaHitTest
+          onPress={() => onOfferPress?.(pin.id)}
+        >
+          <OfferCallout merchantName={pin.name} offer={pin.offer} />
+        </Callout>
+      ) : null}
     </Marker>
+  );
+}
+
+/**
+ * Custom Apple Maps callout — purely presentational. Renders inside a
+ * `<Callout tooltip>` so MapKit drops its default white bubble and we
+ * own the chrome. Layout: merchant name (small caps), German headline,
+ * one-line body, monospace cashback chip, optional CTA hint.
+ *
+ * Neutral palette per #43 (no spark-red Sparkassen-y branding here):
+ * the callout is the wallet's voice, not a partner ad. Kept narrow
+ * (~220 pt) so it never overflows the visible map area when the
+ * highlighted pin sits near a screen edge.
+ */
+function OfferCallout({
+  merchantName,
+  offer,
+}: {
+  merchantName: string;
+  offer: CityMapPinOffer;
+}): JSX.Element {
+  return (
+    <View style={calloutStyles.wrap}>
+      <View style={calloutStyles.card}>
+        <Text style={calloutStyles.merchant} numberOfLines={1}>
+          {merchantName.toUpperCase()}
+        </Text>
+        <Text style={calloutStyles.headline} numberOfLines={2}>
+          {offer.headline}
+        </Text>
+        {offer.body ? (
+          <Text style={calloutStyles.body} numberOfLines={1}>
+            {offer.body}
+          </Text>
+        ) : null}
+        <View style={calloutStyles.chipRow}>
+          <View style={calloutStyles.cashbackChip}>
+            <Text style={calloutStyles.cashbackText}>{offer.cashbackLabel}</Text>
+          </View>
+          {offer.ctaHint ? (
+            <Text style={calloutStyles.ctaHint} numberOfLines={1}>
+              {offer.ctaHint}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+      {/* Apple-Maps-style downward triangle anchoring the bubble to the
+          pin. Kept as a rotated square for a single render path that
+          works on iOS without an SVG dep. */}
+      <View style={calloutStyles.tail} />
+    </View>
   );
 }
 
@@ -296,5 +409,89 @@ const markerStyles = StyleSheet.create({
   highlightedGlyph: {
     fontSize: 20,
     lineHeight: 22,
+  },
+});
+
+// Callout chrome lives in its own stylesheet so the marker styles above
+// stay focused on pin geometry. Palette is intentionally neutral — soft
+// ink card on cream, monospace cashback amount — so the callout reads as
+// the wallet's own voice rather than a Sparkassen-branded ad sticker.
+const CALLOUT_INK = "#17120f";
+const CALLOUT_CREAM = "#fff8ee";
+const CALLOUT_BORDER = "rgba(23, 18, 15, 0.12)";
+
+const calloutStyles = StyleSheet.create({
+  wrap: {
+    alignItems: "center",
+    width: 232,
+  },
+  card: {
+    width: "100%",
+    backgroundColor: CALLOUT_CREAM,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: CALLOUT_BORDER,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+  },
+  merchant: {
+    color: "rgba(23, 18, 15, 0.55)",
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 1.2,
+  },
+  headline: {
+    color: CALLOUT_INK,
+    fontSize: 14,
+    fontWeight: "800",
+    lineHeight: 18,
+    marginTop: 4,
+  },
+  body: {
+    color: "rgba(23, 18, 15, 0.70)",
+    fontSize: 11,
+    fontWeight: "500",
+    lineHeight: 14,
+    marginTop: 3,
+  },
+  chipRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 8,
+  },
+  cashbackChip: {
+    backgroundColor: CALLOUT_INK,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  cashbackText: {
+    color: CALLOUT_CREAM,
+    fontFamily: "Menlo",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.2,
+  },
+  ctaHint: {
+    color: "rgba(23, 18, 15, 0.55)",
+    fontSize: 10,
+    fontWeight: "600",
+    flexShrink: 1,
+  },
+  tail: {
+    width: 12,
+    height: 12,
+    backgroundColor: CALLOUT_CREAM,
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: CALLOUT_BORDER,
+    transform: [{ rotate: "45deg" }],
+    marginTop: -6,
   },
 });
