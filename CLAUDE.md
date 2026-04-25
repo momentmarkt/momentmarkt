@@ -2,7 +2,7 @@
 
 ## Current Authority
 
-- Canonical spec: `work/SPEC.md` (`spec-v03`, `STATUS: ready`).
+- Canonical spec: `work/SPEC.md` (`spec-v04`, `STATUS: ready`).
 - Partner override context: `context/PARTNER_DISCUSSION.md`.
 - Hackathon constraints and Devpost fields: `context/HACKATHON.md`.
 
@@ -12,7 +12,7 @@
 - Track: DSV-Gruppe CITY WALLET.
 - Consumer app is **React Native + Expo + TypeScript** recorded on iOS Simulator or Expo Go.
 - Merchant inbox can be the fastest credible web surface.
-- The old untracked Next.js scaffold under `src/` is obsolete according to `spec-v03`.
+- The old untracked Next.js scaffold under `src/` is obsolete according to `spec-v04`.
 
 ## Coordination Rules
 
