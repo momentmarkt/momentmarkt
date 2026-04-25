@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from .fixtures import available_cities, load_city_config
@@ -16,6 +17,15 @@ app = FastAPI(
     title="MomentMarkt Backend",
     version="0.1.0",
     description="Fixture-backed signal and Opportunity Agent API for the CITY WALLET demo.",
+)
+
+# Demo backend serves fixture data only; permissive CORS lets the merchant
+# inbox and any teammate's local client hit the hosted URL without friction.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 store = DemoStore()
