@@ -27,21 +27,10 @@
   </defs>
   <rect x="0" y="0" width="1024" height="1024" fill="url(#warm)" />
 
-  <!-- ── INNER PLATE ─────────────────────────────────────────────────
-       Generous 10% safe zone: plate spans 102..922 in both axes.
-       Rounded corners suggest a storefront / awning silhouette.
-       Cocoa hairline gives the mark a quiet edge under iOS rounded mask.
-  -->
-  <rect x="102" y="102" width="820" height="820"
-        rx="180" ry="180"
-        fill="#fff8ee"
-        stroke="#6f3f2c"
-        stroke-width="6"
-        stroke-opacity="0.18" />
-
   <!-- ── AWNING TRIM ────────────────────────────────────────────────
-       Thin cocoa underline at the bottom of the plate hints at a
-       market-stall awning band without competing with the M.
+       Thin cocoa underline that hints at a market-stall awning band
+       without competing with the M. (Inner plate removed — the outer
+       cream tile IS the icon surface; iOS rounds the corners.)
   -->
   <rect x="172" y="788" width="680" height="6"
         rx="3" ry="3"

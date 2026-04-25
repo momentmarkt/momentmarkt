@@ -3,17 +3,14 @@
 Source-of-truth artwork lives as plain SVG so we can re-render any size
 without committing binaries.
 
-## Source files
+## Source file
 
-- `assets/logo.svg` — horizontal wordmark + small mark (~200×60 viewBox).
-  Used in the README header and any web surface.
 - `assets/logo-icon.svg` — square mark only (1024×1024 viewBox).
-  Source for the iOS app icon, Android adaptive-icon foreground, splash icon,
-  and web favicon.
+  Single source for everything: README header (rendered at 120px width),
+  iOS app icon, Android adaptive-icon foreground, splash icon, and web
+  favicon. The wordmark is rendered as plain markdown text alongside.
 
-Both files are self-contained: no external font load (Georgia is a system
-serif on every Apple/Windows/most Linux box). Open them in any browser to
-preview.
+Self-contained: no external font load. Open in any browser to preview.
 
 ## Render to PNG via Chrome headless
 
@@ -84,7 +81,6 @@ The README header banner already uses the wordmark SVG inline:
 
 ```html
 <div align="center">
-  <img src="./assets/logo.svg" alt="MomentMarkt" width="320" />
   …
 </div>
 ```
@@ -98,7 +94,6 @@ preview that strips SVG), render via:
   --headless --disable-gpu --window-size=640,192 \
   --screenshot=assets/logo.png \
   --default-background-color=00000000 \
-  "file://$PWD/assets/logo.svg"
 ```
 
 ## Design notes
