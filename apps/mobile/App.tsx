@@ -287,7 +287,7 @@ export default function App() {
           would compete with the consumer view — hide it. */}
       {!sideBySide && step === "silent" && view === "demo" ? (
         <MapTopChip
-          city={city === "berlin" ? "Berlin" : "Zürich"}
+          city={city === "berlin" ? "Berlin" : "Zurich"}
           area={city === "berlin" ? "Mitte" : "HB"}
           tempC={city === "berlin" ? 11 : 14}
           weatherSummary={
@@ -606,13 +606,13 @@ function BottomMenu({
           label="QR"
           onPress={() => onSelect("redeeming")}
         />
-        {/* Verlauf replaces the old "Proof" tab (issue #39). Clock-face glyph
+        {/* History replaces the old "Proof" tab (issue #39). Clock-face glyph
             reinforces the "wallet has memory" framing without shipping an
             icon font. */}
         <BottomMenuItem
           active={activeView === "history"}
           icon="◷"
-          label="Verlauf"
+          label="History"
           onPress={() => onSelect("history")}
         />
       </View>
@@ -676,7 +676,7 @@ function DevPanelTrigger({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Dev-Panel öffnen"
+      accessibilityLabel="Open dev panel"
       onPress={onPress}
       hitSlop={10}
       style={({ pressed }) => [
@@ -749,7 +749,7 @@ function DevPanelOverlay({
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
       {/* Tap-outside scrim. Subtle dimming so the map still reads behind. */}
       <Pressable
-        accessibilityLabel="Dev-Panel schliessen"
+        accessibilityLabel="Close dev panel"
         onPress={onClose}
         style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0, 0, 0, 0.35)" }]}
       />
@@ -788,7 +788,7 @@ function DevPanelOverlay({
           </Text>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Dev-Panel schliessen"
+            accessibilityLabel="Close dev panel"
             onPress={onClose}
             hitSlop={10}
             style={({ pressed }) => [

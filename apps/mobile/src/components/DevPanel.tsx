@@ -261,7 +261,7 @@ export function DevPanel(props: Props): ReactElement | null {
       <SectionLabel>city_profile</SectionLabel>
       <View style={s("flex-row mb-4 bg-gh-chip rounded-md overflow-hidden border border-gh")}>
         <CitySegment label="Berlin" active={city === "berlin"} onPress={onSwapCity} />
-        <CitySegment label="Zürich" active={city === "zurich"} onPress={onSwapCity} />
+        <CitySegment label="Zurich" active={city === "zurich"} onPress={onSwapCity} />
       </View>
 
       <Pressable

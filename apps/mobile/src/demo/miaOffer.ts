@@ -23,7 +23,7 @@ export const miaRainOffer: DemoOffer = {
   id: "offer-bondi-rain-gap-1330",
   merchantId: "berlin-mitte-cafe-bondi",
   merchantName: "Cafe Bondi",
-  headline: "Es regnet bald. 80 m bis zum heissen Kakao.",
+  headline: "Rain in 12 min. 80 m to hot cocoa.",
   subhead: "Cafe Bondi is quiet right now and has a fresh banana bread batch.",
   discount: "15% cashback",
   expiresAt: "15:00",

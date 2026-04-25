@@ -144,7 +144,7 @@ def test_surfacing_seeds_offer_and_fires_for_mia_context() -> None:
     payload = response.json()
     assert payload["fired"] is True
     assert payload["candidate_count"] == 1
-    assert payload["headline_final"] == "Es regnet bald. 80 m bis zum heissen Kakao."
+    assert payload["headline_final"] == "Warm up at Cafe Bondi before the rain hits."
     assert payload["offer"]["id"] == "offer-berlin-mitte-cafe-bondi-1330"
     assert payload["widget_spec"]["type"] == "ScrollView"
 
@@ -177,7 +177,7 @@ def test_surfacing_headline_cache_hits_on_second_fire() -> None:
     assert first.json()["cache_hit"] is False
     assert second.json()["cache_hit"] is True
     assert second.json()["intent_state"] == "active"
-    assert second.json()["headline_final"].startswith("Jetzt passt es:")
+    assert second.json()["headline_final"].startswith("Right now:")
 
 
 def test_surfacing_semantic_novelty_downweights_repeated_offer(
@@ -386,7 +386,7 @@ def test_mia_spine_e2e_regression_path() -> None:
     assert high_payload["threshold"] == 0.58
     assert high_payload["boost"] > surface_payload["boost"]
     assert high_payload["score"] > surface_payload["score"]
-    assert high_payload["headline_final"].startswith("Jetzt passt es:")
+    assert high_payload["headline_final"].startswith("Right now:")
     assert high_payload["scores"][0]["parts"]["novelty_source"] == "semantic_novelty_unconfigured"
 
     # Stage 5: the active headline is cached for a second high-intent render.

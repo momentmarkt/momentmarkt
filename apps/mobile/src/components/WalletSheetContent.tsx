@@ -144,7 +144,7 @@ export function WalletSheetContent({
       {onOpenSettings ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Einstellungen öffnen"
+          accessibilityLabel="Open settings"
           onPress={onOpenSettings}
           hitSlop={12}
           style={({ pressed }) => [

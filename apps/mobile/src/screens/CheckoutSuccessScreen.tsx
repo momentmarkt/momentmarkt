@@ -286,7 +286,7 @@ export function CheckoutSuccessScreen({ cashbackEur, budgetRemaining, onDone }: 
                 { fontWeight: "500" },
               ]}
             >
-              Restbudget €{formatEurDe(budgetRemaining)}
+              Budget remaining €{formatEurDe(budgetRemaining)}
             </Text>
           </View>
         ) : null}
@@ -353,7 +353,7 @@ export function CheckoutSuccessScreen({ cashbackEur, budgetRemaining, onDone }: 
               { fontSize: 20, marginTop: 4, fontWeight: "500" },
             ]}
           >
-            Cashback gutgeschrieben
+            Cashback credited
           </Text>
         </Animated.View>
       </View>
@@ -396,9 +396,9 @@ export function CheckoutSuccessScreen({ cashbackEur, budgetRemaining, onDone }: 
           { marginTop: 16, paddingHorizontal: 4 },
         ]}
       >
-        <ReceiptRow label="Transaktion" value={txId} />
-        <ReceiptRow label="Zeitpunkt" value="Heute, 14:32" />
-        <ReceiptRow label="Bezahlt mit" value="girocard simulation" />
+        <ReceiptRow label="Transaction" value={txId} />
+        <ReceiptRow label="Time" value="Today, 14:32" />
+        <ReceiptRow label="Paid with" value="girocard simulation" />
         <ReceiptRow
           label="Cashback"
           value={`+€${finalCashbackLabel} (12%)`}
@@ -417,7 +417,7 @@ export function CheckoutSuccessScreen({ cashbackEur, budgetRemaining, onDone }: 
           onPress={onDone}
         >
           <Text style={[...s("text-center text-base text-cream"), { fontWeight: "500" }]}>
-            Fertig
+            Done
           </Text>
         </Pressable>
       </Animated.View>

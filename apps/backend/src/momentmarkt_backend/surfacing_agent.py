@@ -235,6 +235,7 @@ def _intent_boost(high_intent: dict[str, Any]) -> float:
 
 def _rewrite_headline(offer: dict[str, Any], intent_state: str) -> str:
     seed = offer["copy_seed"]
+    base = seed.get("headline_en") or seed.get("headline_de", "")
     if intent_state == "active":
-        return f"Jetzt passt es: {seed['headline_de']}"
-    return seed["headline_de"]
+        return f"Right now: {base}"
+    return base

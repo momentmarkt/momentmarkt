@@ -33,8 +33,8 @@ assert(
   miaRainOffer.merchantId === "berlin-mitte-cafe-bondi",
 );
 assert(
-  "miaRainOffer headline is the rehearsed German line",
-  miaRainOffer.headline.toLowerCase().includes("regnet"),
+  "miaRainOffer headline is the rehearsed rain line",
+  miaRainOffer.headline.toLowerCase().includes("rain"),
 );
 assert(
   "miaRainOffer privacyEnvelope has both keys",
