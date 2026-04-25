@@ -6,9 +6,9 @@ import { Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { WidgetRenderer } from "./src/components/WidgetRenderer";
+import { cityProfiles, type DemoCityId } from "./src/demo/cityProfiles";
 import { miaRainOffer } from "./src/demo/miaOffer";
 import { demoWidgetSpecs } from "./src/demo/widgetSpecs";
-import { demoSignals } from "./src/surfacing/demoSignals";
 import { scoreSurfacing } from "./src/surfacing/surfacingScore";
 
 type DemoStep = "silent" | "surface" | "redeem" | "success";
@@ -18,11 +18,10 @@ export default function App() {
   const [step, setStep] = useState<DemoStep>("silent");
   const [widgetVariant, setWidgetVariant] = useState<WidgetVariant>("rainHero");
   const [highIntent, setHighIntent] = useState(false);
+  const [cityId, setCityId] = useState<DemoCityId>("berlin");
+  const city = cityProfiles[cityId];
   const surfacing = scoreSurfacing({
-    weatherTrigger: demoSignals.weather.trigger,
-    eventEndingSoon: demoSignals.event.endingSoon,
-    demandGapRatio: demoSignals.merchant.demandGapRatio,
-    distanceM: demoSignals.merchant.distanceM,
+    ...city.surfacingInput,
     highIntent,
   });
 
@@ -35,25 +34,42 @@ export default function App() {
             <Text className="text-xs font-semibold uppercase tracking-[3px] text-rain">
               MomentMarkt
             </Text>
-            <Text className="mt-1 text-2xl font-bold text-ink">Hi Mia, the city is quiet.</Text>
+            <Text className="mt-1 text-2xl font-bold text-ink">{city.greeting}</Text>
           </View>
           <View className="rounded-full bg-spark px-3 py-2">
-            <Text className="text-xs font-bold text-white">LIVE</Text>
+            <Text className="text-xs font-bold text-white">{city.currency}</Text>
           </View>
         </View>
 
         <View className="rounded-[32px] bg-white p-5 shadow-sm">
+          <View className="mb-4 flex-row gap-2">
+            <CityButton
+              active={cityId === "berlin"}
+              label="Berlin"
+              onPress={() => {
+                setCityId("berlin");
+                setStep("silent");
+              }}
+            />
+            <CityButton
+              active={cityId === "zurich"}
+              label="Zurich"
+              onPress={() => {
+                setCityId("zurich");
+                setStep("silent");
+              }}
+            />
+          </View>
           <Text className="text-sm font-semibold uppercase tracking-[2px] text-rain">
-            Berlin Mitte · 13:30
+            {city.cityLabel}
           </Text>
           {step === "silent" ? (
             <>
               <Text className="mt-3 text-3xl font-black leading-9 text-ink">
-                Silence until the moment is right.
+                {city.silentTitle}
               </Text>
               <Text className="mt-4 text-base leading-6 text-neutral-600">
-                MomentMarkt stays quiet while Mia walks. When rain and a Cafe Bondi
-                demand gap align, the wallet can surface one precise offer.
+                {city.silentBody}
               </Text>
             </>
           ) : (
@@ -62,21 +78,16 @@ export default function App() {
                 {surfacing.headline}
               </Text>
               <Text className="mt-4 text-base leading-6 text-neutral-600">
-                {miaRainOffer.discount} · {miaRainOffer.distanceM} m away · expires {miaRainOffer.expiresAt}
+                {cityId === "berlin"
+                  ? `${miaRainOffer.discount} · ${miaRainOffer.distanceM} m away · expires ${miaRainOffer.expiresAt}`
+                  : city.offerSummary}
               </Text>
             </>
           )}
 
           <View className="mt-6 gap-3">
-            <Signal label="Weather" value={demoSignals.weather.summary} />
-            <Signal label="Event" value={demoSignals.event.summary} />
-            <Signal label="Demand" value={demoSignals.merchant.summary} />
-            <Signal
-              label="Privacy"
-              value={`{${demoSignals.privacy.intent_token}, ${demoSignals.privacy.h3_cell_r8}}`}
-            />
-            <Signal label="Surfacing" value={`${surfacing.score} / ${surfacing.threshold}`} />
-            <Signal label="Reasons" value={surfacing.reasons.join(" · ")} />
+            <Signal label="City config" value={`${city.cityConfigLabel} · ${city.weatherLabel}`} />
+            <Signal label="Privacy" value={`{${city.privacy.intent_token}, ${city.privacy.h3_cell_r8}}`} />
           </View>
 
           <Pressable
@@ -130,6 +141,27 @@ export default function App() {
         </View>
       </View>
     </SafeAreaView>
+  );
+}
+
+function CityButton({
+  active,
+  label,
+  onPress,
+}: {
+  active: boolean;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      className={`flex-1 rounded-2xl px-3 py-3 ${active ? "bg-rain" : "bg-cream"}`}
+      onPress={onPress}
+    >
+      <Text className={`text-center text-xs font-black ${active ? "text-white" : "text-ink"}`}>
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 

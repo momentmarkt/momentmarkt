@@ -12,7 +12,7 @@
     "weather_trigger": "rain_incoming",
     "event_id": "bln-005",
     "privacy_envelope": {
-      "intent_token": "intent.warm-drink.browse.lunch",
+      "intent_token": "lunch_break.cold",
       "h3_cell_r8": "881f1d489dfffff"
     }
   }

@@ -8,35 +8,33 @@ from .genui import coerce_widget_node
 from .signals import SignalContext
 
 
-def fallback_offer(context: SignalContext, high_intent: bool = False) -> dict[str, Any]:
+def fallback_draft(context: SignalContext) -> dict[str, Any]:
     merchant = context["merchant"]
     max_discount = merchant["offer_budget"].get("max_discount_percent", 15)
-    discount = min(max_discount, 20 if high_intent else 15)
+    discount = min(max_discount, 15)
+    headline = _surface_hint(merchant)
     cashback = f"{discount}% cashback"
-    headline = (
-        f"{merchant['name']} is quiet now. Take the stronger rain offer."
-        if high_intent
-        else _surface_hint(merchant)
-    )
-    widget_spec = _rain_widget(context, headline, cashback)
 
     return {
-        "id": f"offer-{merchant['id']}-1330",
-        "merchantId": merchant["id"],
-        "merchantName": merchant["name"],
-        "headline": headline,
-        "subhead": _subhead(context, high_intent),
-        "discount": cashback,
-        "expiresAt": _expires_at(merchant),
-        "distanceM": merchant["distance_m"],
-        "whySignals": [
-            {"label": "Weather", "value": context["weather"]["summary"]},
-            {"label": "Demand", "value": merchant["summary"]},
-            {"label": "Distance", "value": f"{merchant['distance_m']} m from Mia"},
-            {"label": "Merchant goal", "value": merchant["merchant_goal"]},
-        ],
-        "privacyEnvelope": context["privacy"],
-        "widgetSpec": widget_spec,
+        "offer": {
+            "discount_type": "percent",
+            "discount_value": discount,
+            "valid_window": {
+                "start": context["demo_time_local"],
+                "end": merchant.get("inventory_goal", {}).get(
+                    "expires_local", "2026-04-25T15:00:00+02:00"
+                ),
+            },
+            "copy_seed": {
+                "headline_de": headline,
+                "headline_en": f"Warm up at {merchant['name']} before the rain hits.",
+                "body_de": _body_copy(context),
+                "body_en": _body_copy(context),
+            },
+            "mood_image_key": _mood_image_key(context),
+            "cta": "Redeem with girocard",
+        },
+        "widget_spec": _rain_widget(context, headline, cashback),
     }
 
 
@@ -44,44 +42,31 @@ async def generate_offer(
     context: SignalContext, high_intent: bool = False, use_llm: bool = False
 ) -> dict[str, Any]:
     generation_log: list[str] = []
-    fallback = fallback_offer(context, high_intent=high_intent)
+    fallback = fallback_draft(context)
+
+    if high_intent:
+        generation_log.append("high_intent_ignored_by_opportunity_agent")
 
     if use_llm:
         try:
-            generated = await _generate_with_litellm(context, high_intent)
-            widget_spec, widget_valid = coerce_widget_node(generated.get("widgetSpec"))
-            generated["widgetSpec"] = widget_spec
-            generated.setdefault("privacyEnvelope", context["privacy"])
-            generated.setdefault("distanceM", context["merchant"]["distance_m"])
-            generated.setdefault("merchantId", context["merchant"]["id"])
-            generated.setdefault("merchantName", context["merchant"]["name"])
+            generated = _normalize_draft(await _generate_with_litellm(context))
+            widget_spec, widget_valid = coerce_widget_node(generated.get("widget_spec"))
+            generated["widget_spec"] = widget_spec
             generation_log.append("litellm_generation_succeeded")
             if not widget_valid:
                 generation_log.append("generated_widget_invalid_used_fallback_widget")
-            return {
-                "offer": generated,
-                "generated_by": "litellm",
-                "widget_valid": widget_valid,
-                "used_fallback": False,
-                "generation_log": generation_log,
-            }
+            return _response(context, generated, "litellm", widget_valid, False, generation_log)
         except Exception as exc:  # pragma: no cover - provider/network dependent
             generation_log.append(f"litellm_generation_failed: {type(exc).__name__}: {exc}")
 
     generation_log.append("deterministic_fixture_offer")
-    widget_spec, widget_valid = coerce_widget_node(fallback["widgetSpec"])
-    fallback["widgetSpec"] = widget_spec
+    widget_spec, widget_valid = coerce_widget_node(fallback["widget_spec"])
+    fallback["widget_spec"] = widget_spec
 
-    return {
-        "offer": fallback,
-        "generated_by": "fixture",
-        "widget_valid": widget_valid,
-        "used_fallback": not use_llm,
-        "generation_log": generation_log,
-    }
+    return _response(context, fallback, "fixture", widget_valid, not use_llm, generation_log)
 
 
-async def _generate_with_litellm(context: SignalContext, high_intent: bool) -> dict[str, Any]:
+async def _generate_with_litellm(context: SignalContext) -> dict[str, Any]:
     model = os.environ.get("MOMENTMARKT_LLM_MODEL")
     if not model:
         raise RuntimeError("MOMENTMARKT_LLM_MODEL is not set")
@@ -95,46 +80,46 @@ async def _generate_with_litellm(context: SignalContext, high_intent: bool) -> d
                 "role": "system",
                 "content": (
                     "You are the MomentMarkt Opportunity Agent. Return only valid JSON. "
-                    "Generate one city-wallet offer and a React Native GenUI widget spec. "
+                    "Generate one merchant draft as {offer, widget_spec}. "
                     "Allowed widget node types: View, ScrollView, Text, Image, Pressable. "
                     "Pressable nodes must use action='redeem'."
                 ),
             },
-            {"role": "user", "content": _prompt(context, high_intent)},
+            {"role": "user", "content": _prompt(context)},
         ],
         temperature=0.7,
         response_format={"type": "json_object"},
     )
     content = response.choices[0].message.content
     parsed = json.loads(content)
-    if "offer" in parsed:
-        parsed = parsed["offer"]
     if not isinstance(parsed, dict):
         raise ValueError("LLM response was not a JSON object")
     return parsed
 
 
-def _prompt(context: SignalContext, high_intent: bool) -> str:
+def _prompt(context: SignalContext) -> str:
     payload = {
-        "task": "Draft one approved offer for the Expo React Native demo.",
-        "required_keys": [
-            "id",
-            "merchantId",
-            "merchantName",
-            "headline",
-            "subhead",
-            "discount",
-            "expiresAt",
-            "distanceM",
-            "whySignals",
-            "privacyEnvelope",
-            "widgetSpec",
-        ],
+        "task": "Draft one Opportunity Agent output for a merchant inbox.",
+        "required_shape": {
+            "offer": {
+                "discount_type": "percent | fixed | item",
+                "discount_value": "number or item string",
+                "valid_window": {"start": "iso timestamp", "end": "iso timestamp"},
+                "copy_seed": {
+                    "headline_de": "string",
+                    "headline_en": "string",
+                    "body_de": "string",
+                    "body_en": "string",
+                },
+                "mood_image_key": "trigger.category.weather",
+                "cta": "string",
+            },
+            "widget_spec": "JSON tree of React Native primitives",
+        },
         "signal_context": context,
-        "high_intent": high_intent,
-        "copy_rules": [
-            "Keep the headline short enough for a mobile card.",
-            "Mention why now: weather, demand gap, and proximity.",
+        "contract_notes": [
+            "Opportunity drafts offers and widget specs only.",
+            "Do not use high-intent signals; Surfacing handles per-user scoring and headline rewrites.",
             "Use neutral product UI language and no Sparkassen branding.",
             "Widget spec must be renderable through React Native primitives only.",
         ],
@@ -142,15 +127,71 @@ def _prompt(context: SignalContext, high_intent: bool) -> str:
     return json.dumps(payload, ensure_ascii=True)
 
 
+def _response(
+    context: SignalContext,
+    draft: dict[str, Any],
+    generated_by: str,
+    widget_valid: bool,
+    used_fallback: bool,
+    generation_log: list[str],
+) -> dict[str, Any]:
+    return {
+        "draft": draft,
+        "offer": draft["offer"],
+        "widget_spec": draft["widget_spec"],
+        "persisted_offer": _persisted_offer_preview(context, draft),
+        "generated_by": generated_by,
+        "widget_valid": widget_valid,
+        "used_fallback": used_fallback,
+        "generation_log": generation_log,
+    }
+
+
+def _normalize_draft(value: dict[str, Any]) -> dict[str, Any]:
+    if "offer" in value and "widget_spec" in value:
+        return value
+    if "offer" in value and "widgetSpec" in value:
+        return {"offer": value["offer"], "widget_spec": value["widgetSpec"]}
+    raise ValueError("LLM response must contain offer and widget_spec")
+
+
+def _persisted_offer_preview(context: SignalContext, draft: dict[str, Any]) -> dict[str, Any]:
+    merchant = context["merchant"]
+    return {
+        "id": f"offer-{merchant['id']}-1330",
+        "merchant_id": merchant["id"],
+        "status": "auto_approved"
+        if merchant.get("autopilot_rule_hints", {}).get("approved")
+        else "pending_approval",
+        "trigger_reason": {
+            "weather_trigger": context["weather"]["trigger"],
+            "event_trigger": context["event"]["ending_soon"],
+            "demand_trigger": merchant["demand_gap"].get("triggers_demand_gap", False),
+        },
+        "copy_seed": draft["offer"]["copy_seed"],
+        "widget_spec": draft["widget_spec"],
+        "valid_window": draft["offer"]["valid_window"],
+        "created_at": context["demo_time_local"],
+    }
+
+
 def _surface_hint(merchant: dict[str, Any]) -> str:
     hint = merchant.get("autopilot_rule_hints", {}).get("surface_copy_hint")
     return hint or f"{merchant['name']} has a timely offer nearby."
 
 
-def _subhead(context: SignalContext, high_intent: bool) -> str:
+def _body_copy(context: SignalContext) -> str:
     merchant = context["merchant"]
-    prefix = "High-intent boost unlocked a stronger offer." if high_intent else "Auto-approved rain rule fired."
-    return f"{prefix} {merchant['merchant_goal']}"
+    return (
+        f"{merchant['name']} is nearby, the merchant goal is '{merchant['merchant_goal']}', "
+        f"and the offer stays inside the approved budget."
+    )
+
+
+def _mood_image_key(context: SignalContext) -> str:
+    merchant = context["merchant"]
+    weather = context["weather"]["trigger"].replace("_incoming", "")
+    return f"{weather}.{merchant['category']}.cold"
 
 
 def _expires_at(merchant: dict[str, Any]) -> str:

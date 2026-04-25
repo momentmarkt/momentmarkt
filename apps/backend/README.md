@@ -3,7 +3,8 @@
 FastAPI service for the demo-safe backend path:
 
 - Loads fixture signals from `data/weather`, `data/events`, and `data/transactions`.
-- Produces Opportunity Agent offer JSON and GenUI widget specs.
+- Produces Opportunity Agent drafts in the locked `context/AGENT_IO.md` shape:
+  `{ "offer": {...}, "widget_spec": {...} }`.
 - Validates generated widget specs before returning them.
 - Falls back to deterministic known-good JSON when LiteLLM or provider credentials are unavailable.
 
@@ -34,3 +35,6 @@ uv run --project apps/backend --extra llm uvicorn momentmarkt_backend.main:app -
 LiteLLM reads the usual provider variables, such as `AZURE_API_KEY`,
 `AZURE_API_BASE`, and `AZURE_API_VERSION`. If anything fails, the service returns
 a validated fallback and includes the fallback reason in `generation_log`.
+
+Per the agent contract, high-intent signals are ignored by Opportunity
+generation. Surfacing uses them later for thresholding and headline rewrites.

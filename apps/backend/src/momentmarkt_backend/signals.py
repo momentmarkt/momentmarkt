@@ -20,6 +20,7 @@ def build_signal_context(city: str, merchant_id: str | None = None) -> SignalCon
     weather_trigger = _weather_trigger(config, weather)
     demand_gap = merchant["demand_gap"]
     privacy = config["demo"]["privacy_envelope"]
+    wrapped_user_context = _wrapped_user_context(config, weather_trigger, privacy)
 
     return {
         "city": config["city"],
@@ -41,6 +42,7 @@ def build_signal_context(city: str, merchant_id: str | None = None) -> SignalCon
         },
         "merchant": _merchant_signal(merchant),
         "privacy": privacy,
+        "wrapped_user_context": wrapped_user_context,
         "surface": _surface_input(config, merchant, weather_trigger),
     }
 
@@ -119,6 +121,24 @@ def _surface_input(config: dict[str, Any], merchant: dict[str, Any], weather_tri
         "distanceM": merchant["distance_m"],
         "intent_token": privacy["intent_token"],
         "h3_cell_r8": privacy["h3_cell_r8"],
+    }
+
+
+def _wrapped_user_context(
+    config: dict[str, Any],
+    weather_trigger: str,
+    privacy: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "intent_token": privacy["intent_token"],
+        "h3_cell_r8": privacy["h3_cell_r8"],
+        "weather_state": weather_trigger,
+        "t": config["demo"]["time_local"],
+        "high_intent": {
+            "active_screen_time_recent_s": 0,
+            "map_app_foreground_recent": False,
+            "coupon_browse_recent": False,
+        },
     }
 
 

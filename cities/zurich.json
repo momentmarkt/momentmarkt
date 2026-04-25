@@ -12,7 +12,7 @@
     "weather_trigger": "clear",
     "event_id": "zh-004",
     "privacy_envelope": {
-      "intent_token": "intent.kafi.pause.lunch",
+      "intent_token": "weekend_wander",
       "h3_cell_r8": "881f8d4b29fffff"
     }
   }
