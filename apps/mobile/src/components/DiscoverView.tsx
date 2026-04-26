@@ -41,6 +41,8 @@ import Animated, {
   Easing,
   useAnimatedStyle,
   useSharedValue,
+  withSequence,
+  withSpring,
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -111,6 +113,12 @@ const DISTANCE_FILTERS: readonly { radius: DistanceRadius; label: string }[] = [
   { radius: 500, label: "500 m" },
   { radius: 1000, label: "1 km" },
 ] as const;
+
+const DISTANCE_SELECTOR_SPRING = {
+  damping: 16,
+  stiffness: 260,
+  mass: 0.75,
+} as const;
 
 export function DiscoverView({
   citySlug,
@@ -606,8 +614,61 @@ function DistanceControl({
   active: DistanceRadius;
   onChange: (radius: DistanceRadius) => void;
 }): ReactElement {
+  const [controlWidth, setControlWidth] = useState(0);
+  const activeIndex = DISTANCE_FILTERS.findIndex((filter) => filter.radius === active);
+  const segmentWidth = controlWidth > 0 ? (controlWidth - 8) / DISTANCE_FILTERS.length : 0;
+  const indicatorX = useSharedValue(0);
+  const indicatorScale = useSharedValue(1);
+
+  useEffect(() => {
+    if (segmentWidth <= 0 || activeIndex < 0) return;
+    indicatorX.value = withSpring(activeIndex * segmentWidth, DISTANCE_SELECTOR_SPRING);
+    indicatorScale.value = withSequence(
+      withSpring(1.06, DISTANCE_SELECTOR_SPRING),
+      withSpring(1, DISTANCE_SELECTOR_SPRING),
+    );
+  }, [activeIndex, indicatorScale, indicatorX, segmentWidth]);
+
+  const indicatorStyle = useAnimatedStyle(() => ({
+    width: segmentWidth,
+    transform: [
+      { translateX: indicatorX.value },
+      { scaleX: indicatorScale.value },
+    ],
+  }));
+
   return (
-    <View style={s("rounded-full bg-white flex-row p-1")}>
+    <View
+      onLayout={(event) => setControlWidth(event.nativeEvent.layout.width)}
+      style={[
+        ...s("rounded-full bg-white flex-row p-1"),
+        {
+          position: "relative",
+          overflow: "hidden",
+          shadowColor: "#17120f",
+          shadowOpacity: 0.06,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 3 },
+          elevation: 1,
+        },
+      ]}
+    >
+      {segmentWidth > 0 ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            {
+              position: "absolute",
+              left: 4,
+              top: 4,
+              bottom: 4,
+              borderRadius: 999,
+              backgroundColor: "#17120f",
+            },
+            indicatorStyle,
+          ]}
+        />
+      ) : null}
       {DISTANCE_FILTERS.map((filter) => {
         const selected = filter.radius === active;
         return (
@@ -621,7 +682,7 @@ function DistanceControl({
               ...s("flex-1 rounded-full items-center justify-center"),
               {
                 height: 34,
-                backgroundColor: selected ? "#17120f" : "transparent",
+                backgroundColor: "transparent",
                 opacity: pressed ? 0.72 : 1,
               },
             ]}

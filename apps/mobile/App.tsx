@@ -168,6 +168,7 @@ export default function App() {
   // inferred user taste. Resets on city swap (preferences don't transfer
   // across cultural contexts; cf. DESIGN_PRINCIPLES.md #8).
   const [swipeHistory, setSwipeHistory] = useState<PriorSwipe[]>([]);
+  const [seenVariantIds, setSeenVariantIds] = useState<string[]>([]);
   // DevPanel overlay state (issue #70). In compact mode (<820px) the
   // engineering surface lives behind the MapTopChip; tapping it slides the
   // full DevPanel in from the right. Wide mode keeps its sidecar layout.
@@ -350,6 +351,7 @@ export default function App() {
     // Reset swipe history on city swap — preferences for Berlin cafés
     // shouldn't bias Zurich cafés (DESIGN_PRINCIPLES.md #8).
     setSwipeHistory([]);
+    setSeenVariantIds([]);
   }, []);
 
   const handleToggleHighIntent = useCallback(() => {
@@ -398,7 +400,11 @@ export default function App() {
       saved_at_iso: savedAtIso,
       expires_at_iso: savedPassExpiresAtIso(savedAtIso),
     };
-    setSavedPasses((prev) => [newPass, ...prev]);
+    setSeenVariantIds((prev) => mergeIds(prev, [variant.variant_id]));
+    setSavedPasses((prev) => [
+      newPass,
+      ...prev.filter((pass) => pass.variant.variant_id !== variant.variant_id),
+    ]);
   }, []);
 
   const handleRedeemPass = useCallback((pass: SavedPass) => {
@@ -500,6 +506,16 @@ export default function App() {
   const handleAppendSwipeHistory = useCallback((entries: PriorSwipe[]) => {
     if (entries.length === 0) return;
     setSwipeHistory((prev) => [...prev, ...entries]);
+  }, []);
+
+  const handleConsumeVariants = useCallback((variantIds: string[]) => {
+    if (variantIds.length === 0) return;
+    setSeenVariantIds((prev) => mergeIds(prev, variantIds));
+  }, []);
+
+  const handleResetSeenVariants = useCallback(() => {
+    setSeenVariantIds([]);
+    setSwipeHistory([]);
   }, []);
 
   const handleSheetChange = useCallback((index: number) => {
@@ -872,6 +888,9 @@ export default function App() {
       onSavePass={handleSavePass}
       onVariantsResolved={handleVariantsResolved}
       onCardConsumed={markSpecialSeen}
+      seenVariantIds={seenVariantIds}
+      onConsumeVariants={handleConsumeVariants}
+      onResetSeenVariants={handleResetSeenVariants}
     />
   );
 
@@ -1615,6 +1634,14 @@ function isWidgetObject(value: unknown): value is Record<string, unknown> & {
   source?: unknown;
 } {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function mergeIds(existing: string[], incoming: string[]): string[] {
+  const next = new Set(existing);
+  for (const id of incoming) {
+    if (id) next.add(id);
+  }
+  return Array.from(next);
 }
 
 function buildBreakdown(
