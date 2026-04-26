@@ -12,6 +12,14 @@
 >
 > If anything below diverges from what's on screen, trust the screen and
 > see `recovery.md`.
+>
+> **See also**: `context/USER_FLOW_AND_MERCHANT_DASHBOARD.md` — the
+> definitive synthesis of the recording flow, merchant pitch, and the
+> "3 things that win us the prize" voiceover lines. This cue card is
+> downstream of that doc: the beat numbering here matches the
+> implementation as-shipped; that doc holds the *why* + the
+> opinionated calls (lens-driven entry, mid-flow full-screen lift,
+> Best-deals lens for the chip cutaway, etc.).
 
 ---
 
