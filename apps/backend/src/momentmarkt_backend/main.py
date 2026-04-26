@@ -11,7 +11,12 @@ from .alternatives import (
     LensKey,
     build_alternatives,
     build_alternatives_for_lens,
+    build_alternatives_for_lens_with_meta,
+    build_alternatives_with_meta,
+    maybe_rewrite_subheads,
     maybe_rewrite_with_llm,
+    _current_day_of_week,
+    _current_time_bucket,
     _lookup_merchant,
 )
 from .fixtures import available_cities, load_city_config, load_density
@@ -620,6 +625,16 @@ class AlternativesRequest(BaseModel):
     n: int = 3
     use_llm: bool = False
     preference_context: list[PriorSwipe] | None = None
+    # Issue #151: session-scoped seen-set so tapping the same lens
+    # repeatedly rotates through the city's offers instead of looping
+    # the same top-3. The mobile accumulates ids from left + right
+    # swipes and replays them on each call. Defaulted so old clients
+    # still work.
+    seen_variant_ids: list[str] = Field(
+        default_factory=list,
+        description="Variant ids the client has already seen this session. "
+        "Filtered from the candidate pool before picking top-N.",
+    )
 
 
 class AlternativeOffer(BaseModel):
@@ -651,11 +666,19 @@ class AlternativesResponse(BaseModel):
     calls (best_deals / right_now / nearby without a tap) don't have a
     single merchant origin. When the caller did pass an anchor, the
     backend echoes it back so the mobile can correlate.
+
+    Issue #151: ``total_candidates`` reports the lens's full pool size
+    today (NOT the post-seen-filter remainder) so the mobile can render
+    "X / N seen" progress. ``exhausted=true`` means the seen-set covers
+    the whole pool — the mobile shows the "you've seen all today's
+    offers — switch lens or refresh" end state in that case.
     """
 
     merchant_id: str | None = None
     lens: LensKey = "for_you"
     variants: list[AlternativeOffer]
+    total_candidates: int = 0
+    exhausted: bool = False
 
 
 @app.post("/offers/alternatives", response_model=AlternativesResponse)
@@ -675,23 +698,31 @@ async def post_offers_alternatives(req: AlternativesRequest) -> AlternativesResp
     """
     # for_you with anchor → 404 on unknown merchant_id (legacy contract).
     if req.lens == "for_you" and req.merchant_id is not None:
-        anchored = build_alternatives(merchant_id=req.merchant_id, n=req.n)
-        if anchored is None:
+        meta = build_alternatives_with_meta(
+            merchant_id=req.merchant_id,
+            n=req.n,
+            seen_variant_ids=req.seen_variant_ids,
+        )
+        if meta is None:
             raise HTTPException(
                 status_code=404,
                 detail=f"Unknown merchant_id: {req.merchant_id}",
             )
-        variants = anchored
     else:
-        variants = build_alternatives_for_lens(
+        meta = build_alternatives_for_lens_with_meta(
             lens=req.lens,
             city=req.city,
             merchant_id=req.merchant_id,
             n=req.n,
+            seen_variant_ids=req.seen_variant_ids,
         )
-        if variants is None:
+        if meta is None:
             # Defensive — Pydantic should already block invalid lenses.
             raise HTTPException(status_code=400, detail=f"Unknown lens: {req.lens}")
+
+    variants: list[dict[str, Any]] = meta["variants"]
+    total_candidates: int = meta["total_candidates"]
+    exhausted: bool = meta["exhausted"]
 
     # Preference re-rank only fires for the personalised lens. The other
     # lenses bypass it on purpose so the user can verify ranking by hand.
@@ -714,6 +745,21 @@ async def post_offers_alternatives(req: AlternativesRequest) -> AlternativesResp
         reordered.extend(by_id.values())
         variants = reordered
 
+    # Subhead pass: always rewrite per-card body copy with the
+    # contextual subhead (issue #151). Deterministic per-category fallback
+    # by default; LLM-driven copy when use_llm=True.
+    if variants:
+        weather_trigger = _resolve_weather_trigger_safe(req.city, req.merchant_id)
+        time_bucket = _current_time_bucket()
+        day_of_week = _current_day_of_week()
+        variants = await maybe_rewrite_subheads(
+            variants,
+            weather_trigger=weather_trigger,
+            time_bucket=time_bucket,
+            day_of_week=day_of_week,
+            use_llm=req.use_llm,
+        )
+
     # LLM headline rewrite stays opt-in across every lens (caller asks for
     # it explicitly via use_llm). The deterministic lenses still skip the
     # re-rank above; this is just per-card copy polish.
@@ -729,4 +775,32 @@ async def post_offers_alternatives(req: AlternativesRequest) -> AlternativesResp
         merchant_id=req.merchant_id,
         lens=req.lens,
         variants=[AlternativeOffer(**v) for v in variants],
+        total_candidates=total_candidates,
+        exhausted=exhausted,
     )
+
+
+def _resolve_weather_trigger_safe(
+    city: str | None, merchant_id: str | None
+) -> str:
+    """Best-effort weather trigger lookup for the subhead context.
+
+    Mirrors `alternatives._resolve_weather_trigger` but stays at the
+    API layer so the alternatives module doesn't need to know about
+    request shapes. Falls back to ``"clear"`` on any failure so the
+    subhead generator always has a valid context.
+    """
+    city_slug = (city or "").lower()
+    if not city_slug and merchant_id:
+        # Reuse the alternatives helper rather than re-walking the
+        # catalogs ourselves.
+        from .alternatives import _city_for_merchant
+        city_slug = _city_for_merchant(merchant_id) or "berlin"
+    if not city_slug:
+        city_slug = "berlin"
+    try:
+        return build_signal_context(city=city_slug).get("weather", {}).get(
+            "trigger", "clear"
+        ) or "clear"
+    except (FileNotFoundError, KeyError, ValueError):
+        return "clear"

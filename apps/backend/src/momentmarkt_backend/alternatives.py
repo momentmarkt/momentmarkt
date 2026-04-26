@@ -40,6 +40,8 @@ pure deterministic candidate-pool builder.
 
 from __future__ import annotations
 
+import hashlib
+from datetime import datetime
 from typing import Any, Literal
 
 from .genui import validate_widget_node
@@ -75,24 +77,200 @@ _CATEGORY_NEIGHBOURS: dict[str, tuple[str, ...]] = {
 
 
 # ---------------------------------------------------------------------------
-# Per-category copy hints
+# Per-category subhead pools (deterministic fallback when use_llm=False)
 # ---------------------------------------------------------------------------
 #
-# Each card is framed slightly differently so the swipe stack reads as
-# "three real options" rather than three identical templates. The hints
-# below are short — the merchant's own headline carries the actual offer.
+# The brief calls out "appropriate imagery, **tone, and emotional framing**"
+# for the swipe stack — the subhead is the tone+emotion layer. The previous
+# implementation hard-coded a single string per category ("small shop,
+# owner-on-floor") which read as obvious LLM filler on every card.
+#
+# Each category now exposes a list of short, sensory phrases. We pick one
+# deterministically per (merchant_id, time_bucket) using a hash so:
+#   * the same merchant + time-of-day always yields the same subhead
+#     (recordable demo, idempotent across refreshes), and
+#   * different merchants in the same category surface different copy
+#     across the swipe stack so the cards don't feel templated.
+#
+# When the LLM path is enabled (`use_llm=True`), `subhead_agent.py` takes
+# the same context (merchant + offer + weather + time bucket) and produces
+# a one-line subhead via Pydantic AI; the deterministic pool is the
+# always-on fallback when the LLM call fails or is disabled (the demo
+# default per `CLAUDE.md` Demo Truth Boundary).
 
-_CATEGORY_BODY: dict[str, str] = {
-    "cafe": "warm pour-over, work-from-here vibe",
-    "bakery": "fresh bake, perfect mid-walk pause",
-    "bar": "easy first round, evening just starting",
-    "restaurant": "proper sit-down, neighbourhood favourite",
-    "bookstore": "browse a shelf, stay out of the rain",
-    "kiosk": "quick grab, no detour required",
-    "ice_cream": "cold scoop, two minutes max",
-    "boutique": "small shop, owner-on-floor",
-    "florist": "fresh stems, lift the room",
+_CATEGORY_SUBHEADS: dict[str, tuple[str, ...]] = {
+    "cafe": (
+        "Cocoa weather. Three stools open.",
+        "Just brewed. Quietest hour.",
+        "Steam on the window, last quiet table.",
+        "Pour-over warm, the rain hasn't started.",
+        "Owner at the bar, no queue.",
+    ),
+    "bakery": (
+        "Just out of the oven, lunchbreak window.",
+        "Crust still warm. Smell hits the street.",
+        "Loaves cooling, last batch of the morning.",
+        "Mid-walk pause. Two minutes inside.",
+    ),
+    "bar": (
+        "Lights low, first round on the counter.",
+        "Pre-rush. Stool by the window open.",
+        "Evening just starting. Bartender unhurried.",
+        "Quiet hour. Kitchen still calm.",
+    ),
+    "restaurant": (
+        "Window seat free. Kitchen at its best now.",
+        "Sit-down hour. Locals already in.",
+        "Neighbourhood pick. Tonight's special on.",
+        "Proper meal, no wait at the door.",
+    ),
+    "bookstore": (
+        "Quiet hour. New arrivals shelf restocked.",
+        "Browse a shelf, stay out of the rain.",
+        "Reading chair empty. Coffee next door.",
+        "Recommendations table just refreshed.",
+    ),
+    "kiosk": (
+        "Quick grab, no detour required.",
+        "Window glow. Cigarette + magazine run.",
+        "Late opener. Cold drinks on the rack.",
+        "Two-minute stop on the way home.",
+    ),
+    "ice_cream": (
+        "Sun's out. Two scoops, three minutes max.",
+        "Cold scoop, warm pavement.",
+        "Window is open. Cone weather.",
+        "Afternoon dip. No queue yet.",
+    ),
+    "boutique": (
+        "Owner on the floor. New rack just out.",
+        "Single rail of finds. No crowd.",
+        "Quiet shop. Try-on room is free.",
+        "Curated window, fresh stock today.",
+    ),
+    "florist": (
+        "Stems just in. Lift the room tonight.",
+        "Cut bunches by the door. Five minutes max.",
+        "Fresh tulips. Owner wrapping at the bench.",
+        "End-of-day stems, half the price.",
+    ),
 }
+
+
+# Time-of-day buckets used by the subhead picker + the LLM prompt.
+# Tightly chosen so the demo's 13:30 local time deterministically maps
+# to "lunch" (the rain-trigger demo cut depends on that bucket label).
+_TIME_BUCKETS: tuple[tuple[int, int, str], ...] = (
+    (0, 5, "late_night"),
+    (5, 11, "morning"),
+    (11, 14, "lunch"),
+    (14, 17, "afternoon"),
+    (17, 21, "evening"),
+    (21, 24, "late_night"),
+)
+
+
+def _time_bucket_for_hour(hour: int) -> str:
+    """Return the human time-bucket label for a 24h hour.
+
+    Buckets are intentionally coarse (lunch / afternoon / evening / …) so
+    the LLM prompt and the deterministic fallback agree on the same
+    discrete moment label even when the server clock drifts by minutes.
+    """
+    safe_hour = max(0, min(23, int(hour)))
+    for start, end, label in _TIME_BUCKETS:
+        if start <= safe_hour < end:
+            return label
+    return "afternoon"
+
+
+def _current_time_bucket() -> str:
+    """Server-clock time-bucket. Used when no demo time is available."""
+    # Keep tz-naive so tests don't depend on a specific timezone offset —
+    # the demo runs against the server's wall clock which is fine for the
+    # 60-second recording.
+    return _time_bucket_for_hour(datetime.now().hour)
+
+
+def _current_day_of_week() -> str:
+    """Lowercase three-letter day-of-week label for the LLM prompt."""
+    return datetime.now().strftime("%a").lower()
+
+
+def pick_fallback_subhead(
+    *,
+    merchant_id: str,
+    category: str,
+    time_bucket: str,
+) -> str:
+    """Pick a per-category subhead deterministically from the pool.
+
+    Hash key is ``(merchant_id, time_bucket)`` so the same card at the
+    same moment always shows the same subhead (idempotent demo state)
+    while two different merchants in the same category get different
+    copy (no templated swipe stack).
+
+    Pool fallback chain: requested category → ``cafe`` (safe default) →
+    a single neutral phrase. The chain guarantees we never return the
+    empty string even for an unrecognised category id.
+    """
+    pool = _CATEGORY_SUBHEADS.get(category) or _CATEGORY_SUBHEADS.get("cafe", ())
+    if not pool:
+        return "A timely local pick."
+    key = f"{merchant_id}|{time_bucket}".encode("utf-8")
+    digest = hashlib.sha256(key).digest()
+    # First 4 bytes give us 32 bits of entropy — plenty to pick from a
+    # pool of <= 8 phrases without bias.
+    index = int.from_bytes(digest[:4], "big") % len(pool)
+    return pool[index]
+
+
+# Process-local cache for the LLM-generated subhead. Keyed by the same
+# tuple as the deterministic picker so a refresh inside the same minute
+# bucket doesn't burn a second LLM call. Bounded loosely — the wallet
+# only ships ~10 merchants per city per call, so the cache stays small.
+_SUBHEAD_LLM_CACHE: dict[tuple[str, str, str], str] = {}
+
+
+def _subhead_cache_key(
+    *, merchant_id: str, weather_trigger: str, time_bucket: str
+) -> tuple[str, str, str]:
+    return (merchant_id, weather_trigger, time_bucket)
+
+
+def cached_llm_subhead(
+    *, merchant_id: str, weather_trigger: str, time_bucket: str
+) -> str | None:
+    """Return the cached LLM subhead for the (merchant, weather, time) key."""
+    return _SUBHEAD_LLM_CACHE.get(
+        _subhead_cache_key(
+            merchant_id=merchant_id,
+            weather_trigger=weather_trigger,
+            time_bucket=time_bucket,
+        )
+    )
+
+
+def store_llm_subhead(
+    *,
+    merchant_id: str,
+    weather_trigger: str,
+    time_bucket: str,
+    subhead: str,
+) -> None:
+    """Cache the LLM subhead for the (merchant, weather, time) key."""
+    _SUBHEAD_LLM_CACHE[
+        _subhead_cache_key(
+            merchant_id=merchant_id,
+            weather_trigger=weather_trigger,
+            time_bucket=time_bucket,
+        )
+    ] = subhead
+
+
+def reset_subhead_cache() -> None:
+    """Clear the LLM subhead cache. Used by tests."""
+    _SUBHEAD_LLM_CACHE.clear()
 
 # Photo per category. The stack already reads as a stack visually; this
 # completes the differentiation so each card feels like a different place.
@@ -299,6 +477,7 @@ def _discount_pct_from_offer(active_offer: dict[str, Any] | None) -> float:
 def _build_widget_spec(
     *,
     merchant: dict[str, Any],
+    subhead: str | None = None,
 ) -> dict[str, Any]:
     """Build a rainHero-shaped widget spec for one merchant card.
 
@@ -307,13 +486,21 @@ def _build_widget_spec(
     merchant's own display name, category-styled photo, and offer copy
     fill the slots — the visual variety comes from category, not from
     the template.
+
+    ``subhead`` is the per-card tone+emotion line (issue #151). When
+    omitted we pick deterministically from the per-category pool using
+    the server-clock time bucket — the demo-safe default.
     """
     name = merchant["display_name"]
     category = merchant.get("category", "")
     active = merchant.get("active_offer") or {}
     headline = active.get("headline") or f"{name} — local pick"
     label = _format_label_from_offer(active)
-    body = _CATEGORY_BODY.get(category, "well-timed local offer")
+    body = subhead or pick_fallback_subhead(
+        merchant_id=merchant["id"],
+        category=category,
+        time_bucket=_current_time_bucket(),
+    )
     image_url, image_alt = _CATEGORY_IMAGE.get(category, _DEFAULT_IMAGE)
 
     return {
@@ -372,6 +559,7 @@ def build_alternatives(
     *,
     merchant_id: str,
     n: int = 3,
+    seen_variant_ids: list[str] | None = None,
     # Kept for backwards-compat with old callers; no longer drives
     # discount values (each card uses its own merchant's offer).
     base_discount_pct: float = 5.0,  # noqa: ARG001 - back-compat
@@ -383,6 +571,44 @@ def build_alternatives(
     404. Otherwise returns up to ``n`` variant dicts. Each variant
     represents a different merchant (anchor first) and carries that
     merchant's own offer — not a synthesised price point.
+
+    Backwards-compat thin wrapper. Callers that need the rotation
+    contract (`total_candidates` / `exhausted`) use
+    `build_alternatives_with_meta` directly.
+    """
+    result = build_alternatives_with_meta(
+        merchant_id=merchant_id,
+        n=n,
+        seen_variant_ids=seen_variant_ids or [],
+    )
+    if result is None:
+        return None
+    return result["variants"]
+
+
+def build_alternatives_with_meta(
+    *,
+    merchant_id: str,
+    n: int = 3,
+    seen_variant_ids: list[str] | None = None,
+) -> dict[str, Any] | None:
+    """Build the anchored variant list + rotation metadata (issue #151).
+
+    Returns ``None`` if the merchant id is unknown. Otherwise:
+
+      {
+        "variants": [...],          # up to n cards (anchor pinned first)
+        "total_candidates": int,    # full pool size for this anchor
+        "exhausted": bool,          # True when seen-set covers tail
+      }
+
+    The seen-set filter applies to NON-anchor candidates only. The
+    anchor (card 1) is the safety card the user just tapped, so even
+    when its id appears in `seen_variant_ids` we keep it pinned at
+    position 0 — otherwise the swipe stack feels broken ("I tapped
+    this and it disappeared"). `exhausted` flips True when every
+    non-anchor candidate is in the seen-set; the mobile renders the
+    "switch lens" end state when that happens.
     """
     anchor = _lookup_merchant(merchant_id)
     if anchor is None:
@@ -390,7 +616,26 @@ def build_alternatives(
 
     city_slug = _city_for_merchant(merchant_id) or "berlin"
     safe_n = max(1, int(n))
-    picks = _candidate_merchants(anchor=anchor, city_slug=city_slug, n=safe_n)
+    seen_set = set(seen_variant_ids or [])
+
+    # Full anchored pool (anchor + every cross-merchant candidate the
+    # widening logic would consider). The pool size is what
+    # `total_candidates` reports.
+    full_pool = _candidate_merchants(
+        anchor=anchor,
+        city_slug=city_slug,
+        n=10_000,  # effectively "all candidates"
+    )
+
+    anchor_picks = full_pool[:1]
+    tail_pool = [m for m in full_pool[1:] if m["id"] not in seen_set]
+    picks = (anchor_picks + tail_pool)[:safe_n]
+
+    total_candidates = len(full_pool)
+    non_anchor_pool = full_pool[1:]
+    exhausted = bool(non_anchor_pool) and all(
+        m["id"] in seen_set for m in non_anchor_pool
+    )
 
     variants: list[dict[str, Any]] = []
     for position, merchant in enumerate(picks):
@@ -418,7 +663,11 @@ def build_alternatives(
                 "widget_spec": widget_spec,
             }
         )
-    return variants
+    return {
+        "variants": variants,
+        "total_candidates": total_candidates,
+        "exhausted": exhausted,
+    }
 
 
 def _build_variant_dict(
@@ -492,93 +741,184 @@ def build_alternatives_for_lens(
     city: str | None = None,
     merchant_id: str | None = None,
     n: int = 3,
+    seen_variant_ids: list[str] | None = None,
 ) -> list[dict[str, Any]] | None:
-    """Build the per-lens variant list for the swipe stack (issue #137).
+    """Build the per-lens variant list (back-compat thin wrapper).
+
+    Callers that need the rotation contract (`total_candidates` /
+    `exhausted`) should call `build_alternatives_for_lens_with_meta`
+    directly. This wrapper preserves the pre-#151 signature so older
+    test paths and tools keep working.
+    """
+    result = build_alternatives_for_lens_with_meta(
+        lens=lens,
+        city=city,
+        merchant_id=merchant_id,
+        n=n,
+        seen_variant_ids=seen_variant_ids or [],
+    )
+    if result is None:
+        return None
+    return result["variants"]
+
+
+def build_alternatives_for_lens_with_meta(
+    *,
+    lens: str,
+    city: str | None = None,
+    merchant_id: str | None = None,
+    n: int = 3,
+    seen_variant_ids: list[str] | None = None,
+) -> dict[str, Any] | None:
+    """Build the per-lens variant list + rotation metadata (issues #137 + #151).
 
     Returns ``None`` when the lens needs an anchor merchant that isn't
-    in any catalog (`for_you` with an unknown ``merchant_id``). Returns
-    an empty list when the candidate pool is genuinely empty (e.g. a
-    weather-filtered set with no matching merchants — the caller can
-    still respond 200 with no variants).
+    in any catalog (`for_you` with an unknown ``merchant_id``). Otherwise:
+
+      {
+        "variants": [...],          # up to n cards from the lens pool
+        "total_candidates": int,    # full pool size for this lens (today)
+        "exhausted": bool,          # True when seen-set covers the pool
+      }
+
+    `seen_variant_ids` is filtered out of the candidate pool BEFORE
+    picking the top-N. When the filter empties the pool the response
+    sets `exhausted=True` and `variants=[]` — the mobile renders the
+    "you've seen all today's offers — switch lens or refresh" end state.
 
     Lens behaviour
     --------------
-    - ``for_you``: when ``merchant_id`` is provided, defer to
-      `build_alternatives` (anchor card 1 + cross-merchant tail). Without
-      an anchor: every city merchant with an offer, distance-sorted,
-      ready for the preference agent in the API layer.
-    - ``best_deals``: every city merchant with an offer, sorted by parsed
-      discount percent descending. Anchor pinned only when the explicit
-      ``merchant_id`` matches one of the picks (we don't pin a
-      merchant the user didn't tap — that would defeat the lens).
+    - ``for_you``: when ``merchant_id`` is provided, defer to the
+      anchored builder (anchor pinned at position 0, tail filtered by
+      seen-set). Without an anchor: every city merchant with an offer,
+      distance-sorted, ready for the preference agent in the API layer.
+    - ``best_deals``: every city merchant with an offer, sorted by
+      parsed discount percent descending.
     - ``right_now``: weather-trigger × category whitelist applied to the
-      city catalog, then distance-sorted. Whitelist falls back to "no
-      filter" for unknown triggers.
+      city catalog, then distance-sorted.
     - ``nearby``: every city merchant with an offer, distance-sorted.
       Strict deterministic fallback per `DESIGN_PRINCIPLES.md` #4.
     """
     safe_n = max(1, int(n))
+    seen_set = set(seen_variant_ids or [])
     # Resolve city: explicit > derived from merchant_id > "berlin".
     city_slug = (city or "").lower() or (
         _city_for_merchant(merchant_id) if merchant_id else None
     ) or "berlin"
 
     if lens == "for_you" and merchant_id:
-        # Anchored personalised path — keep the existing contract intact.
-        return build_alternatives(merchant_id=merchant_id, n=safe_n)
-
-    if lens == "for_you":
-        pool = _city_with_offers(city_slug)
-        pool.sort(key=lambda m: m.get("distance_m", 10_000))
-        return [
-            _build_variant_dict(merchant=m, is_anchor=False)
-            for m in pool[:safe_n]
-        ]
-
-    if lens == "best_deals":
-        pool = _city_with_offers(city_slug)
-        # Sort by parsed discount percent descending. Stable sort keeps
-        # a distance tiebreak — when two merchants advertise the same
-        # percent the closer one wins.
-        pool.sort(key=lambda m: m.get("distance_m", 10_000))
-        pool.sort(
-            key=lambda m: _discount_pct_from_offer(m.get("active_offer")),
-            reverse=True,
+        # Anchored personalised path — pinning + seen filter handled by
+        # the anchored builder.
+        return build_alternatives_with_meta(
+            merchant_id=merchant_id,
+            n=safe_n,
+            seen_variant_ids=list(seen_set),
         )
-        return [
-            _build_variant_dict(merchant=m, is_anchor=False)
-            for m in pool[:safe_n]
-        ]
+
+    # ---- Non-anchored lens path: pure pool → filter → sort → top-N ----
+    pool = _city_with_offers(city_slug)
 
     if lens == "right_now":
         trigger = _resolve_weather_trigger(city_slug)
         whitelist = _RIGHT_NOW_BY_TRIGGER.get(trigger, ())
-        pool = _city_with_offers(city_slug)
         if whitelist:
             filtered = [m for m in pool if m.get("category") in whitelist]
             # Only narrow when the filter actually keeps something — an
             # empty filter result would surface no cards at all.
             if filtered:
                 pool = filtered
-        pool.sort(key=lambda m: m.get("distance_m", 10_000))
-        return [
-            _build_variant_dict(merchant=m, is_anchor=False)
-            for m in pool[:safe_n]
-        ]
 
-    if lens == "nearby":
-        # DESIGN_PRINCIPLES.md #4 — strict deterministic fallback.
-        # No LLM, no preference signal, no category filter. Pure
-        # distance sort over every merchant with an offer.
-        pool = _city_with_offers(city_slug)
-        pool.sort(key=lambda m: m.get("distance_m", 10_000))
-        return [
-            _build_variant_dict(merchant=m, is_anchor=False)
-            for m in pool[:safe_n]
-        ]
+    elif lens not in ("for_you", "best_deals", "nearby"):
+        # Unknown lens — Pydantic should already block this, but be defensive.
+        return None
 
-    # Unknown lens — Pydantic should already block this, but be defensive.
-    return None
+    total_candidates = len(pool)
+
+    # Apply the seen-set filter BEFORE sorting + slicing. The pool size
+    # we report (total_candidates) is the lens's full pool today, not
+    # the post-filter remainder, so the mobile can show "X / N seen"
+    # progress instead of a shrinking number.
+    filtered_pool = [m for m in pool if m["id"] not in seen_set]
+    exhausted = bool(pool) and not filtered_pool
+
+    # Per-lens ordering on the filtered pool.
+    if lens == "best_deals":
+        # Stable sort: distance tiebreaker first, then discount desc.
+        filtered_pool.sort(key=lambda m: m.get("distance_m", 10_000))
+        filtered_pool.sort(
+            key=lambda m: _discount_pct_from_offer(m.get("active_offer")),
+            reverse=True,
+        )
+    else:
+        # for_you (no anchor) / right_now / nearby — distance ascending.
+        filtered_pool.sort(key=lambda m: m.get("distance_m", 10_000))
+
+    variants = [
+        _build_variant_dict(merchant=m, is_anchor=False)
+        for m in filtered_pool[:safe_n]
+    ]
+    return {
+        "variants": variants,
+        "total_candidates": total_candidates,
+        "exhausted": exhausted,
+    }
+
+
+async def maybe_rewrite_subheads(
+    variants: list[dict[str, Any]],
+    *,
+    weather_trigger: str,
+    time_bucket: str,
+    day_of_week: str,
+    use_llm: bool,
+) -> list[dict[str, Any]]:
+    """Generate per-card subheads (issue #151).
+
+    Replaces the per-card body Text node (`children[1].children[3].text`
+    in the rainHero-shaped tree) with either an LLM-generated subhead
+    (when ``use_llm=True``) or the deterministic per-category +
+    time-bucket pick. Idempotent — safe to call multiple times on the
+    same variant list.
+
+    The subhead is the tone+emotion layer of the card; the headline
+    keeps the offer copy. See `subhead_agent.py` for the LLM prompt
+    contract.
+    """
+    # Lazy import to avoid the circular dependency at module load.
+    from .subhead_agent import generate_subhead
+
+    rewritten: list[dict[str, Any]] = []
+    for variant in variants:
+        try:
+            subhead = await generate_subhead(
+                merchant_id=variant["merchant_id"],
+                merchant_name=variant.get("merchant_display_name", ""),
+                category=variant.get("merchant_category", ""),
+                neighborhood=variant.get("neighborhood", ""),
+                headline=variant.get("headline", ""),
+                discount_label=variant.get("discount_label", ""),
+                weather_trigger=weather_trigger,
+                time_bucket=time_bucket,
+                day_of_week=day_of_week,
+                use_llm=use_llm,
+            )
+        except Exception:  # pragma: no cover - defensive: never break the stack
+            subhead = pick_fallback_subhead(
+                merchant_id=variant["merchant_id"],
+                category=variant.get("merchant_category", ""),
+                time_bucket=time_bucket,
+            )
+        patched = dict(variant)
+        spec = patched.get("widget_spec")
+        if isinstance(spec, dict):
+            try:
+                # rainHero-shaped tree: children[1].children[3] is the
+                # body subhead Text node (kicker, name, headline, body).
+                spec["children"][1]["children"][3]["text"] = subhead
+            except (KeyError, IndexError, TypeError):
+                pass
+        rewritten.append(patched)
+    return rewritten
 
 
 async def maybe_rewrite_with_llm(
