@@ -10,9 +10,21 @@ import { s } from "../styles";
 type Props = {
   /** Backend city slug, e.g. "berlin" or "zurich". */
   city: string;
-  /** Fired when a merchant card is tapped. App.tsx wires this to the
-   *  surfaced offer flow when `merchant.active_offer != null`. */
+  /**
+   * Pre-#160 tap handler. App.tsx used to wire this to the alternatives
+   * swipe flow, but post-#160 the Browse tap target is the merchant
+   * detail view (`onMerchantOpen` below) — not the deal swipe. Kept on
+   * the prop API for any caller that still wants the old behaviour.
+   */
   onMerchantTap?: (merchant: MerchantListItem) => void;
+  /**
+   * Issue #160 — Browse merchant-first tap target. Tap a merchant row
+   * in the Browse list → App.tsx opens the slide-in MerchantDetailView
+   * for that merchant. Takes priority over `onMerchantTap` when both
+   * are wired (the new mental model wins). The deal-swipe surface is
+   * the Discover tab's job, not Browse's.
+   */
+  onMerchantOpen?: (merchant: MerchantListItem) => void;
   /** Fires when the user taps the search input. App.tsx wires this to
    *  snap the bottom sheet to its top snap so the keyboard rises into
    *  a fully-revealed list. Issue #125. */
@@ -30,7 +42,12 @@ type Props = {
  *   - ink primary text, cocoa secondary, neutral-600 tertiary
  *   - spark accent on the offer chip
  */
-export function MerchantSearchList({ city, onMerchantTap, onSearchFocus }: Props) {
+export function MerchantSearchList({
+  city,
+  onMerchantTap,
+  onMerchantOpen,
+  onSearchFocus,
+}: Props) {
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
   const [merchants, setMerchants] = useState<MerchantListItem[]>(() =>
@@ -169,7 +186,16 @@ export function MerchantSearchList({ city, onMerchantTap, onSearchFocus }: Props
                 merchant={m}
                 onPress={() => {
                   lightTap();
-                  onMerchantTap?.(m);
+                  // Issue #160 — Browse-tap mental-model split. When a
+                  // caller wires `onMerchantOpen` (the new merchant-first
+                  // detail view path), prefer it over the legacy
+                  // `onMerchantTap` (which used to fire the alternatives
+                  // swipe stack — Discover's job, not Browse's).
+                  if (onMerchantOpen) {
+                    onMerchantOpen(m);
+                  } else {
+                    onMerchantTap?.(m);
+                  }
                 }}
               />
             ))}
@@ -240,19 +266,31 @@ function MerchantCard({
         </Text>
       </View>
 
+      {/* Issue #160 — peek-and-tap deal hint. Renders only when the
+          merchant has an `active_offer`; nothing when null. The pill is
+          a visual peek — the row's tap target opens the merchant detail
+          view (the deal lives INSIDE that view, not behind a stack
+          takeover from the list). Reads "up to −X%" so the user knows
+          the headline number is the ceiling, not a guarantee. */}
       {merchant.active_offer ? (
         <View
           style={[
-            ...s("rounded-full bg-spark px-3 py-1 ml-2"),
-            { alignSelf: "center" },
+            ...s("rounded-full bg-spark ml-2"),
+            {
+              alignSelf: "center",
+              height: 22,
+              paddingHorizontal: 10,
+              justifyContent: "center",
+            },
           ]}
         >
           <Text
-            style={s(
-              "text-[11px] font-bold uppercase tracking-[1px] text-white",
-            )}
+            style={[
+              ...s("text-[10px] font-bold text-white"),
+              { letterSpacing: 0.3 },
+            ]}
           >
-            {merchant.active_offer.discount}
+            up to {merchant.active_offer.discount}
           </Text>
         </View>
       ) : null}

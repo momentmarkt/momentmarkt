@@ -820,6 +820,7 @@ export default function App() {
           onRedeemComplete={handleRedeemComplete}
           onSuccessDone={handleResetToSilent}
           onMerchantTap={handleMerchantTap}
+          onMerchantOpen={handleOpenMerchantDetail}
           onSearchFocus={handleSearchFocus}
           onAlternativesSettle={handleAlternativesSettle}
           onAlternativesAllPassed={handleAlternativesAllPassed}
@@ -1029,6 +1030,23 @@ export default function App() {
             tab + History tab). The overlay code path lives on inside both
             screens for backwards compat with any direct caller, but App.tsx
             no longer mounts them as overlays. */}
+
+        {/* Issue #160 — merchant-first Browse detail view. Slides in
+            from the right (Settings pattern) when the user taps a
+            merchant in the Browse list. Mounted at the App root so it
+            sits ABOVE the BottomNavBar and the BottomSheet — both
+            gesture surfaces stay reachable underneath because the
+            detail view's own swipe-right + swipe-down dismiss takes
+            care of returning the user to Browse. The overlay is
+            unmounted entirely (mount-gating inside the component)
+            once the slide-out animation finishes, so there's zero
+            cost when no detail is open. */}
+        <MerchantDetailView
+          merchant={merchantDetail}
+          onClose={handleCloseMerchantDetail}
+          onRedeem={handleRedeemFromMerchantDetail}
+          onGoToDiscover={handleGoToDiscoverFromDetail}
+        />
       </View>
     </GestureHandlerRootView>
   );
@@ -1203,6 +1221,11 @@ type SheetBodyProps = {
   onRedeemComplete: () => void;
   onSuccessDone: () => void;
   onMerchantTap: ComponentProps<typeof WalletSheetContent>["onMerchantTap"];
+  /** Issue #160 — Browse merchant-first tap target. Tap a merchant
+   *  row → App.tsx opens the slide-in MerchantDetailView. The deal
+   *  swipe stack stays as `onMerchantTap` for legacy callers but
+   *  Browse no longer wires it. */
+  onMerchantOpen: ComponentProps<typeof WalletSheetContent>["onMerchantOpen"];
   /** Threaded down to MerchantSearchList's <TextInput onFocus> so tapping
    *  the search bar auto-snaps the sheet to its 80% top snap. Issue #125. */
   onSearchFocus: ComponentProps<typeof WalletSheetContent>["onSearchFocus"];
@@ -1237,6 +1260,7 @@ function SheetBody({
   onRedeemComplete,
   onSuccessDone,
   onMerchantTap,
+  onMerchantOpen,
   onSearchFocus,
   onAlternativesSettle,
   onAlternativesAllPassed,
@@ -1429,6 +1453,7 @@ function SheetBody({
       pulseLabel={pulseLabel}
       animatedIndex={animatedIndex}
       onMerchantTap={onMerchantTap}
+      onMerchantOpen={onMerchantOpen}
       onSearchFocus={onSearchFocus}
     />
   );

@@ -48,11 +48,22 @@ type Props = {
    */
   expandedSlot?: ReactNode;
   /**
-   * Fired when the user taps a merchant card in the merchant list.
-   * App.tsx wires this to the surfaced offer flow when the merchant
-   * has an `active_offer`. Issue #116.
+   * Pre-#160 tap handler. App.tsx used to wire this to the alternatives
+   * swipe flow when `merchant.active_offer != null`. Post-#160 the
+   * Browse tap target is the merchant detail view (`onMerchantOpen`
+   * below). Kept on the prop API so legacy callers / tests still work.
+   * Issue #116.
    */
   onMerchantTap?: (merchant: MerchantListItem) => void;
+  /**
+   * Issue #160 — Browse merchant-first tap target. Tap a merchant row
+   * in the wallet drawer's merchant list → App.tsx opens the slide-in
+   * MerchantDetailView for that merchant. The deal lives INSIDE that
+   * view (as one section among the hero photo + info row + opening
+   * hours), not as a takeover swipe — that's Discover's mental model.
+   * Threaded straight through to MerchantSearchList.
+   */
+  onMerchantOpen?: (merchant: MerchantListItem) => void;
   /**
    * Fired when the user taps the search input. App.tsx wires this to
    * snap the bottom sheet to its top snap (80%) so the keyboard rises
@@ -86,6 +97,7 @@ export function WalletSheetContent({
   animatedIndex,
   expandedSlot,
   onMerchantTap,
+  onMerchantOpen,
   onSearchFocus,
 }: Props): ReactElement {
   const pulse = useSharedValue(0);
@@ -153,6 +165,7 @@ export function WalletSheetContent({
         <MerchantSearchList
           city={citySlug}
           onMerchantTap={onMerchantTap}
+          onMerchantOpen={onMerchantOpen}
           onSearchFocus={onSearchFocus}
         />
       </View>
