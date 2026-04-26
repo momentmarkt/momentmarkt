@@ -404,7 +404,13 @@ export function HistoryScreen({
         overlayStyle,
         { paddingTop: insets.top + 10 },
       ]
-    : s("flex-1 bg-cream");
+    : [
+        ...s("flex-1 bg-cream"),
+        // Tab mode also needs to clear the iOS status bar / Dynamic Island.
+        // Settings handles this in its own wrapper; History was missing it
+        // because the inline-mode branch only set bg-cream + flex-1.
+        { paddingTop: insets.top + 10 },
+      ];
 
   const backChevron = onClose ? (
     <Pressable
