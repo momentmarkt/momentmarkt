@@ -30,10 +30,13 @@ from pydantic import BaseModel, Field
 from .fixtures import load_density
 from .menu_ocr import (
     ExtractedMenu,
+    MenuCategory,
+    MenuItem,
     decode_uploaded_text,
     extract_menu_from_text,
     load_fixture_menu,
 )
+from .menu_edit_agent import apply_diffs, run_menu_edit_agent
 from .paths import DATA_DIR
 
 GMAPS_DIR = DATA_DIR / "google-maps"
@@ -317,17 +320,27 @@ class AgentChatResponse(BaseModel):
 
 @router.post("/{onboarding_id}/menu/agent", response_model=AgentChatResponse)
 async def menu_agent(onboarding_id: str, body: AgentChatBody) -> AgentChatResponse:
-    """Filled in by issue #167. For #166 we return a stub reply so the
-    frontend chat UI can render end-to-end without 404s."""
     session = _session_or_404(onboarding_id)
     if session.menu is None:
         raise HTTPException(status_code=409, detail="menu not yet extracted")
     session.chat_history.append({"role": "user", "content": body.message})
-    reply = (
-        "Agent integration ships in issue #167. Try editing items inline for now."
-    )
+    try:
+        agent_out = await run_menu_edit_agent(
+            menu=session.menu,
+            user_message=body.message,
+            history=session.chat_history,
+        )
+        session.menu = apply_diffs(session.menu, agent_out.diffs)
+        reply = agent_out.reply
+        diffs_payload = [d.model_dump(mode="json") for d in agent_out.diffs]
+    except Exception:  # noqa: BLE001
+        reply = (
+            "Couldn't reach the menu assistant just now. You can keep editing items "
+            "directly — we'll save your changes either way."
+        )
+        diffs_payload = []
     session.chat_history.append({"role": "assistant", "content": reply})
-    return AgentChatResponse(reply=reply, diffs=[], menu=session.menu)
+    return AgentChatResponse(reply=reply, diffs=diffs_payload, menu=session.menu)
 
 
 class HoursResponse(BaseModel):

@@ -8,6 +8,7 @@ import { useCallback, useReducer } from "react";
 import { ProgressStepper } from "./components/ProgressStepper";
 import { initialState, reduce, setOnboarded } from "./state/onboardingMachine";
 import { DropStep } from "./steps/DropStep";
+import { MenuConfirmStep } from "./steps/MenuConfirmStep";
 import { ProcessingStep } from "./steps/ProcessingStep";
 import { postComplete } from "./api/onboardingApi";
 
@@ -73,23 +74,19 @@ export function OnboardingShell({ onComplete }: Props) {
           />
         ) : null}
 
-        {state.step === "menu" ? (
-          <PlaceholderStep
-            title="Confirm your menu"
-            issueLabel="Issue #167"
-            details={`We extracted ${state.menu?.categories.length ?? 0} categories with ${
-              state.menu?.categories.reduce((n, c) => n + c.items.length, 0) ?? 0
-            } items.`}
+        {state.step === "menu" && state.onboardingId && state.menu ? (
+          <MenuConfirmStep
+            onboardingId={state.onboardingId}
             menu={state.menu}
-            onAdvance={() => dispatch({ type: "advance", to: "hours" })}
+            onMenuChange={(next) => dispatch({ type: "menu_updated", menu: next })}
+            onConfirm={() => dispatch({ type: "advance", to: "hours" })}
           />
         ) : null}
 
         {state.step === "hours" ? (
           <PlaceholderStep
             title="Hours and blackouts"
-            issueLabel="Issue #168"
-            details="Demand-curve detection lands in #168. Click continue to preview the flow step."
+            details="We'll show your opening hours and the times you're already at capacity. Coming up next."
             onAdvance={() => dispatch({ type: "advance", to: "flow" })}
           />
         ) : null}
@@ -97,8 +94,7 @@ export function OnboardingShell({ onComplete }: Props) {
         {state.step === "flow" ? (
           <PlaceholderStep
             title="How MomentMarkt works for your shop"
-            issueLabel="Issue #168"
-            details="Flow diagram + limits panel land in #168. Finish onboarding to enter the dashboard."
+            details="A short tour of how offers get drafted, approved, and surfaced to nearby customers."
             onAdvance={completeNow}
             advanceLabel="Start receiving opportunities"
           />
@@ -116,14 +112,12 @@ export function OnboardingShell({ onComplete }: Props) {
 
 function PlaceholderStep({
   title,
-  issueLabel,
   details,
   onAdvance,
   advanceLabel = "Continue",
   menu,
 }: {
   title: string;
-  issueLabel: string;
   details: string;
   onAdvance: () => void;
   advanceLabel?: string;
@@ -132,7 +126,6 @@ function PlaceholderStep({
   return (
     <section className="ob-step ob-placeholder">
       <header className="ob-step-head">
-        <span className="eyebrow">{issueLabel}</span>
         <h1>{title}</h1>
         <p className="lead">{details}</p>
       </header>

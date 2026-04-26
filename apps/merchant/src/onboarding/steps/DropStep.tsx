@@ -132,9 +132,6 @@ export function DropStep({ onStarted }: Props) {
         <button type="submit" className="primary-button" disabled={!canSubmit}>
           {submitting ? "Starting…" : "Process"}
         </button>
-        <small className="ob-foot-help">
-          Real OCR runs on the menu. Google Maps + transaction data come from the demo fixtures.
-        </small>
       </footer>
     </form>
   );
