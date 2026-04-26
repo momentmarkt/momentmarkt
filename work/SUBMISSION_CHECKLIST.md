@@ -25,7 +25,7 @@ Hard cutoff: Sun Apr 26 09:00 ET.
 - [x] Public GitHub repo — github.com/momentmarkt/momentmarkt
 - [ ] Demo video, 1 minute hard cap — **PENDING**
 - [ ] Tech video, 1 minute hard cap — **PENDING**
-- [ ] 16:9 cover image — **PENDING**
+- [x] 16:9 cover image — `assets/cover.png` exported and tracked (`assets/cover.html` source also tracked)
 - [x] Live or recordable demo surface — backend live at https://peaktwilight-momentmarkt-api.hf.space (verified `/health` 200, `/opportunity/generate` returns LLM-grounded JSON), Expo iOS Simulator recordable
 
 ## Pipeline Verified Live (2026-04-26 morning)
@@ -49,6 +49,10 @@ Hard cutoff: Sun Apr 26 09:00 ET.
 ## Outstanding Issues Worth Watching
 
 - #173 — re-run merchant enricher with Azure creds locally → flips 69 entries from `offline_heuristic` to LLM-grounded enrichment. Even with `offline_heuristic` source the LLM-drafted German copy is grounded correctly (verified live), so this is a polish item, not a blocker.
+- #183 — record the 1-minute demo video.
+- #184 — record the 1-minute tech video.
+- #185 — paste Devpost fields and submit before the cutoff.
+- #186 — final repo-side preflight and checklist reconciliation.
 - #92 — this checklist; tracks final submission package.
 - Mobile: parallel agents still polishing Discover/Browse/RedeemOverlay (#175, #177, #180).
 
@@ -58,16 +62,15 @@ Hard cutoff: Sun Apr 26 09:00 ET.
 - [x] No claims of real Payone integration — SUBMISSION.md frames synthetic density as a stand-in
 - [x] No claims of real Web Push in the demo — push path is called out as a production swap
 - [x] No claims of live on-device SLM in the demo — SLM extractor framed as production swap
-- [ ] Repo has no secrets or session tokens — verify before submit
+- [x] Repo has no obvious committed secrets or session tokens — tracked-file scan only found documented placeholders (`AZURE_OPENAI_API_KEY=<key>`, `OPENAI_API_KEY=sk-...`)
 - [x] README run instructions match the actual Expo/FastAPI layout — verified earlier in session
 
 ## Hand-off to peaktwilight
 
-The 6 things only you can do:
+The remaining things only you can do:
 
 1. Record the 1-min demo video (Mia spine: drawer → search → tap merchant → focused GenUI offer → high-intent toggle → QR redeem → cut to merchant inbox → tap weather pill → city flip)
 2. Record the 1-min tech video (architecture diagram + 3 production-swap callouts + live HF Space hit)
-3. Generate 16:9 cover image
-4. Paste SUBMISSION.md fields into Devpost form
-5. (Optional but high-value) Re-run `python -m momentmarkt_backend.scripts.enrich_merchants berlin && ... zurich` locally with Azure creds to flip enrichment to `source: "llm"`; commit the regenerated JSON
-6. Submit before 09:00 ET hard cutoff
+3. Paste SUBMISSION.md fields into Devpost form and upload `assets/cover.png`
+4. (Optional but high-value) Re-run `uv run python -m momentmarkt_backend.scripts.enrich_merchants berlin` and `uv run python -m momentmarkt_backend.scripts.enrich_merchants zurich` from `apps/backend` locally with Azure creds to flip enrichment to `source: "llm"`; commit the regenerated JSON
+5. Submit before 09:00 ET hard cutoff
