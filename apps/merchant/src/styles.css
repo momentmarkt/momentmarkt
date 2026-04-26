@@ -113,19 +113,12 @@ code {
 }
 
 .rail-mark {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 10px;
-  background: linear-gradient(135deg, var(--cocoa), var(--spark));
-  display: grid;
-  place-items: center;
-  box-shadow: 0 6px 18px rgba(111, 63, 44, 0.22);
-}
-
-.rail-mark-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
+  display: block;
+  object-fit: contain;
+  box-shadow: 0 4px 12px rgba(23, 18, 15, 0.12);
   background: var(--cream);
 }
 
@@ -1967,21 +1960,13 @@ code {
 }
 
 .ob-mark-glyph {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 10px;
-  background: linear-gradient(135deg, var(--cocoa) 0%, #4a2818 100%);
-  display: inline-grid;
-  place-items: center;
+  display: block;
+  object-fit: contain;
+  background: var(--cream);
   box-shadow: 0 4px 12px rgba(23, 18, 15, 0.15);
-}
-
-.ob-mark-glyph > span {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--spark);
-  box-shadow: 0 0 0 3px rgba(242, 84, 45, 0.25);
 }
 
 .ob-frame {
@@ -4484,3 +4469,357 @@ code {
   align-self: flex-start;
 }
 
+
+/* === Dual-handle range slider ===
+ * Horizontal padding equals the thumb radius (11px). The visual track + bubbles
+ * span the inner width; the inputs stretch out via negative offsets so their
+ * thumb centers map 1:1 to inner-width percentages — bubble center always sits
+ * exactly above thumb center.
+ */
+
+.ob-range {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 11px 4px;
+}
+
+.ob-range-bubbles {
+  position: relative;
+  height: 44px;
+  margin-bottom: 4px;
+}
+
+.ob-range-bubble {
+  position: absolute;
+  bottom: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.05;
+  padding: 5px 9px 6px;
+  border-radius: 9px;
+  white-space: nowrap;
+  color: var(--cream);
+  box-shadow: 0 4px 10px rgba(23, 18, 15, 0.18);
+  pointer-events: none;
+  user-select: none;
+}
+
+.ob-range-bubble.is-floor {
+  background: var(--cocoa);
+}
+
+.ob-range-bubble.is-ceiling {
+  background: var(--spark);
+}
+
+.ob-range-bubble small {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.85;
+  margin-bottom: 1px;
+}
+
+.ob-range-bubble strong {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ob-range-bubble::after {
+  content: "";
+  position: absolute;
+  bottom: -3px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 7px;
+  height: 7px;
+  background: inherit;
+}
+
+.ob-range-track {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--cream-deeper);
+}
+
+.ob-range-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, var(--cocoa) 0%, var(--spark) 100%);
+  border-radius: 999px;
+}
+
+.ob-range-input {
+  position: absolute;
+  top: 50%;
+  left: -11px;
+  width: calc(100% + 22px);
+  height: 22px;
+  margin: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.ob-range-input:focus {
+  outline: none;
+}
+
+.ob-range-input::-webkit-slider-runnable-track {
+  background: transparent;
+  height: 22px;
+}
+
+.ob-range-input::-moz-range-track {
+  background: transparent;
+  height: 22px;
+}
+
+.ob-range-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  pointer-events: auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--cream);
+  border: 2px solid var(--cocoa);
+  cursor: grab;
+  box-shadow: 0 3px 8px rgba(23, 18, 15, 0.18);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.ob-range-input::-moz-range-thumb {
+  pointer-events: auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--cream);
+  border: 2px solid var(--cocoa);
+  cursor: grab;
+  box-shadow: 0 3px 8px rgba(23, 18, 15, 0.18);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.ob-range-input.is-ceiling::-webkit-slider-thumb {
+  border-color: var(--spark);
+}
+
+.ob-range-input.is-ceiling::-moz-range-thumb {
+  border-color: var(--spark);
+}
+
+.ob-range-input::-webkit-slider-thumb:hover,
+.ob-range-input::-webkit-slider-thumb:active {
+  transform: scale(1.08);
+  box-shadow: 0 4px 12px rgba(23, 18, 15, 0.28);
+}
+
+.ob-range-input::-moz-range-thumb:hover,
+.ob-range-input::-moz-range-thumb:active {
+  transform: scale(1.08);
+  box-shadow: 0 4px 12px rgba(23, 18, 15, 0.28);
+}
+
+.ob-range-input:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px rgba(111, 63, 44, 0.18), 0 3px 8px rgba(23, 18, 15, 0.18);
+}
+
+.ob-range-input:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 4px rgba(111, 63, 44, 0.18), 0 3px 8px rgba(23, 18, 15, 0.18);
+}
+
+.ob-range-input.is-ceiling:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px rgba(242, 84, 45, 0.22), 0 3px 8px rgba(23, 18, 15, 0.18);
+}
+
+.ob-range-input.is-ceiling:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 4px rgba(242, 84, 45, 0.22), 0 3px 8px rgba(23, 18, 15, 0.18);
+}
+
+.ob-range-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--ink-mute);
+  padding-top: 4px;
+}
+
+/* === Auto-approve card === */
+
+.ob-auto {
+  grid-column: 1 / -1;
+}
+
+.ob-auto-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.ob-auto-head h2 {
+  margin: 0 0 4px;
+}
+
+.ob-auto-head p {
+  margin: 0;
+  max-width: 52ch;
+}
+
+.ob-switch {
+  position: relative;
+  width: 48px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--cream-deeper);
+  border: 1px solid var(--hairline);
+  padding: 0;
+  cursor: pointer;
+  transition: background 180ms ease, border-color 180ms ease;
+}
+
+.ob-switch.is-on {
+  background: var(--good);
+  border-color: var(--good);
+}
+
+.ob-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--cream);
+  box-shadow: 0 2px 6px rgba(23, 18, 15, 0.25);
+  transition: transform 180ms ease;
+}
+
+.ob-switch.is-on .ob-switch-thumb {
+  transform: translateX(20px);
+}
+
+.ob-switch:focus-visible {
+  outline: 2px solid var(--cocoa);
+  outline-offset: 3px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.ob-auto-rules {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--hairline);
+  transition: opacity 180ms ease;
+}
+
+.ob-auto-rules.is-disabled {
+  opacity: 0.45;
+}
+
+.ob-auto-rules-label {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.ob-auto-rules ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 8px;
+}
+
+.ob-auto-rule {
+  font: inherit;
+  width: 100%;
+  text-align: left;
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  align-items: start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--hairline);
+  background: var(--cream-soft);
+  cursor: pointer;
+  color: var(--ink);
+  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+.ob-auto-rule:hover:not(:disabled) {
+  background: var(--cream-deeper);
+  border-color: rgba(111, 63, 44, 0.25);
+}
+
+.ob-auto-rule.is-on {
+  border-color: var(--cocoa);
+  background: var(--cream);
+  box-shadow: 0 2px 8px rgba(23, 18, 15, 0.06);
+}
+
+.ob-auto-rule:disabled {
+  cursor: default;
+}
+
+.ob-auto-rule-check {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1.5px solid var(--hairline);
+  background: var(--cream);
+  display: inline-grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--cream);
+  margin-top: 1px;
+}
+
+.ob-auto-rule.is-on .ob-auto-rule-check {
+  background: var(--cocoa);
+  border-color: var(--cocoa);
+}
+
+.ob-auto-rule-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ob-auto-rule-content strong {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+}
+
+.ob-auto-rule-content small {
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.4;
+}

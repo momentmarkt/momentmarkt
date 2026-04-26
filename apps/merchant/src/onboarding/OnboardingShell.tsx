@@ -53,62 +53,57 @@ export function OnboardingShell({ onComplete }: Props) {
 
   return (
     <main className="ob-shell">
-      <header className="ob-shell-head">
-        <div className="ob-brand">
-          <span className="rail-mark" aria-hidden>
-            <span className="rail-mark-dot" />
-          </span>
-          <div>
-            <span className="eyebrow">MomentMarkt</span>
-            <strong>Merchant onboarding</strong>
-          </div>
-        </div>
+      <a className="ob-mark" href="#" aria-label="MomentMarkt">
+        <img src="/logo.svg" alt="" className="ob-mark-glyph" />
+      </a>
+
+      <div className="ob-frame">
         <ProgressStepper active={state.step} />
-      </header>
 
-      <section className="ob-canvas">
-        {state.step === "drop" ? <DropStep onStarted={handleStarted} /> : null}
-        {state.step === "processing" && state.onboardingId ? (
-          <ProcessingStep
-            onboardingId={state.onboardingId}
-            onMenuReady={onMenuReady}
-            onError={onError}
-          />
-        ) : null}
+        <section className="ob-canvas" aria-live="polite">
+          {state.step === "drop" ? <DropStep onStarted={handleStarted} /> : null}
+          {state.step === "processing" && state.onboardingId ? (
+            <ProcessingStep
+              onboardingId={state.onboardingId}
+              onMenuReady={onMenuReady}
+              onError={onError}
+            />
+          ) : null}
 
-        {state.step === "menu" && state.onboardingId && state.menu ? (
-          <MenuConfirmStep
-            onboardingId={state.onboardingId}
-            menu={state.menu}
-            onMenuChange={(next) => dispatch({ type: "menu_updated", menu: next })}
-            onConfirm={() => dispatch({ type: "advance", to: "hours" })}
-          />
-        ) : null}
+          {state.step === "menu" && state.onboardingId && state.menu ? (
+            <MenuConfirmStep
+              onboardingId={state.onboardingId}
+              menu={state.menu}
+              onMenuChange={(next) => dispatch({ type: "menu_updated", menu: next })}
+              onConfirm={() => dispatch({ type: "advance", to: "hours" })}
+            />
+          ) : null}
 
-        {state.step === "hours" && state.onboardingId ? (
-          <HoursStep
-            onboardingId={state.onboardingId}
-            onConfirm={(h) => {
-              dispatch({ type: "hours_loaded", hours: h });
-              dispatch({ type: "advance", to: "flow" });
-            }}
-          />
-        ) : null}
+          {state.step === "hours" && state.onboardingId ? (
+            <HoursStep
+              onboardingId={state.onboardingId}
+              onConfirm={(h) => {
+                dispatch({ type: "hours_loaded", hours: h });
+                dispatch({ type: "advance", to: "flow" });
+              }}
+            />
+          ) : null}
 
-        {state.step === "flow" && state.onboardingId && state.menu ? (
-          <FlowIntroStep
-            onboardingId={state.onboardingId}
-            menu={state.menu}
-            onComplete={completeNow}
-          />
-        ) : null}
+          {state.step === "flow" && state.onboardingId && state.menu ? (
+            <FlowIntroStep
+              onboardingId={state.onboardingId}
+              menu={state.menu}
+              onComplete={completeNow}
+            />
+          ) : null}
 
-        {state.error ? (
-          <p className="ob-error" role="alert">
-            Onboarding error: {state.error}
-          </p>
-        ) : null}
-      </section>
+          {state.error ? (
+            <p className="ob-error" role="alert">
+              Something went wrong: {state.error}
+            </p>
+          ) : null}
+        </section>
+      </div>
     </main>
   );
 }

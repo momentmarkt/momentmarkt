@@ -63,9 +63,7 @@ function App() {
     <main className="dashboard">
       <aside className="rail" aria-label="Merchant dashboard navigation">
         <div className="rail-brand">
-          <span className="rail-mark" aria-hidden>
-            <span className="rail-mark-dot" />
-          </span>
+          <img src="/logo.svg" alt="" className="rail-mark" />
           <div className="rail-brand-text">
             <span className="eyebrow">MomentMarkt</span>
             <strong>Merchant</strong>
