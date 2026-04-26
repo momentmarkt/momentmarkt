@@ -69,10 +69,25 @@ type DevPanelPassthroughProps = Omit<
 >;
 
 type Props = {
-  /** Slide-in visibility flag. False → renders null. */
-  visible: boolean;
-  /** Tap handler for the top-right X close. */
-  onClose: () => void;
+  /** Render mode (issue #154):
+   *   - "overlay" (default) — slide-in from the right, swipe-right /
+   *     swipe-down to dismiss, X close button. The legacy code path
+   *     kept for backwards compat with any direct overlay caller.
+   *   - "tab" — render inline as the active tab's content. No slide
+   *     animation, no dismiss gestures, no X button (the navbar IS the
+   *     navigation now). Always mounted while the tab is active.
+   *
+   * When `mode="tab"`, `visible` + `onClose` are ignored. When
+   * `mode="overlay"` (or omitted), `visible` + `onClose` are required
+   * for the dismiss choreography to work — we keep the overlay's old
+   * required-props contract unchanged.
+   */
+  mode?: "overlay" | "tab";
+  /** Slide-in visibility flag. Required in overlay mode; ignored in tab mode. */
+  visible?: boolean;
+  /** Tap handler for the top-right X close. Required in overlay mode;
+   *  ignored in tab mode. */
+  onClose?: () => void;
   /** Real toggle: hides the privacy envelope chip in DevPanel when false. */
   showPrivacyEnvelope?: boolean;
   onTogglePrivacyEnvelope?: () => void;
@@ -89,7 +104,8 @@ type Props = {
 
 export function SettingsScreen(props: Props): ReactElement | null {
   const {
-    visible,
+    mode = "overlay",
+    visible = true,
     onClose,
     showPrivacyEnvelope = true,
     onTogglePrivacyEnvelope,
@@ -99,13 +115,17 @@ export function SettingsScreen(props: Props): ReactElement | null {
     devPanelProps,
   } = props;
 
+  const isTabMode = mode === "tab";
+
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
 
   // translateX: width (offscreen right) → 0 (covering screen) over 300ms.
   // translateY: stays 0 in the entry animation; only the downward swipe
   // gesture moves it. Combined transform = [X, Y].
-  const translateX = useSharedValue(width);
+  // In tab mode (#154) we never slide — the navbar IS the navigation —
+  // so seed translateX at 0 and skip the choreography effect.
+  const translateX = useSharedValue(isTabMode ? 0 : width);
   const translateY = useSharedValue(0);
 
   // Mount-gating so the slide-OUT animation actually gets to play. If we
@@ -114,9 +134,11 @@ export function SettingsScreen(props: Props): ReactElement | null {
   // Pattern: keep `mounted` separate from `visible` — flip `mounted` true
   // immediately on enter, but only flip false from the timing callback
   // once the exit animation has finished playing.
-  const [mounted, setMounted] = useState(visible);
+  // Tab mode is always mounted (the parent decides via viewMode).
+  const [mounted, setMounted] = useState(isTabMode ? true : visible);
 
   useEffect(() => {
+    if (isTabMode) return;
     if (visible) {
       setMounted(true);
       translateX.value = withTiming(0, {
@@ -135,7 +157,7 @@ export function SettingsScreen(props: Props): ReactElement | null {
         },
       );
     }
-  }, [visible, width, translateX, translateY]);
+  }, [isTabMode, visible, width, translateX, translateY]);
 
   const overlayStyle = useAnimatedStyle(() => ({
     transform: [
@@ -147,9 +169,12 @@ export function SettingsScreen(props: Props): ReactElement | null {
   // iOS-style interactive swipe-back (rightward). Activates only on
   // horizontal pans ≥12pt; vertical motion ≥15pt cancels so it yields to
   // the swipe-down gesture below + any scroll containers underneath.
+  // In tab mode (#154) the gesture is disabled — the navbar IS the
+  // navigation, swiping should not dismiss.
   const swipeRight = useMemo(
     () =>
       Gesture.Pan()
+        .enabled(!isTabMode && !!onClose)
         .activeOffsetX([12, 9999])
         .failOffsetY([-15, 15])
         .onChange((e) => {
@@ -158,7 +183,7 @@ export function SettingsScreen(props: Props): ReactElement | null {
         .onEnd((e) => {
           const shouldClose =
             e.translationX > width * 0.35 || e.velocityX > 600;
-          if (shouldClose) {
+          if (shouldClose && onClose) {
             translateX.value = withTiming(width, {
               duration: 220,
               easing: Easing.out(Easing.exp),
@@ -171,16 +196,18 @@ export function SettingsScreen(props: Props): ReactElement | null {
             });
           }
         }),
-    [width, translateX, onClose],
+    [isTabMode, width, translateX, onClose],
   );
 
   // Companion swipe-down dismissal (iOS modal-sheet pattern). Activates
   // only on downward pans ≥12pt; horizontal motion ≥15pt cancels so it
   // yields to swipe-back + horizontal scrollers. Past 25% of the screen
   // height (or a fast downward flick), commits to close.
+  // Tab mode disables this gesture — the navbar handles navigation.
   const swipeDown = useMemo(
     () =>
       Gesture.Pan()
+        .enabled(!isTabMode && !!onClose)
         .activeOffsetY([12, 9999])
         .failOffsetX([-15, 15])
         .onChange((e) => {
@@ -189,7 +216,7 @@ export function SettingsScreen(props: Props): ReactElement | null {
         .onEnd((e) => {
           const shouldClose =
             e.translationY > height * 0.25 || e.velocityY > 700;
-          if (shouldClose) {
+          if (shouldClose && onClose) {
             translateY.value = withTiming(height, {
               duration: 220,
               easing: Easing.out(Easing.exp),
@@ -202,7 +229,7 @@ export function SettingsScreen(props: Props): ReactElement | null {
             });
           }
         }),
-    [height, translateY, onClose],
+    [isTabMode, height, translateY, onClose],
   );
 
   // Race the two gestures so whichever direction the user commits to
@@ -214,46 +241,53 @@ export function SettingsScreen(props: Props): ReactElement | null {
 
   if (!mounted) return null;
 
-  return (
-    <GestureDetector gesture={dismissGesture}>
-    <Animated.View
-      style={[
+  // Tab mode (#154) — render inline without the absoluteFill / overlay
+  // transform / dismiss gestures. The navbar IS the navigation. Top
+  // padding still respects the safe-area inset so the title doesn't
+  // collide with the Dynamic Island.
+  const wrapperStyle = isTabMode
+    ? [...s("flex-1 bg-cream"), { paddingTop: insets.top + 10 }]
+    : [
         StyleSheet.absoluteFill,
         ...s("bg-cream"),
         overlayStyle,
         { paddingTop: insets.top + 10 },
-      ]}
-      pointerEvents="auto"
-    >
+      ];
+  const content = (
+    <Animated.View style={wrapperStyle} pointerEvents="auto">
       <View
         style={[
           ...s("flex-row items-center px-5"),
           { paddingTop: 8, paddingBottom: 12, gap: 8 },
         ]}
       >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Back to wallet"
-          onPress={onClose}
-          hitSlop={12}
-          style={({ pressed }) => [
-            ...s("flex-row items-center"),
-            {
-              opacity: pressed ? 0.55 : 1,
-              marginLeft: -6,
-              paddingVertical: 6,
-              paddingRight: 4,
-            },
-          ]}
-        >
-          <SymbolView
-            name="chevron.left"
-            tintColor="#f2542d"
-            size={22}
-            weight="semibold"
-            style={{ width: 22, height: 22 }}
-          />
-        </Pressable>
+        {/* In tab mode (#154) the navbar IS the navigation — no back
+            chevron. Overlay mode keeps the chevron pointed at onClose. */}
+        {!isTabMode && onClose ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Back to wallet"
+            onPress={onClose}
+            hitSlop={12}
+            style={({ pressed }) => [
+              ...s("flex-row items-center"),
+              {
+                opacity: pressed ? 0.55 : 1,
+                marginLeft: -6,
+                paddingVertical: 6,
+                paddingRight: 4,
+              },
+            ]}
+          >
+            <SymbolView
+              name="chevron.left"
+              tintColor="#f2542d"
+              size={22}
+              weight="semibold"
+              style={{ width: 22, height: 22 }}
+            />
+          </Pressable>
+        ) : null}
         <Text style={[...s("text-3xl font-black text-ink"), { letterSpacing: -0.5 }]}>
           Settings
         </Text>
@@ -650,8 +684,13 @@ export function SettingsScreen(props: Props): ReactElement | null {
         </Text>
       </ScrollView>
     </Animated.View>
-    </GestureDetector>
   );
+
+  // Tab mode skips the GestureDetector wrapper because dismiss gestures
+  // are disabled there (the navbar handles navigation). Overlay mode
+  // wraps with GestureDetector so swipe-right + swipe-down both dismiss.
+  if (isTabMode) return content;
+  return <GestureDetector gesture={dismissGesture}>{content}</GestureDetector>;
 }
 
 // ── primitives ──────────────────────────────────────────────────────────────

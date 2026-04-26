@@ -64,6 +64,11 @@ type Props = {
   /** Callback the swipe stack uses to append fresh PriorSwipe entries
    *  to the canonical history kept in App.tsx. */
   onAppendSwipeHistory: (entries: PriorSwipe[]) => void;
+  /** Issue #154 — swipe-right now ALSO saves the variant to App.tsx's
+   *  `savedPasses` so it shows up in the Wallet tab. The existing
+   *  preference-signal append still fires on the same gesture; saving
+   *  is additive, not a replacement. */
+  onSavePass: (variant: AlternativeOffer) => void;
 };
 
 export function DiscoverView({
@@ -72,6 +77,7 @@ export function DiscoverView({
   onLensChange,
   swipeHistory,
   onAppendSwipeHistory,
+  onSavePass,
 }: Props): ReactElement {
   const insets = useSafeAreaInsets();
   const [variants, setVariants] = useState<AlternativeOffer[] | null>(null);
@@ -147,18 +153,15 @@ export function DiscoverView({
         const entries = buildPriorSwipes(dwellByVariant, variant, variants);
         if (entries.length > 0) onAppendSwipeHistory(entries);
       }
-      // Right-swipe in Discover acts like the old silent-step swipe:
-      // it's a "I like this kind of place" signal, not a commit. The
-      // user reveals price preference via the dwell + direction; the
-      // commit is one of:
-      //   (a) tapping a merchant card from Browse → focused offer
-      //   (b) right-swipe routing to focused offer in a future iter
-      // For demo Phase 2, we keep (a) only — Discover is "browse via
-      // swipe", Browse is "browse via list + map". Settling here just
-      // teases up the next merchant.
+      // Issue #154 — right-swipe is now BOTH a preference signal AND
+      // a save-to-wallet commit. The pass lands in the Wallet tab; the
+      // user picks WHEN to redeem by tapping it there. This decouples
+      // discovery from redemption — no more "oops swiped too eagerly"
+      // landing the user in a redeem flow they didn't mean.
+      onSavePass(variant);
       setStackKey((k) => k + 1);
     },
-    [variants, onAppendSwipeHistory, buildPriorSwipes],
+    [variants, onAppendSwipeHistory, onSavePass, buildPriorSwipes],
   );
 
   const handleAllPassed = useCallback(

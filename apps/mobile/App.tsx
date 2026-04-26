@@ -38,6 +38,7 @@ import { DEFAULT_LENS, type LensKey } from "./src/components/LensChips";
 import { RedeemFlow } from "./src/components/RedeemFlow";
 import { SwipeOfferStack } from "./src/components/SwipeOfferStack";
 import { WalletSheetContent } from "./src/components/WalletSheetContent";
+import { WalletView } from "./src/components/WalletView";
 import { WidgetRenderer } from "./src/components/WidgetRenderer";
 import {
   fetchOfferAlternatives,
@@ -45,6 +46,7 @@ import {
   type MerchantListItem,
   type PriorSwipe,
 } from "./src/lib/api";
+import { makeSavedPassId, type SavedPass } from "./src/types/savedPass";
 import { useSignals } from "./src/lib/useSignals";
 import { cityProfiles, type DemoCityId, type DemoCityProfile } from "./src/demo/cityProfiles";
 import { miaRainOffer } from "./src/demo/miaOffer";
@@ -141,26 +143,41 @@ export default function App() {
   // full DevPanel in from the right. Wide mode keeps its sidecar layout.
   const [devPanelOpen, setDevPanelOpen] = useState(false);
   const [sheetIndex, setSheetIndex] = useState(0);
-  // Settings + History overlay state. Both render as slide-in sheets over
-  // the wallet drawer + map (post-IA refactor: the bottom tab bar was
-  // dropped, gear + clock icons in the map's top-right corner are the
-  // entry points instead).
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
+  // Issue #154 — settingsOpen / historyOpen state removed. Both surfaces
+  // are now navbar tabs (viewMode === "settings" / "history"); the
+  // open/close lifecycle is owned by viewMode, not local booleans. The
+  // overlay codepath inside SettingsScreen + HistoryScreen still works
+  // for backwards compat with any direct caller, but App.tsx no longer
+  // mounts them as overlays.
   // Real toggles wired through to DevPanel + (cosmetically) WalletSheetContent.
   // Cosmetic toggles inside SettingsScreen own their own local state — no
   // need to lift them up.
   const [showPrivacyEnvelope, setShowPrivacyEnvelope] = useState(true);
   const [language, setLanguage] = useState<"de" | "en">("de");
-  // Issue #152 — 2-view IA refactor. The app has two top-level surfaces
-  // switched by a custom JS bottom navbar:
+  // Issue #152 — 2-view IA refactor (now 5-view per #154). The app
+  // has five top-level surfaces switched by a custom JS bottom navbar:
   //   "discover" (DEFAULT) — full-screen swipe + lens chips, no map.
+  //   "wallet"             — saved-passes list (#154).
   //   "browse"             — map + drawer (search + list + weather).
+  //   "history"            — past redemptions list (was overlay pre-#154).
+  //   "settings"           — settings + dev panel (was overlay pre-#154).
   // The lens + swipeHistory + variants pool live here so flipping
   // views preserves the user's session state — flip to Browse, flip
   // back to Discover, the lens choice survives.
   const [viewMode, setViewMode] = useState<ViewMode>("discover");
   const [discoverLens, setDiscoverLens] = useState<LensKey>(DEFAULT_LENS);
+  // Issue #154 — saved-passes mechanic. Right-swipe in Discover adds
+  // a SavedPass here; the Wallet tab renders the list. Tap a pass →
+  // commit to redeem flow (the same step="offer" → step="redeeming"
+  // path the merchant-tap-from-Browse-list flow uses). On successful
+  // redemption, the pass is removed (handled in handleRedeemComplete).
+  // Session-local — see types/savedPass.ts for the persistence note.
+  const [savedPasses, setSavedPasses] = useState<SavedPass[]>([]);
+  // Tracks which saved pass (if any) the current redeem flow originated
+  // from, so handleRedeemComplete can pop it from the list. Null for the
+  // legacy demo flow + the merchant-tap-from-Browse-list flow (those
+  // commits don't come from the Wallet tab).
+  const [redeemingPassId, setRedeemingPassId] = useState<string | null>(null);
 
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -249,11 +266,53 @@ export default function App() {
   }, []);
 
   const handleRedeemComplete = useCallback(() => {
+    // Issue #154 — if the redeem originated from a Wallet pass tap,
+    // remove the pass from the saved list now that it's redeemed.
+    // Defensive: clearing redeemingPassId regardless covers the
+    // success-then-cancel path so a subsequent demo run doesn't
+    // accidentally re-pop a stale id.
+    if (redeemingPassId) {
+      setSavedPasses((prev) => prev.filter((p) => p.id !== redeemingPassId));
+      setRedeemingPassId(null);
+    }
     setStep("success");
-  }, []);
+  }, [redeemingPassId]);
 
   const handleResetToSilent = useCallback(() => {
+    setRedeemingPassId(null);
     setStep("silent");
+  }, []);
+
+  // Issue #154 — saved-pass save/remove/redeem handlers. Save fires
+  // from the Discover swipe-right; redeem fires from the Wallet tab
+  // tap; remove fires from the Wallet tab long-press confirmation.
+  const handleSavePass = useCallback((variant: AlternativeOffer) => {
+    const newPass: SavedPass = {
+      id: makeSavedPassId(variant.variant_id),
+      variant,
+      saved_at_iso: new Date().toISOString(),
+    };
+    setSavedPasses((prev) => [newPass, ...prev]);
+  }, []);
+
+  const handleRemovePass = useCallback((id: string) => {
+    setSavedPasses((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
+  const handleRedeemPass = useCallback((pass: SavedPass) => {
+    // Mirror the merchant-tap path: settle on the variant, jump to
+    // step="offer" so SheetBody renders the focused widget. The user
+    // then taps the widget CTA → step="redeeming" → step="success" →
+    // handleRedeemComplete pops the pass.
+    setSettledVariant(pass.variant);
+    setRedeemingPassId(pass.id);
+    setAlternatives(null);
+    // The redeem flow lives inside the Browse view's BottomSheet (the
+    // existing focused-offer surface). Flip to Browse so the sheet is
+    // visible while step !== "silent". The navbar auto-hides per
+    // showNavBar = step === "silent".
+    setViewMode("browse");
+    setStep("offer");
   }, []);
 
   // Issue #116 / #132: tapping a merchant card in the wallet drawer's
@@ -385,18 +444,11 @@ export default function App() {
   const handleCloseDevPanel = useCallback(() => {
     setDevPanelOpen(false);
   }, []);
-  const handleOpenSettings = useCallback(() => {
-    setSettingsOpen(true);
-  }, []);
-  const handleCloseSettings = useCallback(() => {
-    setSettingsOpen(false);
-  }, []);
-  const handleOpenHistory = useCallback(() => {
-    setHistoryOpen(true);
-  }, []);
-  const handleCloseHistory = useCallback(() => {
-    setHistoryOpen(false);
-  }, []);
+  // Issue #154 — handleOpenSettings / handleOpenHistory / handleCloseSettings /
+  // handleCloseHistory removed. Settings + History are now navbar tabs;
+  // the open/close lifecycle is owned by viewMode, not local boolean state.
+  // The settingsOpen / historyOpen useState calls + the SettingsScreen +
+  // HistoryScreen overlay renders at the App return have been dropped too.
   const handleTogglePrivacyEnvelope = useCallback(() => {
     setShowPrivacyEnvelope((prev) => !prev);
   }, []);
@@ -405,7 +457,6 @@ export default function App() {
   }, []);
   const handleResetDemoFromSettings = useCallback(() => {
     setStep("silent");
-    setSettingsOpen(false);
   }, []);
 
   const devPanelProps: ComponentProps<typeof DevPanel> = {
@@ -479,12 +530,19 @@ export default function App() {
   // views render absolute-positioned (so the unfocused one stays
   // mounted to keep its fetch state hot) but only the active one
   // accepts pointer events.
+  // Issue #154 — only animate the Discover↔Browse cross-fade. The other
+  // tabs (Wallet / History / Settings) swap in instantly because they
+  // render only when active and a fade-out beat to a static list feels
+  // laggy. The cross-fade keeps the demo cut from #152 (Discover + Browse
+  // remain mounted across switches so their fetch state stays hot).
   const viewFade = useSharedValue(viewMode === "discover" ? 0 : 1);
   useEffect(() => {
-    viewFade.value = withTiming(viewMode === "browse" ? 1 : 0, {
-      duration: 250,
-      easing: Easing.out(Easing.exp),
-    });
+    if (viewMode === "discover" || viewMode === "browse") {
+      viewFade.value = withTiming(viewMode === "browse" ? 1 : 0, {
+        duration: 250,
+        easing: Easing.out(Easing.exp),
+      });
+    }
   }, [viewMode, viewFade]);
   const discoverFadeStyle = useAnimatedStyle(() => ({
     opacity: 1 - viewFade.value,
@@ -494,6 +552,9 @@ export default function App() {
   }));
   const handleViewChange = useCallback((next: ViewMode) => {
     setViewMode(next);
+  }, []);
+  const handleGoToDiscover = useCallback(() => {
+    setViewMode("discover");
   }, []);
 
   const walletArea = (
@@ -620,25 +681,28 @@ export default function App() {
     </View>
   );
 
-  // DevPanel passthrough used inside the Settings overlay. We wrap
+  // DevPanel passthrough used inside the Settings tab (#154). We wrap
   // `onRunSurfacing` so triggering surfacing from the Demo & Debug
-  // section also closes Settings — otherwise the sheet snaps to its 80%
-  // offer state behind an opaque overlay the user can't see through.
+  // section flips back to the Browse tab — otherwise the sheet snaps to
+  // its 80% offer state behind the Settings tab content (which doesn't
+  // host the BottomSheet) and the surfacing beat plays invisible.
   const settingsDevPanelProps: ComponentProps<typeof DevPanel> = {
     ...devPanelProps,
     onRunSurfacing: () => {
-      setSettingsOpen(false);
+      setViewMode("browse");
       setStep("silent");
       handleRunSurfacing();
     },
   };
 
-  // Issue #152 — Browse view = the full walletArea (map + drawer +
-  // top-of-map weather pill / clock / gear) wrapped in a stack that
-  // owns the silent-step top overlay. The wrapper renders the
-  // overlay only when `step === "silent"` AND `viewMode === "browse"`
+  // Issue #152 / #154 — Browse view = walletArea (map + drawer) wrapped
+  // in a stack that owns the silent-step top-LEFT weather pill. Per #154
+  // the top-RIGHT clock + gear icons are GONE — their function moved to
+  // the navbar's History + Settings tabs. The weather pill stays because
+  // it's the city-swap affordance, not navigation. The wrapper renders
+  // the pill only when `step === "silent"` AND `viewMode === "browse"`
   // so the focused offer / redeem / success surfaces inside the
-  // BottomSheet don't compete with the floating pill + icons.
+  // BottomSheet don't compete with the floating pill.
   const browseView = (
     <View style={s("flex-1")}>
       {walletArea}
@@ -650,13 +714,12 @@ export default function App() {
               top: insets.top + 12,
               left: 16,
               right: 16,
-              justifyContent: "space-between",
             },
           ]}
           // Pointer events follow sheetIndex (the JS mirror of
           // animatedIndex). When the sheet is at medium / expanded,
-          // the icons are visually invisible so they shouldn't
-          // intercept taps that would otherwise reach the map.
+          // the pill is visually invisible so it shouldn't intercept
+          // taps that would otherwise reach the map.
           pointerEvents={sheetIndex >= 1 ? "none" : "box-none"}
         >
           <Animated.View style={topOverlayLeftStyle}>
@@ -666,18 +729,6 @@ export default function App() {
               tempC={citySignals.tempC}
               sfSymbol={citySignals.weatherSfSymbol}
               onPress={handleSwapCity}
-            />
-          </Animated.View>
-          <Animated.View style={[topOverlayRightStyle, ...s("flex-row gap-2")]}>
-            <MapIconButton
-              sfSymbol="clock"
-              accessibilityLabel="Open history"
-              onPress={handleOpenHistory}
-            />
-            <MapIconButton
-              sfSymbol="gearshape"
-              accessibilityLabel="Open settings"
-              onPress={handleOpenSettings}
             />
           </Animated.View>
         </View>
@@ -696,6 +747,7 @@ export default function App() {
       onLensChange={setDiscoverLens}
       swipeHistory={swipeHistory}
       onAppendSwipeHistory={handleAppendSwipeHistory}
+      onSavePass={handleSavePass}
     />
   );
 
@@ -721,10 +773,13 @@ export default function App() {
             <DevPanel {...devPanelProps} />
           </View>
         ) : (
-          // Compact (<820px): the recordable demo surface. Two views
-          // stacked absolute-positioned with cross-fade + bottom
-          // navbar (when at silent). The unfocused view stays mounted
-          // so its fetch state stays hot across switches.
+          // Compact (<820px): the recordable demo surface. Five tabs
+          // routed by the BottomNavBar. Discover + Browse stay mounted
+          // (cross-fade) so their fetch state survives switches; the
+          // other three tabs render only when active to keep the safe-
+          // area inset budget clean. The bottom navbar hides on every
+          // non-silent step so focused overlay flows aren't competed
+          // with by tab bar chrome.
           <View style={s("flex-1")}>
             <View style={s("flex-1")}>
               <Animated.View
@@ -739,6 +794,34 @@ export default function App() {
               >
                 {discoverView}
               </Animated.View>
+              {viewMode === "wallet" ? (
+                <View style={StyleSheet.absoluteFill}>
+                  <WalletView
+                    passes={savedPasses}
+                    onPassTap={handleRedeemPass}
+                    onRemovePass={handleRemovePass}
+                    onGoToDiscover={handleGoToDiscover}
+                  />
+                </View>
+              ) : null}
+              {viewMode === "history" ? (
+                <View style={StyleSheet.absoluteFill}>
+                  <HistoryScreen />
+                </View>
+              ) : null}
+              {viewMode === "settings" ? (
+                <View style={StyleSheet.absoluteFill}>
+                  <SettingsScreen
+                    mode="tab"
+                    showPrivacyEnvelope={showPrivacyEnvelope}
+                    onTogglePrivacyEnvelope={handleTogglePrivacyEnvelope}
+                    language={language}
+                    onSetLanguage={handleSetLanguage}
+                    onResetDemo={handleResetDemoFromSettings}
+                    devPanelProps={settingsDevPanelProps}
+                  />
+                </View>
+              ) : null}
             </View>
             {showNavBar ? (
               <BottomNavBar
@@ -749,20 +832,11 @@ export default function App() {
           </View>
         )}
 
-        {/* Settings + History slide-in overlays. Each owns its own
-            translateX choreography (300ms ease-out). Tap the X in the
-            overlay header to close. */}
-        <SettingsScreen
-          visible={settingsOpen}
-          onClose={handleCloseSettings}
-          showPrivacyEnvelope={showPrivacyEnvelope}
-          onTogglePrivacyEnvelope={handleTogglePrivacyEnvelope}
-          language={language}
-          onSetLanguage={handleSetLanguage}
-          onResetDemo={handleResetDemoFromSettings}
-          devPanelProps={settingsDevPanelProps}
-        />
-        <HistoryScreen visible={historyOpen} onClose={handleCloseHistory} />
+        {/* Issue #154 — the Settings + History slide-in overlays are no
+            longer rendered. Their function moved to navbar tabs (Settings
+            tab + History tab). The overlay code path lives on inside both
+            screens for backwards compat with any direct caller, but App.tsx
+            no longer mounts them as overlays. */}
       </View>
     </GestureHandlerRootView>
   );

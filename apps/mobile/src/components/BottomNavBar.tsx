@@ -1,9 +1,16 @@
 /**
- * BottomNavBar — custom JS bottom navbar (issue #152).
+ * BottomNavBar — custom JS bottom navbar (issue #152, expanded in #154).
  *
- * Two top-level views switched by a 2-tab navbar:
+ * Five top-level views switched by a 5-tab navbar:
  *   • Discover (default) — full-screen swipe stack + lens chips, no map.
+ *   • Wallet              — saved-passes list (added in #154).
  *   • Browse              — map + drawer (search + list + weather card).
+ *   • History             — past redemptions list (was overlay pre-#154).
+ *   • Settings            — settings + dev panel (was overlay pre-#154).
+ *
+ * The navbar replaces the floating gear/clock icons that used to live in
+ * the top-right of the Browse view — those are now tabs. The top-LEFT
+ * weather pill (city-swap affordance) stays since it's not navigation.
  *
  * Why custom JS instead of `react-native-bottom-tabs`:
  *   The native UITabBarController route was tried in #103 and abandoned —
@@ -34,7 +41,12 @@ import type { SFSymbol } from "sf-symbols-typescript";
 import { lightTap } from "../lib/haptics";
 import { s } from "../styles";
 
-export type ViewMode = "discover" | "browse";
+export type ViewMode =
+  | "discover"
+  | "wallet"
+  | "browse"
+  | "history"
+  | "settings";
 
 type TabSpec = {
   key: ViewMode;
@@ -44,7 +56,10 @@ type TabSpec = {
 
 const TABS: readonly TabSpec[] = [
   { key: "discover", label: "Discover", sfSymbol: "sparkles" },
+  { key: "wallet", label: "Wallet", sfSymbol: "wallet.pass.fill" },
   { key: "browse", label: "Browse", sfSymbol: "map.fill" },
+  { key: "history", label: "History", sfSymbol: "clock.fill" },
+  { key: "settings", label: "Settings", sfSymbol: "gearshape.fill" },
 ] as const;
 
 type Props = {
@@ -119,11 +134,11 @@ function NavTab({
       />
       <Text
         style={{
-          fontSize: 11,
+          fontSize: 10,
           marginTop: 2,
           fontWeight: active ? "800" : "600",
           color: tintColor,
-          letterSpacing: 0.2,
+          letterSpacing: 0.1,
         }}
       >
         {spec.label}
