@@ -48,6 +48,12 @@ type Props = {
    * an `active_offer`. Issue #116.
    */
   onMerchantTap?: (merchant: MerchantListItem) => void;
+  /**
+   * Fired when the user taps the search input. App.tsx wires this to snap
+   * the bottom sheet to its top snap (80%) so the keyboard rises into a
+   * fully-revealed merchant list. Issue #125.
+   */
+  onSearchFocus?: () => void;
 };
 
 /**
@@ -73,6 +79,7 @@ export function WalletSheetContent({
   animatedIndex,
   expandedSlot,
   onMerchantTap,
+  onSearchFocus,
 }: Props): ReactElement {
   const pulse = useSharedValue(0);
   const dot = useSharedValue(0);
@@ -143,7 +150,11 @@ export function WalletSheetContent({
             Issue #118: dropped the medium-layer fade wrapper so this content
             is visible at the 25% snap — BottomSheetScrollView handles overflow
             so the user only sees the top portion until they drag up. */}
-        <MerchantSearchList city={citySlug} onMerchantTap={onMerchantTap} />
+        <MerchantSearchList
+          city={citySlug}
+          onMerchantTap={onMerchantTap}
+          onSearchFocus={onSearchFocus}
+        />
 
         {/* The "◉ Berlin Mitte" pill that used to sit here was dropped:
             the same city info is now shown in the top-left frosted weather

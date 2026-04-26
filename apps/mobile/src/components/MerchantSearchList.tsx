@@ -13,6 +13,10 @@ type Props = {
   /** Fired when a merchant card is tapped. App.tsx wires this to the
    *  surfaced offer flow when `merchant.active_offer != null`. */
   onMerchantTap?: (merchant: MerchantListItem) => void;
+  /** Fires when the user taps the search input. App.tsx wires this to
+   *  snap the bottom sheet to its top snap so the keyboard rises into
+   *  a fully-revealed list. Issue #125. */
+  onSearchFocus?: () => void;
 };
 
 /**
@@ -26,7 +30,7 @@ type Props = {
  *   - ink primary text, cocoa secondary, neutral-600 tertiary
  *   - spark accent on the offer chip
  */
-export function MerchantSearchList({ city, onMerchantTap }: Props) {
+export function MerchantSearchList({ city, onMerchantTap, onSearchFocus }: Props) {
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
   const [merchants, setMerchants] = useState<MerchantListItem[]>(() =>
@@ -111,6 +115,7 @@ export function MerchantSearchList({ city, onMerchantTap }: Props) {
         <TextInput
           value={query}
           onChangeText={setQuery}
+          onFocus={onSearchFocus}
           placeholder="Search coffee, bakeries, kiosks…"
           placeholderTextColor="rgba(23, 18, 15, 0.35)"
           autoCorrect={false}

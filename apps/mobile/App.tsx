@@ -665,6 +665,9 @@ type SheetBodyProps = {
   onRedeemComplete: () => void;
   onSuccessDone: () => void;
   onMerchantTap: ComponentProps<typeof WalletSheetContent>["onMerchantTap"];
+  /** Threaded down to MerchantSearchList's <TextInput onFocus> so tapping
+   *  the search bar auto-snaps the sheet to its 80% top snap. Issue #125. */
+  onSearchFocus: ComponentProps<typeof WalletSheetContent>["onSearchFocus"];
 };
 
 function SheetBody({
@@ -683,6 +686,7 @@ function SheetBody({
   onRedeemComplete,
   onSuccessDone,
   onMerchantTap,
+  onSearchFocus,
 }: SheetBodyProps) {
   // Redeem/Success screens own their own scroll surfaces internally, so a
   // plain BottomSheetView wrapper is fine here — gorhom requires a direct
@@ -779,6 +783,7 @@ function SheetBody({
       pulseLabel={pulseLabel}
       animatedIndex={animatedIndex}
       onMerchantTap={onMerchantTap}
+      onSearchFocus={onSearchFocus}
     />
   );
 }
