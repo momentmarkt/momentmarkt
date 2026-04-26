@@ -325,6 +325,113 @@ export async function fetchSignals(
   }
 }
 
+/* ------------------------------------------------------------------ *\
+ * Redeem persistence (issue #127)                                    *
+ *                                                                    *
+ * Mobile-shaped wrapper for `POST /redeem`. The girocard "tap"       *
+ * already runs `simulateCheckout()` locally for instant UI feedback; *
+ * `postRedeem` is the fire-and-forget POST that records the          *
+ * redemption server-side so the merchant inbox / history can pick    *
+ * it up. Returns null on any failure (network, non-2xx, parse,       *
+ * unknown offer_id) — by design, so the demo stays recordable when   *
+ * the Hugging Face Space is asleep or the offer_id only exists in    *
+ * the local fixtures.                                                *
+ *                                                                    *
+ * Backend Pydantic shape (`apps/backend/.../main.py:77`):            *
+ *   class RedeemRequest:                                             *
+ *     offer_id: str                                                  *
+ *     user_id: str = "mia"                                           *
+ *     t: str = "2026-04-25T13:34:00+02:00"                           *
+ *                                                                    *
+ * Backend response (verified live):                                  *
+ *   { offer_id, user_id, token, cashback_amount, currency,           *
+ *     merchant_counter, budget_remaining, status }                   *
+\* ------------------------------------------------------------------ */
+
+/**
+ * Caller-friendly request shape. Carries more demo context than the
+ * backend currently consumes (intent_token / h3_cell_r8 / merchant_id /
+ * amount_eur) so the wrapper can grow without forcing every call site
+ * to change. Today only `offer_id` (+ optional `user_id` / `t`) is
+ * actually wired on the wire.
+ */
+export type RedeemRequest = {
+  offer_id: string;
+  merchant_id?: string;
+  amount_eur?: number;
+  user_id?: string;
+  /** ISO timestamp of the tap. Defaults to "now" on the wire if omitted. */
+  t?: string;
+  intent_token?: string;
+  h3_cell_r8?: string;
+};
+
+/**
+ * Normalised response shape the mobile UI cares about. We project the
+ * backend's `cashback_amount` field onto `cashback_eur` so the consumer
+ * never has to think about wire-vs-app field naming.
+ */
+export type RedeemResponse = {
+  status: string;
+  redemption_id?: string;
+  cashback_eur?: number;
+  budget_remaining?: number;
+};
+
+/**
+ * Fire-and-forget redemption record. Returns `null` on any failure so
+ * the caller (RedeemFlow) can keep going without blocking the demo
+ * cut. Never throws — every error path is swallowed and logged once.
+ *
+ * NOTE: the local `simulateCheckout()` is what produces the immediate
+ * UI feedback; this POST is purely persistence. Treat the return value
+ * as observability, not a control-flow signal.
+ */
+export async function postRedeem(
+  payload: RedeemRequest,
+  signal?: AbortSignal,
+): Promise<RedeemResponse | null> {
+  try {
+    // Translate the rich caller-side shape to the backend's narrow
+    // wire contract. Anything the backend doesn't model (intent_token,
+    // h3_cell_r8, merchant_id, amount_eur) is dropped here — kept on
+    // the request type so a future backend can pick it up without a
+    // mobile change.
+    const wirePayload: Record<string, string> = { offer_id: payload.offer_id };
+    if (payload.user_id) wirePayload.user_id = payload.user_id;
+    if (payload.t) wirePayload.t = payload.t;
+
+    const r = await fetch(`${apiBase()}/redeem`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(wirePayload),
+      signal,
+    });
+    if (!r.ok) return null;
+    const data = (await r.json()) as Record<string, unknown>;
+    if (typeof data.status !== "string") return null;
+    return {
+      status: data.status,
+      redemption_id:
+        typeof data.token === "string"
+          ? data.token
+          : typeof data.redemption_id === "string"
+            ? data.redemption_id
+            : undefined,
+      cashback_eur:
+        typeof data.cashback_amount === "number"
+          ? data.cashback_amount
+          : typeof data.cashback_eur === "number"
+            ? data.cashback_eur
+            : undefined,
+      budget_remaining:
+        typeof data.budget_remaining === "number" ? data.budget_remaining : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchOpportunityMeta(
   body: OpportunityRequest,
   signal?: AbortSignal,

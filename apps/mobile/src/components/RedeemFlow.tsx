@@ -8,6 +8,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 import type { DemoOffer } from "../demo/miaOffer";
+import { postRedeem } from "../lib/api";
 import {
   simulateCheckout,
   type RedeemFlowState,
@@ -61,6 +62,20 @@ export function RedeemFlow({
   const handleTap = useCallback(
     async (token: string) => {
       setState("tapping");
+      // Fire-and-forget backend persistence (issue #127). The local
+      // simulateCheckout below is what produces the immediate UI
+      // feedback; this POST records the redemption server-side so
+      // the merchant inbox + future /history endpoint can pick it
+      // up. We deliberately don't await it — the demo cut must not
+      // block on a Hugging Face Space cold-start. Any rejection is
+      // already swallowed inside postRedeem (returns null).
+      void postRedeem({
+        offer_id: offer.id,
+        merchant_id: offer.merchantId,
+        amount_eur: amountEur,
+        intent_token: offer.privacyEnvelope.intent_token,
+        h3_cell_r8: offer.privacyEnvelope.h3_cell_r8,
+      });
       try {
         const checkout = await simulateCheckout(token, amountEur);
         setResult(checkout);
@@ -71,7 +86,7 @@ export function RedeemFlow({
         setState("qr");
       }
     },
-    [amountEur],
+    [amountEur, offer],
   );
 
   const handleCancel = useCallback(() => {
