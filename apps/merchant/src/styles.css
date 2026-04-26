@@ -99,8 +99,8 @@ code {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 18px 22px;
-  border-radius: 28px;
+  padding: 16px 20px;
+  border-radius: 16px;
   background: var(--cream-soft);
   border: 1px solid var(--hairline);
 }
@@ -146,12 +146,12 @@ code {
 .feed {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 14px;
-  border-radius: 28px;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 16px;
   background: var(--cream-soft);
   border: 1px solid var(--hairline);
-  max-height: calc(100vh - 160px);
+  max-height: calc(100vh - 200px);
   overflow-y: auto;
 }
 
@@ -180,11 +180,11 @@ code {
 .feed-card {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 12px;
-  padding: 14px;
-  border-radius: 20px;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
   background: var(--cream);
-  border: 1px solid transparent;
+  border: 1px solid var(--hairline);
   text-align: left;
   cursor: pointer;
   transition: border-color 160ms ease, transform 160ms ease, background 160ms ease;
@@ -337,8 +337,8 @@ code {
 }
 
 .detail-section {
-  padding: 22px;
-  border-radius: 28px;
+  padding: 18px;
+  border-radius: 16px;
   background: var(--cream-soft);
   border: 1px solid var(--hairline);
 }
@@ -361,18 +361,18 @@ code {
 }
 
 .detail-section h2 {
-  margin: 0 0 10px;
-  font-size: 1.5rem;
-  font-weight: 900;
-  letter-spacing: -0.02em;
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
 .detail-section .lead {
   margin: 0;
   color: var(--ink-soft);
-  font-size: 0.95rem;
-  line-height: 1.5;
-  max-width: 56ch;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  max-width: 60ch;
 }
 
 /* signal evidence chip row */
@@ -385,8 +385,8 @@ code {
 }
 
 .signal-chip {
-  padding: 14px;
-  border-radius: 18px;
+  padding: 12px;
+  border-radius: 12px;
   background: var(--cream);
   border: 1px solid var(--hairline);
 }
@@ -434,30 +434,30 @@ code {
 
 .phone-frame {
   width: 100%;
-  max-width: 360px;
+  max-width: 300px;
   margin-left: auto;
-  padding: 14px;
-  border-radius: 40px;
+  padding: 10px;
+  border-radius: 32px;
   background: var(--ink);
-  box-shadow: 0 24px 60px rgba(23, 18, 15, 0.22);
+  box-shadow: 0 18px 40px rgba(23, 18, 15, 0.18);
   position: relative;
 }
 
 .phone-frame::before {
   content: "";
   position: absolute;
-  top: 18px;
+  top: 14px;
   left: 50%;
   transform: translateX(-50%);
-  width: 80px;
-  height: 6px;
+  width: 64px;
+  height: 5px;
   border-radius: 999px;
   background: rgba(255, 248, 238, 0.15);
 }
 
 .phone-frame-screen {
-  margin-top: 18px;
-  border-radius: 28px;
+  margin-top: 14px;
+  border-radius: 22px;
   overflow: hidden;
   background: var(--cocoa);
   /* Inner widget already paints its own bg; this just guarantees rounded clipping. */
@@ -473,8 +473,8 @@ code {
 }
 
 .counter {
-  padding: 14px;
-  border-radius: 18px;
+  padding: 12px;
+  border-radius: 12px;
   background: var(--cream);
   border: 1px solid var(--hairline);
 }
@@ -527,8 +527,8 @@ code {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 14px 18px;
-  border-radius: 22px;
+  padding: 12px 16px;
+  border-radius: 12px;
   background: var(--cream);
   border: 1px solid var(--hairline);
   margin-top: 14px;
@@ -567,8 +567,8 @@ code {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 14px 18px;
-  border-radius: 22px;
+  padding: 12px 16px;
+  border-radius: 12px;
   background: var(--cream-soft);
   border: 1px solid var(--hairline);
   color: var(--ink-soft);
@@ -725,6 +725,13 @@ code {
   .signal-row,
   .counter-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .header,
+  .feed,
+  .detail-section,
+  .privacy-footer {
+    border-radius: 14px;
   }
 }
 
