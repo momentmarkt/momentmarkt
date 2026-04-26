@@ -1,15 +1,8 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!--
-  MomentMarkt — square logomark, 100×100 viewBox.
-  Single source for everything: README header, iOS app icon, Android adaptive
-  icon foreground, splash icon, web favicon, and the merchant rail-mark.
-
-  Palette:
-    cream  #F2EFE9
-    ink    #0A0A0A
-    spark  #E85B35
--->
-<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MomentMarkt">
-  <path d="M5 5H25L50 46L75 5H95V75C84 75 75 69 75 54V34L50 75L25 34V95H5V5Z" fill="#0A0A0A"/>
-  <circle cx="85" cy="86" r="8" fill="#E85B35"/>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="1024" height="1024" fill="#F5F5F5"/>
+<rect width="1024" height="1024" rx="120" fill="#FFF8EE"/>
+<path d="M235.483 256.909H368.225L508.424 598.955H514.39L654.589 256.909H787.33V766H682.927V434.643H678.701L546.954 763.514H475.86L344.113 433.401H339.887V766H235.483V256.909Z" fill="#17120F"/>
+<rect x="634" y="667" width="160" height="112" fill="#FFF8EE"/>
+<path d="M810 714C810 755.421 776.421 789 735 789C693.579 789 660 755.421 660 714C660 672.579 693.579 639 735 639C776.421 639 810 672.579 810 714Z" fill="#FFF8EE"/>
+<circle cx="735.15" cy="713.85" r="52.15" fill="#F2542D"/>
 </svg>
