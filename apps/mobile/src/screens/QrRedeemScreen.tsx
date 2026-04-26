@@ -10,7 +10,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 import type { DemoOffer } from "../demo/miaOffer";
-import { heavyTap, lightTap } from "../lib/haptics";
+import { heavyTap } from "../lib/haptics";
 import { generateRedeemToken } from "../lib/redeem";
 import { s } from "../styles";
 
@@ -21,7 +21,11 @@ type Props = {
   /** Seconds until the token expires. Defaults to 90s — comfortable demo window. */
   expiresInSeconds?: number;
   onTap: (token: string) => void;
-  onCancel: () => void;
+  /** Optional cancel callback. Currently no UI surface invokes it — the
+   *  Cancel pill was removed because the new IA dismisses the redeem
+   *  sheet via the bottom-sheet drag handle. Kept as an optional prop
+   *  for callers that want to wire their own back affordance. */
+  onCancel?: () => void;
 };
 
 const DEFAULT_EXPIRES_IN_S = 90;
@@ -37,7 +41,6 @@ export function QrRedeemScreen({
   tokenOverride,
   expiresInSeconds = DEFAULT_EXPIRES_IN_S,
   onTap,
-  onCancel,
 }: Props) {
   const token = useMemo(
     () => tokenOverride ?? generateRedeemToken(offer.id),
@@ -107,30 +110,13 @@ export function QrRedeemScreen({
 
   return (
     <View style={s("flex-1 bg-cream px-5 py-6")}>
-      <View style={s("flex-row items-center justify-between")}>
-        <View>
-          <Text style={s("text-xs font-bold uppercase tracking-[3px] text-cocoa")}>
-            Simulated checkout
-          </Text>
-          <Text style={[...s("mt-1 text-2xl font-black text-ink"), { letterSpacing: -0.5 }]}>
-            {offer.merchantName}
-          </Text>
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          style={[
-            ...s("rounded-full bg-white px-4 py-2"),
-            { borderWidth: 1, borderColor: "rgba(23, 18, 15, 0.08)" },
-          ]}
-          onPress={() => {
-            lightTap();
-            onCancel();
-          }}
-        >
-          <Text style={s("text-xs font-black uppercase tracking-[2px] text-ink")}>
-            Cancel
-          </Text>
-        </Pressable>
+      <View>
+        <Text style={s("text-xs font-bold uppercase tracking-[3px] text-cocoa")}>
+          Simulated checkout
+        </Text>
+        <Text style={[...s("mt-1 text-2xl font-black text-ink"), { letterSpacing: -0.5 }]}>
+          {offer.merchantName}
+        </Text>
       </View>
 
       <Animated.View

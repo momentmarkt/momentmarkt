@@ -1,14 +1,23 @@
 import { SymbolView } from "expo-symbols";
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import {
   Image,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { s } from "../styles";
 
@@ -148,8 +157,15 @@ function buildBars(redemptions: Redemption[]): Array<{ amount: number }> {
 
 export function HistoryScreen({
   redemptions = REDEMPTIONS,
+  visible = true,
+  onClose,
 }: {
   redemptions?: Redemption[];
+  /** When true, renders inside a slide-in overlay with an X close button. */
+  visible?: boolean;
+  /** X close handler. Required when used as an overlay; pass undefined to
+   *  hide the X (e.g. when embedded directly inside another surface). */
+  onClose?: () => void;
 }) {
   const [refreshing, setRefreshing] = useState(false);
 
@@ -168,33 +184,105 @@ export function HistoryScreen({
   );
 
   const onRefresh = () => {
-    // Visual stub — no network call. Demo: spinner clears after ~700ms.
     setRefreshing(true);
     setTimeout(() => setRefreshing(false), 700);
   };
 
+  // Slide-in overlay choreography (matches SettingsScreen post-IA refactor).
+  // Only kicks in when used as an overlay; if `onClose` is omitted the
+  // animation still runs harmlessly (translateX stays at 0) so callers
+  // embedding History inline get a static layout.
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const isOverlay = !!onClose;
+  const translateX = useSharedValue(isOverlay ? width : 0);
+
+  useEffect(() => {
+    if (!isOverlay) return;
+    translateX.value = withTiming(visible ? 0 : width, {
+      duration: 300,
+      easing: Easing.out(Easing.exp),
+    });
+  }, [isOverlay, visible, width, translateX]);
+
+  const overlayStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  if (!visible) return null;
+
+  const overlayWrapperStyle = isOverlay
+    ? [
+        StyleSheet.absoluteFill,
+        ...s("bg-cream"),
+        overlayStyle,
+        { paddingTop: insets.top + 10 },
+      ]
+    : s("flex-1 bg-cream");
+
+  const closeButton = onClose ? (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Close history"
+      onPress={onClose}
+      hitSlop={10}
+      style={[
+        ...s("rounded-full bg-white items-center justify-center"),
+        {
+          width: 32,
+          height: 32,
+          borderWidth: 1,
+          borderColor: "rgba(23, 18, 15, 0.08)",
+        },
+      ]}
+    >
+      <SymbolView
+        name="xmark"
+        tintColor="#17120f"
+        size={14}
+        weight="medium"
+        style={{ width: 14, height: 14 }}
+      />
+    </Pressable>
+  ) : null;
+
   if (redemptions.length === 0) {
     return (
-      <View style={s("flex-1 bg-cream items-center justify-center px-5")}>
-        <SymbolView
-          name="wallet.pass.fill"
-          tintColor="#6f3f2c"
-          size={60}
-          weight="medium"
-          style={{ width: 64, height: 64 }}
-        />
-        <Text style={[...s("mt-4 text-ink"), { fontSize: 18, fontWeight: "800" }]}>
-          No cashbacks yet. Get out there!
-        </Text>
-        <Text style={s("mt-2 text-center text-sm text-neutral-600")}>
-          Your history will show up after your first purchase.
-        </Text>
-      </View>
+      <Animated.View style={overlayWrapperStyle} pointerEvents="auto">
+        {isOverlay ? (
+          <View
+            style={[
+              ...s("flex-row items-center justify-between px-5"),
+              { paddingTop: 8, paddingBottom: 12 },
+            ]}
+          >
+            <Text style={[...s("text-3xl font-black text-ink"), { letterSpacing: -0.5 }]}>
+              History
+            </Text>
+            {closeButton}
+          </View>
+        ) : null}
+        <View style={s("flex-1 items-center justify-center px-5")}>
+          <SymbolView
+            name="wallet.pass.fill"
+            tintColor="#6f3f2c"
+            size={60}
+            weight="medium"
+            style={{ width: 64, height: 64 }}
+          />
+          <Text style={[...s("mt-4 text-ink"), { fontSize: 18, fontWeight: "800" }]}>
+            No cashbacks yet. Get out there!
+          </Text>
+          <Text style={s("mt-2 text-center text-sm text-neutral-600")}>
+            Your history will show up after your first purchase.
+          </Text>
+        </View>
+      </Animated.View>
     );
   }
 
   return (
-    <View style={s("flex-1 bg-cream")}>
+    <Animated.View style={overlayWrapperStyle} pointerEvents="auto">
       <ScrollView
         style={s("flex-1")}
         contentContainerStyle={[...s("px-5"), { paddingBottom: 32 }]}
@@ -207,7 +295,7 @@ export function HistoryScreen({
           />
         }
       >
-        {/* Header — large title matches SettingsScreen's typographic rhythm. */}
+        {/* Header — large title plus optional close X (overlay mode). */}
         <View
           style={[
             ...s("flex-row items-end justify-between"),
@@ -217,6 +305,7 @@ export function HistoryScreen({
           <Text style={[...s("text-3xl font-black text-ink"), { letterSpacing: -0.5 }]}>
             History
           </Text>
+          {closeButton}
         </View>
 
         {/* ── This month ──────────────────────────────────────────────── */}
@@ -345,7 +434,7 @@ export function HistoryScreen({
           MomentMarkt · Demo build
         </Text>
       </ScrollView>
-    </View>
+    </Animated.View>
   );
 }
 
