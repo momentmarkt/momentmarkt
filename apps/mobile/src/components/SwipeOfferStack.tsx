@@ -160,6 +160,12 @@ type Props = {
    *  SimplifiedCardSurface. Physics + dwell tracking are identical
    *  across modes. */
   cardScale?: SwipeCardScale;
+  /** Issue #175 — fired with the variant_id of every card the user
+   *  actually swipes through (left OR right). DiscoverView threads this
+   *  up to App.tsx so the unseen-special tracker can decrement its set
+   *  as the user consumes cards. The decrement happens regardless of
+   *  swipe direction — both gestures count as "I saw this card". */
+  onCardConsumed?: (variantId: string) => void;
 };
 
 export function SwipeOfferStack({
@@ -167,6 +173,7 @@ export function SwipeOfferStack({
   onSettle,
   onAllPassed,
   cardScale = "drawer",
+  onCardConsumed,
 }: Props) {
   const { width } = useWindowDimensions();
   // Index of the top-of-stack card. Bumping advances to the next variant.
