@@ -20,14 +20,20 @@
 
 # MomentMarkt
 
-Generative city wallet prototype for the DSV-Gruppe CITY WALLET challenge.
+## What it is
 
-Current implementation direction is tracked in `work/SPEC.md`: Expo React
-Native consumer app, small merchant web surface, FastAPI/fixtures as needed.
-Four-surface UX framing (map / drawer / list / swipe stack) and the v1 → v2
-roadmap are captured in `context/UX_STRATEGY.md`. End-goal architecture
-(five-agent topology, merchant portal, generative-offers-within-bounds wedge)
-is captured in `context/END_GOAL_ARCHITECTURE.md`.
+Independent cafés, bakeries, and bookstores don't have a marketing department. MomentMarkt is the one they never had.
+
+Two AI agents watch three live triggers — weather shifts, nearby events ending, demand gaps — and generate an offer for the right merchant at the right moment. The merchant approves it once and sets a rule; after that it runs itself. The wallet stays silent by default and only surfaces an offer when the conditions actually fit.
+
+**Live demo:** [`https://peaktwilight-momentmarkt-api.hf.space/`](https://peaktwilight-momentmarkt-api.hf.space/) — hit `/health`, `/signals/berlin`, or `/merchants/berlin?q=oberholz` directly.
+
+Current implementation tracked in `work/SPEC.md`: Expo React Native consumer
+app, small merchant web surface, FastAPI/fixtures as needed. Four-surface UX
+framing (map / drawer / list / swipe stack) and the v1 → v2 roadmap are
+captured in `context/UX_STRATEGY.md`. End-goal architecture (five-agent
+topology, merchant portal, generative-offers-within-bounds wedge) is captured
+in `context/END_GOAL_ARCHITECTURE.md`.
 
 ## Run The Mobile App
 
