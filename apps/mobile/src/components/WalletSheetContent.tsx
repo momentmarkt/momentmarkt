@@ -22,6 +22,7 @@ import Animated, {
 
 import {
   type AlternativeOffer,
+  fetchMerchants,
   fetchOfferAlternatives,
   type MerchantListItem,
   type PriorSwipe,
@@ -88,6 +89,44 @@ type Props = {
    * preference loop (tests, storybook) can ignore it.
    */
   onAppendSwipeHistory?: (entries: PriorSwipe[]) => void;
+  /**
+   * Issue #145 — fired when the user taps the "Full screen" expand
+   * affordance above the swipe stack. App.tsx mounts the
+   * SwipeFullScreenOverlay over everything and feeds it the same
+   * variants + lens we render here, so the overlay is just a
+   * different render of the same data. Optional so the drawer keeps
+   * working unchanged when no parent wires the affordance.
+   */
+  onExpand?: () => void;
+  /**
+   * Issue #145 — snapshot reporter. Fires whenever the silent-step
+   * swipe surface's variant pool / lens / loading state changes so
+   * App.tsx can hand the same state to the full-screen overlay. The
+   * overlay is a different *render* of the same data, not a fork.
+   * Optional — when omitted the drawer still works in isolation.
+   */
+  onSwipeStateChange?: (state: WalletSwipeState) => void;
+  /**
+   * Issue #145 — controlled lens. When provided, the parent (App.tsx)
+   * owns lens state so the full-screen overlay can drive the same
+   * value the drawer renders. Omitted → drawer falls back to local
+   * state (preserves the pre-#145 behaviour for tests / isolated use).
+   */
+  lens?: LensKey;
+  onLensChange?: (lens: LensKey) => void;
+};
+
+/**
+ * Issue #145 — snapshot the silent-step swipe surface's state so
+ * App.tsx can mirror it into the full-screen overlay. Identity is
+ * stable across re-renders that don't change a field (so the parent
+ * can `useEffect` on it without thrashing).
+ */
+export type WalletSwipeState = {
+  variants: AlternativeOffer[] | null;
+  loading: boolean;
+  lens: LensKey;
+  stackKey: number;
 };
 
 /**
@@ -126,9 +165,25 @@ export function WalletSheetContent({
   onSearchFocus,
   swipeHistory,
   onAppendSwipeHistory,
+  onExpand,
+  onSwipeStateChange,
+  lens: lensProp,
+  onLensChange: onLensChangeProp,
 }: Props): ReactElement {
   const [mode, setMode] = useState<WalletDrawerMode>("swipe");
-  const [lens, setLens] = useState<LensKey>(DEFAULT_LENS);
+  // Controlled-or-uncontrolled lens: parent (App.tsx, post-#145) may pass
+  // lens + onLensChange so the full-screen overlay can drive the same
+  // value the drawer renders. When neither prop is provided we fall
+  // back to local state — same behaviour as pre-#145.
+  const [lensInternal, setLensInternal] = useState<LensKey>(DEFAULT_LENS);
+  const lens = lensProp ?? lensInternal;
+  const setLens = useCallback(
+    (next: LensKey) => {
+      if (onLensChangeProp) onLensChangeProp(next);
+      else setLensInternal(next);
+    },
+    [onLensChangeProp],
+  );
   const [variants, setVariants] = useState<AlternativeOffer[] | null>(null);
   const [loading, setLoading] = useState(false);
   // Distinct re-mount key for the swipe stack so a lens change resets
@@ -235,13 +290,24 @@ export function WalletSheetContent({
     return () => ctrl.abort();
   }, [citySlug, lens]);
 
-  const handleLensChange = useCallback((next: LensKey) => {
-    setLens(next);
-    // Tapping a chip from list mode is also a "show me the picks for
-    // this lens" intent — flip back to swipe mode automatically so
-    // the chip tap has a visible effect.
-    setMode("swipe");
-  }, []);
+  const handleLensChange = useCallback(
+    (next: LensKey) => {
+      setLens(next);
+      // Tapping a chip from list mode is also a "show me the picks for
+      // this lens" intent — flip back to swipe mode automatically so
+      // the chip tap has a visible effect.
+      setMode("swipe");
+    },
+    [setLens],
+  );
+
+  // Issue #145 — keep App.tsx in sync with the drawer's swipe surface
+  // state so the full-screen overlay (sibling component, mounted by
+  // App.tsx) can render the same variants/lens/loading/stackKey. The
+  // overlay is a different render of the same data, not a fork.
+  useEffect(() => {
+    onSwipeStateChange?.({ variants, loading, lens, stackKey });
+  }, [variants, loading, lens, stackKey, onSwipeStateChange]);
 
   const handleEnterListMode = useCallback(() => {
     lightTap();
@@ -339,6 +405,7 @@ export function WalletSheetContent({
       <View style={s("mt-3")}>
         {mode === "swipe" ? (
           <SwipeMode
+            citySlug={citySlug}
             variants={variants}
             loading={loading}
             stackKey={stackKey}
@@ -346,6 +413,7 @@ export function WalletSheetContent({
             onEnterListMode={handleEnterListMode}
             onSettle={handleSilentSettle}
             onAllPassed={handleSilentAllPassed}
+            onExpand={onExpand}
           />
         ) : (
           <ListMode
@@ -454,6 +522,7 @@ function SwipeMode({
   onEnterListMode,
   onSettle,
   onAllPassed,
+  onExpand,
 }: {
   variants: AlternativeOffer[] | null;
   loading: boolean;
@@ -462,10 +531,63 @@ function SwipeMode({
   onEnterListMode: () => void;
   onSettle: (variant: AlternativeOffer, dwellByVariant: DwellByVariant) => void;
   onAllPassed: (dwellByVariant: DwellByVariant) => void;
+  /** Issue #145 — taps the "Full screen" expand affordance and asks
+   *  App.tsx to mount the SwipeFullScreenOverlay. Optional so the
+   *  drawer keeps working when no parent wires the Apple-Music-style
+   *  mini-player → full-screen player pattern. */
+  onExpand?: () => void;
 }): ReactElement {
   const browseCount = variants?.length ?? 0;
+  const canExpand = !!onExpand && variants !== null && variants.length > 0;
   return (
     <View>
+      {/* Expand affordance row (#145). Sits ABOVE the swipe stack so
+          it doesn't fight the cards for taps. Hidden when there's
+          nothing to expand into (loading / empty / unwired) so the
+          row doesn't read as a dead control. Frosted-pill aesthetic
+          mirrors MapIconButton — ties the affordance into the rest
+          of the wallet's floating-control vocabulary. */}
+      {canExpand ? (
+        <View
+          style={[
+            ...s("flex-row items-center justify-end"),
+            { marginBottom: 8 },
+          ]}
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Expand swipe stack to full screen"
+            onPress={onExpand}
+            hitSlop={8}
+            style={({ pressed }) => [
+              ...s("rounded-full flex-row items-center"),
+              {
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+                backgroundColor: "rgba(255, 255, 255, 0.95)",
+                borderWidth: 1,
+                borderColor: "rgba(23, 18, 15, 0.08)",
+                opacity: pressed ? 0.7 : 1,
+              },
+            ]}
+          >
+            <SymbolView
+              name="arrow.up.left.and.arrow.down.right"
+              tintColor="#6f3f2c"
+              size={12}
+              weight="semibold"
+              style={{ width: 12, height: 12, marginRight: 6 }}
+            />
+            <Text
+              style={[
+                ...s("text-[11px] font-bold uppercase tracking-[1.5px] text-cocoa"),
+              ]}
+            >
+              Full screen
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
       {loading && !variants ? (
         <SwipeStackPlaceholder lens={lens} />
       ) : variants && variants.length > 0 ? (

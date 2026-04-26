@@ -32,9 +32,14 @@ import type { SFSymbol } from "sf-symbols-typescript";
 
 import { CityMap } from "./src/components/CityMap";
 import { DevPanel, type DevPanelSignal } from "./src/components/DevPanel";
+import { DEFAULT_LENS, type LensKey } from "./src/components/LensChips";
 import { RedeemFlow } from "./src/components/RedeemFlow";
+import { SwipeFullScreenOverlay } from "./src/components/SwipeFullScreenOverlay";
 import { SwipeOfferStack } from "./src/components/SwipeOfferStack";
-import { WalletSheetContent } from "./src/components/WalletSheetContent";
+import {
+  WalletSheetContent,
+  type WalletSwipeState,
+} from "./src/components/WalletSheetContent";
 import { WidgetRenderer } from "./src/components/WidgetRenderer";
 import {
   fetchOfferAlternatives,
@@ -149,6 +154,21 @@ export default function App() {
   // need to lift them up.
   const [showPrivacyEnvelope, setShowPrivacyEnvelope] = useState(true);
   const [language, setLanguage] = useState<"de" | "en">("de");
+  // Issue #145 — Apple-Music-style mini-player → full-screen player
+  // overlay for the lens-driven swipe stack. The lens lives at the
+  // App-level so the drawer + the full-screen overlay drive the SAME
+  // value (no fork). The drawer's silent-step swipe state (variants /
+  // loading / stackKey) is reported up via WalletSheetContent's
+  // `onSwipeStateChange` and held in `drawerSwipeState` so the overlay
+  // renders the same data the drawer is rendering.
+  const [swipeFullScreen, setSwipeFullScreen] = useState(false);
+  const [drawerLens, setDrawerLens] = useState<LensKey>(DEFAULT_LENS);
+  const [drawerSwipeState, setDrawerSwipeState] = useState<WalletSwipeState>({
+    variants: null,
+    loading: false,
+    lens: DEFAULT_LENS,
+    stackKey: 0,
+  });
 
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -226,6 +246,9 @@ export default function App() {
     // Reset swipe history on city swap — preferences for Berlin cafés
     // shouldn't bias Zurich cafés (DESIGN_PRINCIPLES.md #8).
     setSwipeHistory([]);
+    // Issue #145 — close the full-screen swipe overlay if it's open
+    // so the city swap takes the user back to a clean silent wallet.
+    setSwipeFullScreen(false);
   }, []);
 
   const handleToggleHighIntent = useCallback(() => {
@@ -331,6 +354,63 @@ export default function App() {
   const handleAppendSwipeHistory = useCallback((entries: PriorSwipe[]) => {
     if (entries.length === 0) return;
     setSwipeHistory((prev) => [...prev, ...entries]);
+  }, []);
+
+  // Issue #145 — the full-screen overlay re-uses the SAME swipe-stack
+  // settle/all-passed handlers as the drawer; it just closes itself
+  // afterwards so the user lands back on the cream wallet drawer with
+  // the (potentially appended) history + lens preserved. No fork —
+  // these are thin wrappers over the silent-step path that lives
+  // inside WalletSheetContent.
+  //
+  // The drawer's silent-step swipe handlers live inside WalletSheetContent
+  // (handleSilentSettle / handleSilentAllPassed) and call
+  // onAppendSwipeHistory + bump the local stackKey to refresh the stack.
+  // We can't reach those from here, so we replicate the relevant signal
+  // (history append) and rely on `onSwipeStateChange` to pick up the
+  // refreshed stackKey on the next drawer render.
+  const handleFullScreenSettle = useCallback(
+    (
+      variant: AlternativeOffer,
+      dwellByVariant: Record<string, number>,
+    ) => {
+      if (drawerSwipeState.variants) {
+        const entries = buildPriorSwipes(
+          dwellByVariant,
+          variant,
+          drawerSwipeState.variants,
+        );
+        if (entries.length > 0) {
+          setSwipeHistory((prev) => [...prev, ...entries]);
+        }
+      }
+      setSwipeFullScreen(false);
+    },
+    [drawerSwipeState.variants, buildPriorSwipes],
+  );
+
+  const handleFullScreenAllPassed = useCallback(
+    (dwellByVariant: Record<string, number>) => {
+      if (drawerSwipeState.variants) {
+        const entries = buildPriorSwipes(
+          dwellByVariant,
+          null,
+          drawerSwipeState.variants,
+        );
+        if (entries.length > 0) {
+          setSwipeHistory((prev) => [...prev, ...entries]);
+        }
+      }
+      setSwipeFullScreen(false);
+    },
+    [drawerSwipeState.variants, buildPriorSwipes],
+  );
+
+  const handleOpenSwipeFullScreen = useCallback(() => {
+    setSwipeFullScreen(true);
+  }, []);
+  const handleCloseSwipeFullScreen = useCallback(() => {
+    setSwipeFullScreen(false);
   }, []);
 
   const handleAlternativesAllPassed = useCallback(
@@ -551,6 +631,10 @@ export default function App() {
           onAlternativesAllPassed={handleAlternativesAllPassed}
           swipeHistory={swipeHistory}
           onAppendSwipeHistory={handleAppendSwipeHistory}
+          drawerLens={drawerLens}
+          onDrawerLensChange={setDrawerLens}
+          onSwipeStateChange={setDrawerSwipeState}
+          onExpandSwipe={handleOpenSwipeFullScreen}
         />
       </BottomSheet>
 
@@ -676,6 +760,25 @@ export default function App() {
           devPanelProps={settingsDevPanelProps}
         />
         <HistoryScreen visible={historyOpen} onClose={handleCloseHistory} />
+        {/* Issue #145 — Apple-Music-style mini-player → full-screen
+            player overlay for the lens-driven swipe stack. Sibling to
+            SettingsScreen/HistoryScreen so it lives above the wallet
+            drawer + map but doesn't fight the bottom-sheet animation
+            for the same coordinate space. Same variants/lens/history
+            as the drawer's silent-step swipe surface — closing the
+            overlay returns the user to the drawer with the lens
+            preserved. */}
+        <SwipeFullScreenOverlay
+          visible={swipeFullScreen}
+          onClose={handleCloseSwipeFullScreen}
+          variants={drawerSwipeState.variants ?? []}
+          loading={drawerSwipeState.loading}
+          lens={drawerLens}
+          onLensChange={setDrawerLens}
+          onSettle={handleFullScreenSettle}
+          onAllPassed={handleFullScreenAllPassed}
+          stackKey={drawerSwipeState.stackKey}
+        />
       </View>
     </GestureHandlerRootView>
   );
@@ -866,6 +969,18 @@ type SheetBodyProps = {
   /** Issue #137 — callback the silent-step swipe stack uses to append
    *  fresh PriorSwipe entries to the canonical history kept in App.tsx. */
   onAppendSwipeHistory: (entries: PriorSwipe[]) => void;
+  /** Issue #145 — controlled lens for the silent-step swipe surface.
+   *  Lifted to App.tsx so the full-screen overlay drives the same
+   *  value the drawer renders (no fork). */
+  drawerLens: LensKey;
+  onDrawerLensChange: (lens: LensKey) => void;
+  /** Issue #145 — snapshot the drawer's silent-step swipe state so
+   *  App.tsx can hand the same variants/loading/stackKey to the
+   *  full-screen overlay. */
+  onSwipeStateChange: (state: WalletSwipeState) => void;
+  /** Issue #145 — fired when the user taps the "Full screen" expand
+   *  affordance above the silent-step swipe stack. */
+  onExpandSwipe: () => void;
 };
 
 function SheetBody({
@@ -891,6 +1006,10 @@ function SheetBody({
   onAlternativesAllPassed,
   swipeHistory,
   onAppendSwipeHistory,
+  drawerLens,
+  onDrawerLensChange,
+  onSwipeStateChange,
+  onExpandSwipe,
 }: SheetBodyProps) {
   // Redeem/Success screens own their own scroll surfaces internally, so a
   // plain BottomSheetView wrapper is fine here — gorhom requires a direct
@@ -1078,6 +1197,10 @@ function SheetBody({
       onSearchFocus={onSearchFocus}
       swipeHistory={swipeHistory}
       onAppendSwipeHistory={onAppendSwipeHistory}
+      lens={drawerLens}
+      onLensChange={onDrawerLensChange}
+      onSwipeStateChange={onSwipeStateChange}
+      onExpand={onExpandSwipe}
     />
   );
 }
