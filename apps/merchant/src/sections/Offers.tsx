@@ -208,9 +208,11 @@ function OfferRow({
 }) {
   const status = STATUS_LABELS[moment.status];
   const trigger = TRIGGER_LABELS[moment.triggerKind];
-  const used = moment.budgetTotal
-    ? Math.min(100, Math.round((moment.budgetSpent / moment.budgetTotal) * 100))
-    : 0;
+  const slots = Math.max(
+    1,
+    Math.round(moment.budgetTotal / Math.max(moment.cashbackPerRedeem, 1)),
+  );
+  const used = slots > 0 ? Math.min(100, Math.round((moment.redemptions / slots) * 100)) : 0;
   return (
     <button
       type="button"
@@ -221,21 +223,16 @@ function OfferRow({
       <div className="offer-row-body">
         <div className="offer-row-topline">
           <span className={`trigger-chip ${trigger.tone}`}>{trigger.word}</span>
-          <span>−{moment.discountPct}%</span>
+          <span className="offer-row-discount">−{moment.discountPct}%</span>
         </div>
         <h3>{moment.headline}</h3>
         <p className="trigger">{moment.triggerLine}</p>
         <div className="offer-row-foot">
-          <span className={`feed-pill ${status.pillClass}`}>{status.label}</span>
           <span className="feed-bar" aria-hidden>
             <span style={{ width: `${used}%` }} />
           </span>
           <span className="feed-bar-meta">
-            {moment.redemptions}/
-            {Math.max(
-              1,
-              Math.round(moment.budgetTotal / Math.max(moment.cashbackPerRedeem, 1)),
-            )}
+            {moment.redemptions}/{slots} redeemed
           </span>
         </div>
       </div>
@@ -358,26 +355,45 @@ function CountersBlock({ moment }: { moment: Moment }) {
   const goal = moment.inventoryGoal ?? 12;
   const surfaced = Math.max(moment.redemptions * 2, 0);
   const accepted = Math.max(moment.redemptions + 1, 0);
+  const budgetPct = moment.budgetTotal
+    ? Math.min(100, Math.round((moment.budgetSpent / moment.budgetTotal) * 100))
+    : 0;
   return (
     <article className="detail-block">
       <span className="section-eyebrow">How it's landing</span>
-      <div className="counter-grid">
-        <Counter label="Surfaced" value={String(surfaced)} detail="nearby high-intent wallets" />
-        <Counter label="Accepted" value={String(accepted)} detail="saved to wallet" />
-        <Counter label="Redeemed" value={`${moment.redemptions}/${goal}`} detail="QR scanned at counter" />
-        <Counter label="Cashback paid" value={euro(moment.budgetSpent)} detail={`of ${euro(moment.budgetTotal)} budget`} />
+      <div className="funnel">
+        <FunnelStep label="Surfaced" value={String(surfaced)} />
+        <FunnelArrow />
+        <FunnelStep label="Saved" value={String(accepted)} />
+        <FunnelArrow />
+        <FunnelStep label="Redeemed" value={`${moment.redemptions}/${goal}`} highlight />
+      </div>
+      <div className="funnel-budget">
+        <span className="funnel-budget-bar" aria-label={`${budgetPct}% of budget used`}>
+          <span style={{ width: `${budgetPct}%` }} />
+        </span>
+        <span className="funnel-budget-meta">
+          <strong>{euro(moment.budgetSpent)}</strong> of {euro(moment.budgetTotal)} budget
+        </span>
       </div>
     </article>
   );
 }
 
-function Counter({ label, value, detail }: { label: string; value: string; detail: string }) {
+function FunnelStep({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <article className="counter">
-      <span className="label">{label}</span>
+    <div className={`funnel-step ${highlight ? "is-highlight" : ""}`}>
       <strong>{value}</strong>
-      <small>{detail}</small>
-    </article>
+      <small>{label}</small>
+    </div>
+  );
+}
+
+function FunnelArrow() {
+  return (
+    <span className="funnel-arrow" aria-hidden>
+      →
+    </span>
   );
 }
 
@@ -385,14 +401,7 @@ function Timeline({ moment }: { moment: Moment }) {
   // Synthesised redemption stamps so the timeline reads as movement; for the
   // demo this hangs off the live redemption count.
   const stamps = useMemo(() => synthTimeline(moment), [moment]);
-  if (stamps.length === 0) {
-    return (
-      <article className="detail-block">
-        <span className="section-eyebrow">Redemption timeline</span>
-        <p className="lead">No redemptions yet. We'll log each one here as it scans.</p>
-      </article>
-    );
-  }
+  if (stamps.length === 0) return null;
   return (
     <article className="detail-block">
       <span className="section-eyebrow">Redemption timeline</span>

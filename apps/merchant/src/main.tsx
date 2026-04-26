@@ -6,7 +6,6 @@
 
 import { type ReactNode, StrictMode, useCallback, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { ApiStatus } from "./ApiStatus";
 import { merchantFixture } from "./data/merchantStats";
 import { OnboardingShell } from "./onboarding/OnboardingShell";
 import { isOnboarded, ONBOARDED_FLAG } from "./onboarding/state/onboardingMachine";
@@ -95,7 +94,6 @@ function App() {
         </nav>
 
         <div className="rail-foot">
-          <ApiStatus />
           <div className="rail-merchant">
             <span className="rail-merchant-avatar">B</span>
             <div>

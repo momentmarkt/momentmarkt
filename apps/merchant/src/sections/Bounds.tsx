@@ -1,32 +1,41 @@
 /*
- * Bounds — the merchant's contract with the LLM. Discount range is a single
- * dual-thumb slider (floor and ceiling on one track, fill between). Allowed
- * categories, blackout windows, and brand tone live here too. Opening hours
- * moved to Settings — they're operational fact, not a bound.
+ * Bounds — the merchant's contract with the assistant. Discount range is a
+ * dual-thumb slider, allowed categories pull from the merchant's menu, and
+ * blackout windows are a list (any number of start/end ranges). Brand tone is
+ * a free-text guidance field. Opening hours live in Settings.
  */
 
-import { useEffect, useRef, useState } from "react";
-
-const CATEGORIES = [
-  { id: "cafe", label: "Café", active: true },
-  { id: "bakery", label: "Bakery", active: true },
-  { id: "kiosk", label: "Kiosk", active: false },
-  { id: "bar", label: "Bar", active: false },
-  { id: "restaurant", label: "Restaurant", active: false },
-  { id: "bookstore", label: "Bookstore", active: false },
-];
+import { useEffect, useMemo, useRef, useState } from "react";
+import { getMenuCategories } from "../data/merchantMenu";
 
 const SLIDER_MAX = 50;
 
+type BlackoutWindow = { id: string; start: string; end: string };
+
+const initialBlackouts: BlackoutWindow[] = [
+  { id: "bl-1", start: "12:00", end: "13:00" },
+];
+
 export function BoundsSection() {
+  const menuCategories = useMemo(() => getMenuCategories(), []);
+  const defaultActive = useMemo(
+    () => menuCategories.slice(0, Math.min(2, menuCategories.length)).map((c) => c.id),
+    [menuCategories],
+  );
+
   const [floor, setFloor] = useState(5);
   const [ceiling, setCeiling] = useState(20);
-  const [cats, setCats] = useState(() => CATEGORIES.filter((c) => c.active).map((c) => c.id));
-  const [blackoutStart, setBlackoutStart] = useState("12:00");
-  const [blackoutEnd, setBlackoutEnd] = useState("13:00");
+  const [cats, setCats] = useState<string[]>(defaultActive);
+  const [blackouts, setBlackouts] = useState<BlackoutWindow[]>(initialBlackouts);
   const [tone, setTone] = useState(
     "Polite, no urgency language. Mention Berlin neighbourhood warmth where it fits.",
   );
+
+  const addBlackout = () =>
+    setBlackouts((b) => [...b, { id: `bl-${Date.now()}`, start: "18:00", end: "19:00" }]);
+  const removeBlackout = (id: string) => setBlackouts((b) => b.filter((w) => w.id !== id));
+  const updateBlackout = (id: string, patch: Partial<BlackoutWindow>) =>
+    setBlackouts((b) => b.map((w) => (w.id === id ? { ...w, ...patch } : w)));
 
   return (
     <div className="section-body">
@@ -60,25 +69,20 @@ export function BoundsSection() {
             }}
           />
           <div className="bounds-range-foot">
-            <span>
-              <strong>{floor}%</strong> floor
-            </span>
-            <span className="bounds-range-band">
-              {ceiling - floor}% band
-            </span>
-            <span>
-              <strong>{ceiling}%</strong> ceiling
-            </span>
+            <span><strong>{floor}%</strong> floor</span>
+            <span className="bounds-range-band">{ceiling - floor}% band</span>
+            <span><strong>{ceiling}%</strong> ceiling</span>
           </div>
         </article>
 
-        <article className="bounds-card">
+        <article className="bounds-card bounds-card-wide">
           <h2>Allowed categories</h2>
           <p className="bounds-help">
-            We only generate offers for categories you've opted into.
+            Pulled from your menu. Tap to opt categories in or out — we only generate offers
+            for the ones you've selected.
           </p>
           <div className="chip-row">
-            {CATEGORIES.map((c) => {
+            {menuCategories.map((c) => {
               const on = cats.includes(c.id);
               return (
                 <button
@@ -98,30 +102,47 @@ export function BoundsSection() {
           </div>
         </article>
 
-        <article className="bounds-card">
-          <h2>Blackout window</h2>
+        <article className="bounds-card bounds-card-wide">
+          <h2>Blackout windows</h2>
           <p className="bounds-help">
-            Hours where you're already full and don't want offers fired (e.g. peak lunch).
+            Hours where you're already full and don't want offers fired. Add as many as you
+            need — peak lunch, school pick-up, anything that puts pressure on the counter.
           </p>
-          <div className="time-row">
-            <label className="time-field">
-              <span>Start</span>
-              <input
-                type="time"
-                value={blackoutStart}
-                onChange={(e) => setBlackoutStart(e.target.value)}
-              />
-            </label>
-            <span className="time-dash">—</span>
-            <label className="time-field">
-              <span>End</span>
-              <input
-                type="time"
-                value={blackoutEnd}
-                onChange={(e) => setBlackoutEnd(e.target.value)}
-              />
-            </label>
-          </div>
+          <ul className="blackout-list">
+            {blackouts.map((w) => (
+              <li key={w.id} className="blackout-row">
+                <label className="time-field">
+                  <span>Start</span>
+                  <input
+                    type="time"
+                    value={w.start}
+                    onChange={(e) => updateBlackout(w.id, { start: e.target.value })}
+                  />
+                </label>
+                <span className="time-dash">—</span>
+                <label className="time-field">
+                  <span>End</span>
+                  <input
+                    type="time"
+                    value={w.end}
+                    onChange={(e) => updateBlackout(w.id, { end: e.target.value })}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="blackout-remove"
+                  onClick={() => removeBlackout(w.id)}
+                  aria-label="Remove window"
+                  disabled={blackouts.length === 1}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+          <button type="button" className="ghost-button blackout-add" onClick={addBlackout}>
+            + Add window
+          </button>
         </article>
 
         <article className="bounds-card bounds-card-wide">

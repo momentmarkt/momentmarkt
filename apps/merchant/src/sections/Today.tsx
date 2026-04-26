@@ -112,13 +112,6 @@ function BriefingCard({
     if (hour < 17) return "Good afternoon";
     return "Good evening";
   }, []);
-  const stamp = useMemo(
-    () =>
-      new Intl.DateTimeFormat("en", { weekday: "long", hour: "2-digit", minute: "2-digit" }).format(
-        new Date(),
-      ),
-    [],
-  );
 
   if (collapsed) {
     return (
@@ -134,30 +127,21 @@ function BriefingCard({
 
   return (
     <article className="briefing">
-      <div className="greet">{greet} · {stamp}</div>
-      <h3>
-        Rain rolls into Mitte at 13:00. Expect a 50%+ lunch gap — we've prepped 3 candidate
-        moments inside your bounds.
-      </h3>
-      <div className="briefing-grid">
-        <div className="briefing-cell">
-          <div className="l">Weather window</div>
-          <div className="v">13:00–15:00</div>
-          <div className="m">Light rain, 4 mm/h</div>
+      <span className="briefing-art" aria-hidden>
+        <span className="briefing-art-blob briefing-art-blob-a" />
+        <span className="briefing-art-blob briefing-art-blob-b" />
+        <span className="briefing-art-blob briefing-art-blob-c" />
+      </span>
+      <div className="briefing-content">
+        <span className="briefing-greet">{greet}</span>
+        <h3>
+          Rain into Mitte at 13:00 — expect a <strong>−54%</strong> lunch gap.
+        </h3>
+        <div className="briefing-meta-row">
+          <span className="briefing-tag">3 moments prepped</span>
+          <span className="briefing-tag">13:00–15:00</span>
+          <span className="briefing-tag-soft">All inside your bounds</span>
         </div>
-        <div className="briefing-cell">
-          <div className="l">Expected demand gap</div>
-          <div className="v">~−54% at 13:30</div>
-          <div className="m">vs typical {todayWord()}</div>
-        </div>
-        <div className="briefing-cell">
-          <div className="l">Prepared moments</div>
-          <div className="v">3 candidates</div>
-          <div className="m">Cocoa + bread · cortado bundle · cake slot</div>
-        </div>
-      </div>
-      <div className="briefing-foot">
-        <span>None will fire outside your hours or below your floor.</span>
       </div>
     </article>
   );
