@@ -7,7 +7,13 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from .alternatives import build_alternatives, maybe_rewrite_with_llm, _lookup_merchant
+from .alternatives import (
+    LensKey,
+    build_alternatives,
+    build_alternatives_for_lens,
+    maybe_rewrite_with_llm,
+    _lookup_merchant,
+)
 from .fixtures import available_cities, load_city_config, load_density
 from .merchants import emoji_for, search_merchants
 from .opportunity_agent import generate_offer
@@ -580,7 +586,15 @@ class AlternativesRequest(BaseModel):
     (no LLM call) for demo safety. Setting ``use_llm=True`` routes through
     the existing Pydantic AI ``run_headline_rewrite_agent`` for per-card
     headline rewrite. Setting ``preference_context`` triggers the
-    cross-merchant preference re-ranker (`preference_agent.py`).
+    cross-merchant preference re-ranker (`preference_agent.py``).
+
+    Issue #137: ``lens`` selects the curation strategy (For you / Best
+    deals / Right now / Nearby). When ``lens != "for_you"``, ``merchant_id``
+    is optional and the candidate pool comes from the active city catalog
+    rather than a single anchor's neighbourhood. The deterministic lenses
+    (``best_deals``, ``right_now``, ``nearby``) bypass the preference
+    re-ranker even when ``preference_context`` is supplied — those lenses
+    are deliberately verifiable by hand.
 
     ``base_discount_pct`` / ``max_discount_pct`` are kept on the wire for
     backwards compatibility with the original price-escalation contract
@@ -588,7 +602,19 @@ class AlternativesRequest(BaseModel):
     now carries its own merchant's offer.
     """
 
-    merchant_id: str = Field(examples=["berlin-mitte-cafe-bondi"])
+    merchant_id: str | None = Field(default=None, examples=["berlin-mitte-cafe-bondi"])
+    city: str | None = Field(
+        default=None,
+        examples=["berlin"],
+        description="City slug for non-anchored lens calls. Defaults to "
+        "the city of merchant_id when present, otherwise 'berlin'.",
+    )
+    lens: LensKey = Field(
+        default="for_you",
+        description="Curation lens: for_you (LLM personalisation), "
+        "best_deals (discount sort), right_now (weather × category), "
+        "nearby (distance only — strict deterministic fallback).",
+    )
     base_discount_pct: float = 5.0
     max_discount_pct: float = 25.0
     n: int = 3
@@ -619,30 +645,57 @@ class AlternativeOffer(BaseModel):
 
 
 class AlternativesResponse(BaseModel):
-    merchant_id: str
+    """Wire shape for `/offers/alternatives`.
+
+    Issue #137: ``merchant_id`` is now optional because non-anchored lens
+    calls (best_deals / right_now / nearby without a tap) don't have a
+    single merchant origin. When the caller did pass an anchor, the
+    backend echoes it back so the mobile can correlate.
+    """
+
+    merchant_id: str | None = None
+    lens: LensKey = "for_you"
     variants: list[AlternativeOffer]
 
 
 @app.post("/offers/alternatives", response_model=AlternativesResponse)
 async def post_offers_alternatives(req: AlternativesRequest) -> AlternativesResponse:
-    """Generate the cross-merchant swipe stack for an anchor merchant.
+    """Generate the cross-merchant swipe stack for the active lens.
 
-    Returns 404 when ``merchant_id`` isn't in any city catalog. Each
-    variant in the response represents a DIFFERENT merchant in the same
-    (or a close) category, with the tapped merchant pinned as card 1 (the
-    anchor). When ``preference_context`` is supplied and contains ≥1
-    prior swipe, the candidate list is routed through
-    `preference_agent.rerank_candidates` to reorder by inferred user
-    preference; the anchor stays pinned at position 0.
+    Issue #137: the endpoint now branches on ``lens``. The "for_you" lens
+    keeps the original anchored behaviour (404 on unknown merchant_id,
+    cross-merchant tail, optional preference re-rank). The deterministic
+    lenses (``best_deals``, ``right_now``, ``nearby``) build their pool
+    from the active city catalog and skip the preference re-ranker —
+    they MUST stay verifiable by hand per `DESIGN_PRINCIPLES.md` #4 + #6.
+
+    ``preference_context`` only affects the ``for_you`` lens. The other
+    lenses ignore it deliberately (no quiet personalisation seeping into
+    a "deterministic" surface).
     """
-    variants = build_alternatives(
-        merchant_id=req.merchant_id,
-        n=req.n,
-    )
-    if variants is None:
-        raise HTTPException(status_code=404, detail=f"Unknown merchant_id: {req.merchant_id}")
+    # for_you with anchor → 404 on unknown merchant_id (legacy contract).
+    if req.lens == "for_you" and req.merchant_id is not None:
+        anchored = build_alternatives(merchant_id=req.merchant_id, n=req.n)
+        if anchored is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Unknown merchant_id: {req.merchant_id}",
+            )
+        variants = anchored
+    else:
+        variants = build_alternatives_for_lens(
+            lens=req.lens,
+            city=req.city,
+            merchant_id=req.merchant_id,
+            n=req.n,
+        )
+        if variants is None:
+            # Defensive — Pydantic should already block invalid lenses.
+            raise HTTPException(status_code=400, detail=f"Unknown lens: {req.lens}")
 
-    if req.preference_context:
+    # Preference re-rank only fires for the personalised lens. The other
+    # lenses bypass it on purpose so the user can verify ranking by hand.
+    if req.lens == "for_you" and req.preference_context and variants:
         catalog_lookup = build_catalog_lookup()
         ranked_ids = await rerank_candidates(
             candidates=variants,
@@ -661,11 +714,19 @@ async def post_offers_alternatives(req: AlternativesRequest) -> AlternativesResp
         reordered.extend(by_id.values())
         variants = reordered
 
-    if req.use_llm:
-        merchant = _lookup_merchant(req.merchant_id) or {"display_name": req.merchant_id}
-        variants = await maybe_rewrite_with_llm(variants, merchant=merchant)
+    # LLM headline rewrite stays opt-in across every lens (caller asks for
+    # it explicitly via use_llm). The deterministic lenses still skip the
+    # re-rank above; this is just per-card copy polish.
+    if req.use_llm and variants:
+        anchor_meta = (
+            _lookup_merchant(req.merchant_id)
+            if req.merchant_id
+            else None
+        ) or {"display_name": req.merchant_id or req.lens}
+        variants = await maybe_rewrite_with_llm(variants, merchant=anchor_meta)
 
     return AlternativesResponse(
         merchant_id=req.merchant_id,
+        lens=req.lens,
         variants=[AlternativeOffer(**v) for v in variants],
     )

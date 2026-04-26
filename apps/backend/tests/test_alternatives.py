@@ -172,6 +172,183 @@ def test_anchor_card_works_when_anchor_has_no_active_offer() -> None:
         assert v["merchant_id"] != variants[0]["merchant_id"]
 
 
+def test_lens_for_you_without_anchor_returns_city_pool() -> None:
+    """`lens="for_you"` without a merchant_id should return city merchants
+    with active offers, ready for the preference agent to re-rank."""
+    response = client.post(
+        "/offers/alternatives",
+        json={"lens": "for_you", "city": "berlin", "n": 3},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["lens"] == "for_you"
+    assert payload["merchant_id"] is None
+    variants = payload["variants"]
+    assert len(variants) == 3
+    # Every card carries a real merchant identity + an offer.
+    for v in variants:
+        assert v["merchant_id"].startswith("berlin-")
+        assert v["discount_label"]
+    # No duplicates.
+    ids = [v["merchant_id"] for v in variants]
+    assert len(set(ids)) == len(ids)
+
+
+def test_lens_best_deals_sorted_by_discount_descending() -> None:
+    """`best_deals` must order cards by parsed discount percent desc.
+    Pure deterministic sort — no LLM, no preference signal applied."""
+    response = client.post(
+        "/offers/alternatives",
+        json={"lens": "best_deals", "city": "berlin", "n": 5},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["lens"] == "best_deals"
+    variants = payload["variants"]
+    assert len(variants) >= 1
+    # Discount percents are non-increasing.
+    pcts = [float(v["discount_pct"]) for v in variants]
+    assert pcts == sorted(pcts, reverse=True), (
+        f"best_deals must sort by discount_pct desc; got {pcts}"
+    )
+    # Top card must have the highest discount across the city's offers.
+    # Berlin's biggest offer is "Mein Haus am See" at -30%.
+    assert pcts[0] >= 25.0
+
+
+def test_lens_best_deals_ignores_preference_context() -> None:
+    """Preference context must NOT reshuffle deterministic lenses
+    (`DESIGN_PRINCIPLES.md` #4 + #6 — those lenses are verifiable by
+    hand). Sending history with `best_deals` returns the same order as
+    without."""
+    body = {"lens": "best_deals", "city": "berlin", "n": 3}
+    natural = client.post("/offers/alternatives", json=body)
+    assert natural.status_code == 200
+    natural_ids = [v["merchant_id"] for v in natural.json()["variants"]]
+
+    body_with_history = dict(body)
+    body_with_history["preference_context"] = [
+        {
+            "merchant_id": "berlin-mitte-zeit-fur-brot-03038",
+            "dwell_ms": 5000,
+            "swiped_right": True,
+        },
+        {
+            "merchant_id": "berlin-mitte-rosa-canina-02890",
+            "dwell_ms": 3000,
+            "swiped_right": True,
+        },
+    ]
+    influenced = client.post("/offers/alternatives", json=body_with_history)
+    assert influenced.status_code == 200
+    influenced_ids = [v["merchant_id"] for v in influenced.json()["variants"]]
+    assert influenced_ids == natural_ids, (
+        "best_deals must ignore preference_context — got reorder: "
+        f"{natural_ids} -> {influenced_ids}"
+    )
+
+
+def test_lens_right_now_filters_by_weather_trigger() -> None:
+    """`right_now` should only surface categories that fit the current
+    weather. Berlin's demo time forces rain_incoming → cafe / bakery /
+    bookstore / kiosk. No restaurant or bar should appear."""
+    response = client.post(
+        "/offers/alternatives",
+        json={"lens": "right_now", "city": "berlin", "n": 5},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["lens"] == "right_now"
+    variants = payload["variants"]
+    assert len(variants) >= 1
+    rain_categories = {"cafe", "bakery", "bookstore", "kiosk"}
+    for v in variants:
+        assert v["merchant_category"] in rain_categories, (
+            f"right_now under rain must whitelist {rain_categories}; got {v['merchant_category']}"
+        )
+
+
+def test_lens_nearby_pure_distance_sort() -> None:
+    """`nearby` MUST be the deterministic fallback per
+    `DESIGN_PRINCIPLES.md` #4 — pure distance ascending, no LLM, no
+    preference signal applied."""
+    response = client.post(
+        "/offers/alternatives",
+        json={"lens": "nearby", "city": "berlin", "n": 5},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["lens"] == "nearby"
+    variants = payload["variants"]
+    assert len(variants) >= 1
+    distances = [int(v["distance_m"]) for v in variants]
+    assert distances == sorted(distances), (
+        f"nearby must sort by distance asc; got {distances}"
+    )
+
+
+def test_lens_nearby_ignores_preference_context() -> None:
+    """Same invariant as best_deals — the user's escape hatch must stay
+    deterministic even when prior swipes are sent in."""
+    body = {"lens": "nearby", "city": "berlin", "n": 3}
+    natural = client.post("/offers/alternatives", json=body)
+    assert natural.status_code == 200
+    natural_ids = [v["merchant_id"] for v in natural.json()["variants"]]
+
+    body_with_history = dict(body)
+    body_with_history["preference_context"] = [
+        {
+            "merchant_id": "berlin-mitte-rosa-canina-02890",
+            "dwell_ms": 5000,
+            "swiped_right": True,
+        },
+    ]
+    influenced = client.post("/offers/alternatives", json=body_with_history)
+    assert influenced.status_code == 200
+    influenced_ids = [v["merchant_id"] for v in influenced.json()["variants"]]
+    assert influenced_ids == natural_ids, (
+        "nearby must ignore preference_context (DESIGN_PRINCIPLES.md #4); "
+        f"got reorder: {natural_ids} -> {influenced_ids}"
+    )
+
+
+def test_lens_zurich_returns_zurich_only() -> None:
+    """Lens-driven candidates must stay within the requested city —
+    no Berlin cards leaking into a Zurich stack."""
+    for lens in ("for_you", "best_deals", "right_now", "nearby"):
+        response = client.post(
+            "/offers/alternatives",
+            json={"lens": lens, "city": "zurich", "n": 3},
+        )
+        assert response.status_code == 200, f"lens={lens} failed"
+        for v in response.json()["variants"]:
+            assert v["merchant_id"].startswith("zurich-"), (
+                f"lens={lens}: cross-city card leaked: {v['merchant_id']}"
+            )
+
+
+def test_lens_invalid_value_rejected_by_pydantic() -> None:
+    """Pydantic Literal[...] should reject unknown lens values with 422
+    so the mobile gets a clean error instead of silently degrading."""
+    response = client.post(
+        "/offers/alternatives",
+        json={"lens": "horoscope", "city": "berlin"},
+    )
+    assert response.status_code == 422
+
+
+def test_lens_response_echoes_lens_field() -> None:
+    """The wire shape carries `lens` so the mobile can confirm what it
+    actually received (vs. what the request body asked for)."""
+    for lens in ("for_you", "best_deals", "right_now", "nearby"):
+        response = client.post(
+            "/offers/alternatives",
+            json={"lens": lens, "city": "berlin"},
+        )
+        assert response.status_code == 200, f"lens={lens} failed"
+        assert response.json()["lens"] == lens
+
+
 def test_preference_context_reorders_candidates_anchor_pinned() -> None:
     """Sending prior-swipe history with `use_llm=False` exercises the
     deterministic heuristic re-rank. The anchor stays at position 0."""

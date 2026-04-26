@@ -1,21 +1,32 @@
 """Cross-merchant alternatives generator for the swipe-to-pick mechanic
-(issues #132 → #136).
+(issues #132 → #136 → #137).
 
 The mechanic shifted from "3 price points of the same merchant" (the
 original #132 ladder) to "3 cards, each from a DIFFERENT merchant in the
-same (or close) category." The user's incentive to swipe is now
-"find the merchant that fits THIS moment," not "see if it gets cheaper."
+same (or close) category." With #137 the swipe stack becomes the wallet's
+PRIMARY surface and the user picks one of four lenses to switch curation
+strategy: ``for_you`` (LLM personalization), ``best_deals`` (deterministic
+discount sort), ``right_now`` (weather × category rule-based), ``nearby``
+(pure distance — strict deterministic fallback per
+``DESIGN_PRINCIPLES.md`` #4).
 
-Selection algorithm:
-  1. Look up the tapped merchant in the catalog → get its category + city.
-  2. Query the catalog for all merchants in the same city + same category
-     that have an active_offer (those are the only ones with something to
-     surface).
-  3. Pick N (default 3) — order: tapped merchant first as the anchor card
-     (so the user has the safety of "I can take what I tapped"), then
-     the rest sorted by distance_m ascending.
-  4. If fewer than N in the same category, broaden to "close categories"
-     (cafe ↔ bakery, bar ↔ restaurant, bookstore ↔ kiosk).
+Selection algorithm by lens
+---------------------------
+- **for_you**, anchored: existing cross-merchant-from-category logic.
+  Anchor merchant pinned at position 0; the rest sorted by distance with
+  optional preference-agent re-rank in the API layer.
+- **for_you**, no anchor: every city merchant with an ``active_offer``
+  sorted by distance, ready for the preference agent to re-rank.
+- **best_deals**: every city merchant with ``active_offer`` sorted by
+  parsed ``discount_pct`` descending. No LLM call. No anchor.
+- **right_now**: filter by current weather trigger from
+  ``signals.build_signal_context`` then sort by distance. Lookup table
+  documents the mapping (rain_incoming → cafe/bakery/bookstore/kiosk;
+  clear → ice_cream/restaurant/cafe). No LLM call.
+- **nearby**: every city merchant with ``active_offer`` sorted by
+  distance ascending. **No LLM. No preference signal applied. Pure
+  determinism — this is the "Nearby" lens called out in
+  DESIGN_PRINCIPLES.md #4 as the user's escape hatch.**
 
 Each picked merchant produces an `AlternativeOffer` carrying that
 merchant's own name, discount, and a rainHero-shaped widget_spec. The
@@ -29,10 +40,16 @@ pure deterministic candidate-pool builder.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from .genui import validate_widget_node
 from .merchants import get_merchants
+
+# Public lens enum — kept here so Pydantic in `main.py` can `Literal[...]`
+# off the same constant set without a circular import. Order matches the
+# UX (default first).
+LensKey = Literal["for_you", "best_deals", "right_now", "nearby"]
+LENS_KEYS: tuple[str, ...] = ("for_you", "best_deals", "right_now", "nearby")
 
 
 # ---------------------------------------------------------------------------
@@ -125,9 +142,28 @@ _DEFAULT_IMAGE = (
 )
 
 
+_KNOWN_CITIES: tuple[str, ...] = ("berlin", "zurich")
+
+
+# Right-now lens: weather trigger → category whitelist. Rule-based by
+# explicit choice (DESIGN_PRINCIPLES.md #6) — the LLM stays out of this
+# lens so the mapping is verifiable by hand.
+#
+# - rain_incoming: covered places to wait it out (cafes, bookstores) +
+#   quick grabs that don't require a long detour (bakery, kiosk).
+# - clear: warm-weather treats + sit-down spots that benefit from foot
+#   traffic when the streets are pleasant.
+# - other / unknown trigger: empty whitelist → caller falls back to the
+#   full catalog (lens still works, but the filter is a no-op).
+_RIGHT_NOW_BY_TRIGGER: dict[str, tuple[str, ...]] = {
+    "rain_incoming": ("cafe", "bookstore", "kiosk", "bakery"),
+    "clear": ("ice_cream", "restaurant", "cafe"),
+}
+
+
 def _city_for_merchant(merchant_id: str) -> str | None:
     """Reverse-lookup the city slug owning ``merchant_id``."""
-    for city_slug in ("berlin", "zurich"):
+    for city_slug in _KNOWN_CITIES:
         merchants = get_merchants(city_slug) or []
         if any(m["id"] == merchant_id for m in merchants):
             return city_slug
@@ -140,7 +176,7 @@ def _lookup_merchant(merchant_id: str) -> dict[str, Any] | None:
     Returns the merchant dict (with ``display_name``, ``category``,
     ``active_offer``) or ``None`` if no city knows the id.
     """
-    for city_slug in ("berlin", "zurich"):
+    for city_slug in _KNOWN_CITIES:
         merchants = get_merchants(city_slug) or []
         for entry in merchants:
             if entry["id"] == merchant_id:
@@ -383,6 +419,166 @@ def build_alternatives(
             }
         )
     return variants
+
+
+def _build_variant_dict(
+    *,
+    merchant: dict[str, Any],
+    is_anchor: bool,
+) -> dict[str, Any]:
+    """Build one cross-merchant variant dict from a catalog entry.
+
+    Shared by every lens so the wire shape stays identical regardless of
+    which curation strategy chose the merchant. The mobile renderer treats
+    each variant as a swipeable card; the lens just decides ordering.
+    """
+    active = merchant.get("active_offer") or {}
+    label = _format_label_from_offer(active)
+    pct = _discount_pct_from_offer(active)
+    headline = active.get("headline") or f"{merchant['display_name']} — local pick"
+    widget_spec = _build_widget_spec(merchant=merchant)
+    assert validate_widget_node(widget_spec), "alternatives widget_spec must validate"
+    return {
+        "variant_id": merchant["id"],
+        "merchant_id": merchant["id"],
+        "merchant_display_name": merchant["display_name"],
+        "merchant_category": merchant.get("category", ""),
+        "distance_m": int(merchant.get("distance_m", 0)),
+        "is_anchor": is_anchor,
+        "headline": headline,
+        "discount_pct": pct,
+        "discount_label": label,
+        "widget_spec": widget_spec,
+    }
+
+
+def _city_with_offers(city_slug: str) -> list[dict[str, Any]]:
+    """Catalog entries with an ``active_offer`` for ``city_slug``.
+
+    Empty list when the city is unknown — callers either 404 (anchored
+    paths) or return a degenerate response (lens paths). The list is a
+    fresh copy so callers can sort it without mutating the cached
+    catalog.
+    """
+    catalog = get_merchants(city_slug) or []
+    return [m for m in catalog if m.get("active_offer") is not None]
+
+
+def _resolve_weather_trigger(city_slug: str) -> str:
+    """Best-effort weather trigger for the right-now lens.
+
+    Wraps `signals.build_signal_context` so the lens reads the same
+    deterministic fixture the rest of the demo uses. Any failure
+    (unknown city, missing fixture) collapses to ``"clear"`` so the
+    right-now lens remains usable even when the signals stack hiccups.
+    """
+    try:
+        from .signals import build_signal_context
+        ctx = build_signal_context(city=city_slug)
+        trigger = ctx.get("weather", {}).get("trigger")
+        if isinstance(trigger, str) and trigger:
+            return trigger
+    except (FileNotFoundError, KeyError, ValueError):
+        # Per the demo-safety contract, never raise from the lens path
+        # — just fall back to "clear" and let the lens degrade
+        # gracefully to the full city catalog.
+        pass
+    return "clear"
+
+
+def build_alternatives_for_lens(
+    *,
+    lens: str,
+    city: str | None = None,
+    merchant_id: str | None = None,
+    n: int = 3,
+) -> list[dict[str, Any]] | None:
+    """Build the per-lens variant list for the swipe stack (issue #137).
+
+    Returns ``None`` when the lens needs an anchor merchant that isn't
+    in any catalog (`for_you` with an unknown ``merchant_id``). Returns
+    an empty list when the candidate pool is genuinely empty (e.g. a
+    weather-filtered set with no matching merchants — the caller can
+    still respond 200 with no variants).
+
+    Lens behaviour
+    --------------
+    - ``for_you``: when ``merchant_id`` is provided, defer to
+      `build_alternatives` (anchor card 1 + cross-merchant tail). Without
+      an anchor: every city merchant with an offer, distance-sorted,
+      ready for the preference agent in the API layer.
+    - ``best_deals``: every city merchant with an offer, sorted by parsed
+      discount percent descending. Anchor pinned only when the explicit
+      ``merchant_id`` matches one of the picks (we don't pin a
+      merchant the user didn't tap — that would defeat the lens).
+    - ``right_now``: weather-trigger × category whitelist applied to the
+      city catalog, then distance-sorted. Whitelist falls back to "no
+      filter" for unknown triggers.
+    - ``nearby``: every city merchant with an offer, distance-sorted.
+      Strict deterministic fallback per `DESIGN_PRINCIPLES.md` #4.
+    """
+    safe_n = max(1, int(n))
+    # Resolve city: explicit > derived from merchant_id > "berlin".
+    city_slug = (city or "").lower() or (
+        _city_for_merchant(merchant_id) if merchant_id else None
+    ) or "berlin"
+
+    if lens == "for_you" and merchant_id:
+        # Anchored personalised path — keep the existing contract intact.
+        return build_alternatives(merchant_id=merchant_id, n=safe_n)
+
+    if lens == "for_you":
+        pool = _city_with_offers(city_slug)
+        pool.sort(key=lambda m: m.get("distance_m", 10_000))
+        return [
+            _build_variant_dict(merchant=m, is_anchor=False)
+            for m in pool[:safe_n]
+        ]
+
+    if lens == "best_deals":
+        pool = _city_with_offers(city_slug)
+        # Sort by parsed discount percent descending. Stable sort keeps
+        # a distance tiebreak — when two merchants advertise the same
+        # percent the closer one wins.
+        pool.sort(key=lambda m: m.get("distance_m", 10_000))
+        pool.sort(
+            key=lambda m: _discount_pct_from_offer(m.get("active_offer")),
+            reverse=True,
+        )
+        return [
+            _build_variant_dict(merchant=m, is_anchor=False)
+            for m in pool[:safe_n]
+        ]
+
+    if lens == "right_now":
+        trigger = _resolve_weather_trigger(city_slug)
+        whitelist = _RIGHT_NOW_BY_TRIGGER.get(trigger, ())
+        pool = _city_with_offers(city_slug)
+        if whitelist:
+            filtered = [m for m in pool if m.get("category") in whitelist]
+            # Only narrow when the filter actually keeps something — an
+            # empty filter result would surface no cards at all.
+            if filtered:
+                pool = filtered
+        pool.sort(key=lambda m: m.get("distance_m", 10_000))
+        return [
+            _build_variant_dict(merchant=m, is_anchor=False)
+            for m in pool[:safe_n]
+        ]
+
+    if lens == "nearby":
+        # DESIGN_PRINCIPLES.md #4 — strict deterministic fallback.
+        # No LLM, no preference signal, no category filter. Pure
+        # distance sort over every merchant with an offer.
+        pool = _city_with_offers(city_slug)
+        pool.sort(key=lambda m: m.get("distance_m", 10_000))
+        return [
+            _build_variant_dict(merchant=m, is_anchor=False)
+            for m in pool[:safe_n]
+        ]
+
+    # Unknown lens — Pydantic should already block this, but be defensive.
+    return None
 
 
 async def maybe_rewrite_with_llm(
