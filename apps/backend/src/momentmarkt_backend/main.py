@@ -155,104 +155,6 @@ class HistoryResponse(BaseModel):
     items: list[HistoryItem]
 
 
-# Demo seed for `GET /history` when the redemption store is empty.
-#
-# Mirrors apps/mobile/src/screens/HistoryScreen.tsx::REDEMPTIONS verbatim so the
-# mobile screen can swap to API data without changing the demo recording cut.
-# Sorted newest-first; ISO timestamps anchored around the demo time
-# (2026-04-25T13:30+02:00) so the "Today" / "Yesterday" / weekday labels render
-# the same way the hardcoded fixture does.
-_HISTORY_SEED: list[dict[str, Any]] = [
-    {
-        "id": "seed-1",
-        "merchant_id": "berlin-mitte-cafe-bondi",
-        "merchant_display_name": "Café Bondi",
-        "cashback_eur": 1.85,
-        "redeemed_at_iso": "2026-04-25T13:31:00+02:00",
-        "context": "Rain trigger",
-        "photo_url": "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=200",
-    },
-    {
-        "id": "seed-2",
-        "merchant_id": "berlin-mitte-baeckerei-rosenthal",
-        "merchant_display_name": "Backstube Mitte",
-        "cashback_eur": 0.62,
-        "redeemed_at_iso": "2026-04-24T16:48:00+02:00",
-        "context": "Quiet period",
-        "photo_url": "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=200",
-    },
-    {
-        "id": "seed-3",
-        "merchant_id": "berlin-friedrichshain-volksbar-08",
-        "merchant_display_name": "Volksbar 8",
-        "cashback_eur": 2.40,
-        "redeemed_at_iso": "2026-04-22T19:02:00+02:00",
-        "context": "Pre-event crowd",
-        "photo_url": "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=200",
-    },
-    {
-        "id": "seed-4",
-        "merchant_id": "zurich-hb-spruengli",
-        "merchant_display_name": "Sprüngli HB",
-        "cashback_eur": 0.80,
-        "redeemed_at_iso": "2026-04-20T12:14:00+02:00",
-        "context": "Lunch break",
-        "photo_url": "https://images.unsplash.com/photo-1486427944299-d1955d23e34d?w=200",
-    },
-    {
-        "id": "seed-5",
-        "merchant_id": "berlin-mitte-madami",
-        "merchant_display_name": "Madami",
-        "cashback_eur": 1.20,
-        "redeemed_at_iso": "2026-04-19T18:30:00+02:00",
-        "context": "Weekend wander",
-        "photo_url": "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=200",
-    },
-    {
-        "id": "seed-6",
-        "merchant_id": "berlin-mitte-kiosk-24",
-        "merchant_display_name": "Kiosk 24",
-        "cashback_eur": 0.45,
-        "redeemed_at_iso": "2026-04-18T22:11:00+02:00",
-        "context": "Late night",
-        "photo_url": "https://images.unsplash.com/photo-1553531384-cc64ac80f931?w=200",
-    },
-    {
-        "id": "seed-7",
-        "merchant_id": "berlin-mitte-brasserie-mitte",
-        "merchant_display_name": "Brasserie Mitte",
-        "cashback_eur": 3.10,
-        "redeemed_at_iso": "2026-04-17T20:44:00+02:00",
-        "context": "Date night",
-        "photo_url": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=200",
-    },
-    {
-        "id": "seed-8",
-        "merchant_id": "berlin-mitte-eisdiele-cremoso",
-        "merchant_display_name": "Eisdiele Cremoso",
-        "cashback_eur": 0.55,
-        "redeemed_at_iso": "2026-04-16T15:20:00+02:00",
-        "context": "Hot day",
-        "photo_url": "https://images.unsplash.com/photo-1488900128323-21503983a07e?w=200",
-    },
-]
-
-
-def _trigger_reason_to_context(trigger_reason: dict[str, Any]) -> str:
-    """One-line surfacing chip text for a redemption row.
-
-    Mirrors the short labels used by the mobile fixture (`Rain trigger`,
-    `Quiet period`, …) so seeded + real entries read the same on screen.
-    """
-    if trigger_reason.get("weather_trigger") == "rain_incoming":
-        return "Rain trigger"
-    if trigger_reason.get("event_trigger"):
-        return "Pre-event crowd"
-    if trigger_reason.get("demand_trigger"):
-        return "Quiet period"
-    return "Wallet pulse"
-
-
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -507,28 +409,34 @@ def merchant_demand_chart(merchant_id: str, city: str = "berlin") -> dict[str, A
 def history(limit: int = 50) -> HistoryResponse:
     """Cross-merchant cashback history for the wallet `HistoryScreen` (issue #128).
 
-    Reads from `DemoStore.recent_redemptions()`. When the redemption store is
-    empty (cold demo, fresh container), returns the deterministic 8-entry seed
-    so the wallet's history surface is never empty on first launch — matches
-    the mobile `REDEMPTIONS` fixture so the demo recording stays stable.
+    Returns real persisted redemptions only. Empty store -> empty list (no
+    synthetic seed per the team's "no fake mock data" directive — the mobile
+    renders its own clean empty state).
     """
     capped = max(1, min(limit, 200))
     rows = store.recent_redemptions(limit=capped)
-    if rows:
-        items = [
+    items: list[HistoryItem] = []
+    for row in rows:
+        trigger_reason = row["trigger_reason"]
+        if trigger_reason.get("weather_trigger") == "rain_incoming":
+            context_label = "Rain trigger"
+        elif trigger_reason.get("event_trigger"):
+            context_label = "Pre-event crowd"
+        elif trigger_reason.get("demand_trigger"):
+            context_label = "Quiet period"
+        else:
+            context_label = "Wallet pulse"
+        items.append(
             HistoryItem(
                 id=row["id"],
                 merchant_id=row["merchant_id"],
                 merchant_display_name=row["merchant_name"],
                 cashback_eur=round(float(row["amount"]), 2),
                 redeemed_at_iso=row["t"],
-                context=_trigger_reason_to_context(row["trigger_reason"]),
+                context=context_label,
                 photo_url=None,
             )
-            for row in rows
-        ]
-    else:
-        items = [HistoryItem(**entry) for entry in _HISTORY_SEED[:capped]]
+        )
     return HistoryResponse(count=len(items), items=items)
 
 
