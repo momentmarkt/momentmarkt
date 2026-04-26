@@ -322,6 +322,17 @@ export default function App() {
     [alternatives, buildPriorSwipes],
   );
 
+  // Issue #137 — the silent-step swipe stack inside WalletSheetContent
+  // appends fresh PriorSwipe entries here so App.tsx remains the single
+  // source of truth for accumulated history. The merchant-tap path
+  // (handleAlternativesSettle / handleAlternativesAllPassed) writes to
+  // the same state via setSwipeHistory, so both surfaces share the
+  // same preference signal across the session.
+  const handleAppendSwipeHistory = useCallback((entries: PriorSwipe[]) => {
+    if (entries.length === 0) return;
+    setSwipeHistory((prev) => [...prev, ...entries]);
+  }, []);
+
   const handleAlternativesAllPassed = useCallback(
     (dwellByVariant: Record<string, number>) => {
       if (alternatives) {
@@ -538,6 +549,8 @@ export default function App() {
           onSearchFocus={handleSearchFocus}
           onAlternativesSettle={handleAlternativesSettle}
           onAlternativesAllPassed={handleAlternativesAllPassed}
+          swipeHistory={swipeHistory}
+          onAppendSwipeHistory={handleAppendSwipeHistory}
         />
       </BottomSheet>
 
@@ -846,6 +859,13 @@ type SheetBodyProps = {
   /** Issue #132 + #136 — fired when the user swipes left through every
    *  card. Same dwell-map shape as onAlternativesSettle. */
   onAlternativesAllPassed: (dwellByVariant: Record<string, number>) => void;
+  /** Issue #137 — accumulated swipe history. Threaded into the silent
+   *  WalletSheetContent so the For-you lens inside the wallet drawer
+   *  reuses the same preference signal as the merchant-tap path. */
+  swipeHistory: PriorSwipe[];
+  /** Issue #137 — callback the silent-step swipe stack uses to append
+   *  fresh PriorSwipe entries to the canonical history kept in App.tsx. */
+  onAppendSwipeHistory: (entries: PriorSwipe[]) => void;
 };
 
 function SheetBody({
@@ -869,6 +889,8 @@ function SheetBody({
   onSearchFocus,
   onAlternativesSettle,
   onAlternativesAllPassed,
+  swipeHistory,
+  onAppendSwipeHistory,
 }: SheetBodyProps) {
   // Redeem/Success screens own their own scroll surfaces internally, so a
   // plain BottomSheetView wrapper is fine here — gorhom requires a direct
@@ -1041,6 +1063,9 @@ function SheetBody({
   // expandedSlot is intentionally omitted: with the focused offer view above
   // owning the offer/surfacing steps (issue #122), the silent-step wallet
   // drawer never needs to slot an OfferStack inside its scroll surface.
+  // Issue #137: swipeHistory + onAppendSwipeHistory thread the canonical
+  // App-level preference signal into the silent-step swipe surface so the
+  // For-you lens reacts in real time without forking history state.
   return (
     <WalletSheetContent
       cityLabel={cityProfile.cityLabel}
@@ -1051,6 +1076,8 @@ function SheetBody({
       animatedIndex={animatedIndex}
       onMerchantTap={onMerchantTap}
       onSearchFocus={onSearchFocus}
+      swipeHistory={swipeHistory}
+      onAppendSwipeHistory={onAppendSwipeHistory}
     />
   );
 }
