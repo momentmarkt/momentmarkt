@@ -4,7 +4,13 @@ from datetime import datetime
 from math import asin, cos, radians, sin, sqrt
 from typing import Any
 
-from .fixtures import load_city_config, load_density, load_events, load_weather
+from .fixtures import (
+    load_city_config,
+    load_density,
+    load_density_merged,
+    load_events,
+    load_weather,
+)
 
 
 SignalContext = dict[str, Any]
@@ -26,7 +32,7 @@ def build_signal_context(city: str, merchant_id: str | None = None) -> SignalCon
     config = load_city_config(city)
     weather = load_weather(city)
     events = load_events(city)
-    density = load_density(config["density_fixture"])
+    density = load_density_merged(city, config["density_fixture"])
     merchant = _select_merchant(density["merchants"], merchant_id)
     weather_trigger = _weather_trigger(config, weather)
     privacy = config["demo"]["privacy_envelope"]
@@ -76,7 +82,7 @@ def build_signal_context(city: str, merchant_id: str | None = None) -> SignalCon
 
 def build_all_signal_contexts(city: str) -> list[SignalContext]:
     config = load_city_config(city)
-    density = load_density(config["density_fixture"])
+    density = load_density_merged(city, config["density_fixture"])
     return [
         build_signal_context(city=city, merchant_id=merchant["id"])
         for merchant in density["merchants"]

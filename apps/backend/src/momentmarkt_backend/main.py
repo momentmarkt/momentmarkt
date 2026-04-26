@@ -20,7 +20,12 @@ from .alternatives import (
     _current_time_bucket,
     _lookup_merchant,
 )
-from .fixtures import available_cities, load_city_config, load_density
+from .fixtures import (
+    available_cities,
+    load_city_config,
+    load_density,
+    load_density_merged,
+)
 from .llm_agents import default_use_llm
 from .merchants import emoji_for, search_merchants
 from .onboarding import router as onboarding_router
@@ -420,7 +425,7 @@ def merchant_demand_chart(merchant_id: str, city: str = "berlin") -> dict[str, A
 
     gap = context["merchant"]["demand_gap"]
     merchant = context["merchant"]
-    density = load_density(load_city_config(city)["density_fixture"])
+    density = load_density_merged(city, load_city_config(city)["density_fixture"])
     fixture_merchant = next(m for m in density["merchants"] if m["id"] == merchant_id)
     return {
         "merchant_id": merchant_id,
