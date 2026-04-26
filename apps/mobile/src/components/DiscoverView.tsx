@@ -37,7 +37,6 @@
 import { SymbolView } from "expo-symbols";
 import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import LottieView from "lottie-react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -122,10 +121,7 @@ const DISTANCE_SELECTOR_SPRING = {
   mass: 0.75,
 } as const;
 
-const DISCOVER_LOTTIE_SOURCE =
-  "https://assets-v2.lottiefiles.com/a/e88e947e-117e-11ee-b32b-1f49352a17f5/h9q2N827xF.lottie";
 const DISCOVER_LOADING_FADE_MS = 260;
-const discoverLoaderAnimation = require("../../assets/lottie/discover-loader.json");
 
 export function DiscoverView({
   citySlug,
@@ -524,11 +520,10 @@ function DiscoverBody({
 
 function DiscoverLoadingAccent(): ReactElement {
   return (
-    <View
-      accessibilityRole="progressbar"
-      accessibilityLabel="Loading Discover offers"
-      accessibilityHint={DISCOVER_LOTTIE_SOURCE}
-      style={[
+      <View
+        accessibilityRole="progressbar"
+        accessibilityLabel="Loading Discover offers"
+        style={[
         ...s("items-center"),
         {
           position: "absolute",
@@ -540,21 +535,22 @@ function DiscoverLoadingAccent(): ReactElement {
     >
       <View
         style={{
-          width: 150,
-          height: 150,
+          width: 96,
+          height: 96,
           alignItems: "center",
           justifyContent: "center",
-          borderRadius: 42,
+          borderRadius: 48,
           backgroundColor: "rgba(255, 248, 238, 0.72)",
+          borderWidth: 1,
+          borderColor: "rgba(242, 84, 45, 0.16)",
         }}
       >
-        <LottieView
-          source={discoverLoaderAnimation}
-          autoPlay
-          loop
-          resizeMode="contain"
-          renderMode="AUTOMATIC"
-          style={{ width: 138, height: 138 }}
+        <SymbolView
+          name="sparkles"
+          tintColor="#f2542d"
+          size={34}
+          weight="semibold"
+          style={{ width: 36, height: 36 }}
         />
       </View>
       <Text style={s("mt-2 text-xs font-black uppercase tracking-[2px] text-cocoa")}> 
