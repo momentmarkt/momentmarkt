@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from .fixtures import available_cities, load_city_config, load_density
+from .merchants import emoji_for, search_merchants
 from .opportunity_agent import generate_offer
 from .signals import build_all_signal_contexts, build_signal_context
 from .storage import DemoStore
@@ -87,6 +88,29 @@ class DemoSeedRequest(BaseModel):
     city: str = Field(default="berlin", examples=["berlin"])
     reset: bool = True
     use_llm: bool = False
+
+
+class ActiveOffer(BaseModel):
+    headline: str
+    discount: str
+    expires_at_iso: str
+
+
+class MerchantListItem(BaseModel):
+    id: str
+    display_name: str
+    category: str
+    emoji: str
+    distance_m: int
+    neighborhood: str
+    active_offer: ActiveOffer | None = None
+
+
+class MerchantListResponse(BaseModel):
+    city: str
+    query: str | None
+    count: int
+    merchants: list[MerchantListItem]
 
 
 @app.get("/health")
@@ -251,6 +275,42 @@ def reject_offer(offer_id: str, request: OfferStatusRequest) -> dict[str, Any]:
         return {"offer": store.set_offer_status(offer_id, "rejected", request.t)}
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.get("/merchants/{city}", response_model=MerchantListResponse)
+def list_merchants(
+    city: str,
+    q: str | None = None,
+    limit: int = 50,
+) -> MerchantListResponse:
+    """Catalog search for the wallet-drawer "Offers for you" surface.
+
+    City is a lowercase slug ("berlin", "zurich"). ``q`` is a case-insensitive
+    substring matched against display_name / category / neighborhood. Empty
+    or missing ``q`` returns the full catalog (capped at ``limit``).
+    """
+
+    results = search_merchants(city=city.lower(), query=q, limit=limit)
+    if results is None:
+        raise HTTPException(status_code=404, detail=f"Unknown city: {city}")
+    items = [
+        MerchantListItem(
+            id=m["id"],
+            display_name=m["display_name"],
+            category=m["category"],
+            emoji=emoji_for(m["category"]),
+            distance_m=m["distance_m"],
+            neighborhood=m["neighborhood"],
+            active_offer=m.get("active_offer"),
+        )
+        for m in results
+    ]
+    return MerchantListResponse(
+        city=city.lower(),
+        query=q,
+        count=len(items),
+        merchants=items,
+    )
 
 
 @app.get("/merchants/{merchant_id}/summary")
