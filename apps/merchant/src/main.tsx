@@ -1,60 +1,97 @@
-import { StrictMode, useEffect, useRef, useState } from "react";
+import { StrictMode, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import density from "../../../data/transactions/berlin-density.json";
 import { ApiStatus } from "./ApiStatus";
+import { WidgetRenderer } from "./genui/WidgetRenderer";
 import "./styles.css";
 
 const MERCHANT_ID = "berlin-mitte-cafe-bondi";
 
-function findCafeBondi() {
-  const cafeBondi = density.merchants.find(
-    (entry) => entry.id === MERCHANT_ID,
-  );
+// ── fixture-derived fallback moment ────────────────────────────────────────
+// Used when the backend store is empty (no offers persisted yet) so the inbox
+// always has at least one moment to render. Replaced as soon as real offers
+// arrive over /merchants/{id}/summary.
 
+function findCafeBondi() {
+  const cafeBondi = density.merchants.find((entry) => entry.id === MERCHANT_ID);
   if (!cafeBondi) {
     throw new Error("Cafe Bondi is missing from berlin-density.json");
   }
-
   return cafeBondi;
 }
 
 const merchant = findCafeBondi();
-
 const approvalRule = merchant.autopilot_rule_hints;
 const cashbackPerRedeem = merchant.offer_budget.max_cashback_eur;
-const fallbackSurfaced = Math.round(merchant.demand_gap.gap_density_points * 0.4);
-const fallbackAccepted = merchant.inventory_goal.target_redemptions;
-const fallbackRedeemed = Math.min(7, fallbackAccepted);
-const fallbackSpentBudget = fallbackRedeemed * cashbackPerRedeem;
-const fallbackTotalBudget = merchant.offer_budget.total_budget_eur;
-const curveMaxDensity = 100;
+const totalBudget = merchant.offer_budget.total_budget_eur;
+const fallbackHeadline = approvalRule.surface_copy_hint || "Rain incoming — warm up at Bondi";
+const fallbackTrigger = "Rain incoming + 54% demand gap at lunch.";
+const fallbackExpires = merchant.inventory_goal.expires_local;
 
-function shortTime(timeOrDate: string) {
-  return timeOrDate.includes("T")
-    ? timeOrDate.slice(11, 16)
-    : timeOrDate;
-}
+// Mirror of the deterministic rain widget the Opportunity Agent emits when
+// running off the fixture path (apps/backend/.../opportunity_agent.py::_rain_widget).
+// Same className vocabulary so the WidgetRenderer here produces the same
+// visual output the wallet shows.
+const fallbackWidgetSpec = {
+  type: "ScrollView" as const,
+  className: "rounded-[34px] bg-cocoa",
+  children: [
+    {
+      type: "Image" as const,
+      source:
+        "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=1200&q=80",
+      accessibilityLabel: "A warm cafe table with coffee on a rainy day",
+      className: "h-44 w-full rounded-t-[34px]",
+    },
+    {
+      type: "View" as const,
+      className: "p-5",
+      children: [
+        {
+          type: "Text" as const,
+          className: "text-xs font-bold uppercase tracking-[3px] text-cream/70",
+          text: "Opportunity Agent",
+        },
+        {
+          type: "Text" as const,
+          className: "mt-3 text-3xl font-black leading-9 text-cream",
+          text: fallbackHeadline,
+        },
+        {
+          type: "Text" as const,
+          className: "mt-3 text-base leading-6 text-cream/80",
+          text: `${Math.round(cashbackPerRedeem)} € cashback at ${merchant.display_name}. ${merchant.distance_m} m away. Valid until 15:00.`,
+        },
+        {
+          type: "Pressable" as const,
+          className: "mt-5 rounded-2xl bg-cream px-5 py-4",
+          action: "redeem",
+          text: "Redeem with girocard",
+        },
+      ],
+    },
+  ],
+};
 
-function curvePoints(points: Array<{ density: number }>, width = 760, height = 220) {
-  if (points.length <= 1) return "";
-  return points
-    .map((point, index) => {
-      const x = (index / (points.length - 1)) * width;
-      const y = height - (point.density / curveMaxDensity) * height;
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ");
-}
-
-function gapPosition(width = 760, height = 220) {
-  const typicalIndex = merchant.typical_density_curve.points.findIndex(
-    (point) => point.time === "13:30",
-  );
-  const x = (typicalIndex / (merchant.typical_density_curve.points.length - 1)) * width;
-  const typicalY = height - (merchant.demand_gap.typical_density / curveMaxDensity) * height;
-  const liveY = height - (merchant.demand_gap.live_density / curveMaxDensity) * height;
-  return { x, typicalY, liveY };
-}
+type StoredOffer = {
+  id: string;
+  city_id: string;
+  merchant_id: string;
+  merchant_name: string;
+  category: string;
+  status: string;
+  trigger_reason: Record<string, unknown> | string | null;
+  copy_seed: { headline_de?: string; headline_en?: string; body_de?: string };
+  widget_spec: unknown;
+  valid_window: { start?: string; end?: string };
+  created_at: string;
+  distance_m: number;
+  currency: string;
+  budget_total: number;
+  budget_spent: number;
+  cashback_eur: number;
+  redemptions: number;
+};
 
 type MerchantStats = {
   merchant_id: string;
@@ -63,7 +100,7 @@ type MerchantStats = {
   redeemed: number;
   budget_total: number;
   budget_spent: number;
-  offers: unknown[];
+  offers: StoredOffer[];
 };
 
 type MerchantPollState = {
@@ -89,23 +126,13 @@ function useMerchantStats(merchantId: string, intervalMs = 2000) {
         const r = await fetch(`${baseUrl}/merchants/${merchantId}/summary`);
         if (!cancelled && r.ok) {
           const data = (await r.json()) as MerchantStats;
-          setState({
-            baseUrl,
-            error: null,
-            lastUpdated: new Date(),
-            stats: data,
-          });
+          setState({ baseUrl, error: null, lastUpdated: new Date(), stats: data });
           return;
         }
         if (!cancelled) {
-          setState((previous) => ({
-            ...previous,
-            baseUrl,
-            error: `HTTP ${r.status}`,
-          }));
+          setState((previous) => ({ ...previous, baseUrl, error: `HTTP ${r.status}` }));
         }
       } catch (error) {
-        // demo-safe: keep last-known stats on failure
         if (!cancelled) {
           setState((previous) => ({
             ...previous,
@@ -149,113 +176,158 @@ function timeLabel(date: Date | null) {
   }).format(date);
 }
 
-function App() {
-  const [eventRuleEnabled, setEventRuleEnabled] = useState(false);
-  const poll = useMerchantStats(MERCHANT_ID, 2000);
-  const stats = poll.stats;
+function shortTime(timeOrDate: string | undefined): string {
+  if (!timeOrDate) return "—";
+  return timeOrDate.includes("T") ? timeOrDate.slice(11, 16) : timeOrDate;
+}
 
-  const surfaced = stats?.surfaced ?? fallbackSurfaced;
-  const redeemed = stats?.redeemed ?? fallbackRedeemed;
-  const accepted = Math.max(redeemed, fallbackAccepted);
-  const totalBudget = stats?.budget_total || fallbackTotalBudget;
-  const spentBudget = stats?.budget_spent ?? fallbackSpentBudget;
-  const remainingBudget = Math.max(0, totalBudget - spentBudget);
-  const budgetUsedPercent = totalBudget
-    ? Math.min(100, Math.round((spentBudget / totalBudget) * 100))
+// ── unified Moment shape ───────────────────────────────────────────────────
+// Both the live store offers and the fixture fallback collapse into one
+// `Moment` so the feed + detail panes don't branch on data source.
+
+type MomentStatus = "auto_approved" | "approved" | "pending_approval" | "rejected";
+
+type Moment = {
+  id: string;
+  source: "live" | "fixture";
+  headline: string;
+  triggerLine: string;
+  status: MomentStatus;
+  expiresAt: string;
+  redemptions: number;
+  cashbackPerRedeem: number;
+  budgetTotal: number;
+  budgetSpent: number;
+  widgetSpec: unknown;
+};
+
+function deriveTriggerLine(triggerReason: StoredOffer["trigger_reason"]): string {
+  if (typeof triggerReason === "string") return triggerReason;
+  if (!triggerReason || typeof triggerReason !== "object") return fallbackTrigger;
+  const parts: string[] = [];
+  const weather = (triggerReason as { weather_trigger?: string | null }).weather_trigger;
+  if (weather) parts.push(weather.replace(/_/g, " "));
+  if ((triggerReason as { demand_trigger?: boolean }).demand_trigger) {
+    parts.push("demand gap");
+  }
+  if ((triggerReason as { event_trigger?: boolean }).event_trigger) {
+    parts.push("nearby event");
+  }
+  return parts.length ? `Triggered by ${parts.join(" + ")}.` : fallbackTrigger;
+}
+
+function normalizeStatus(raw: string): MomentStatus {
+  if (raw === "auto_approved" || raw === "approved" || raw === "rejected") return raw;
+  return "pending_approval";
+}
+
+function offersToMoments(stats: MerchantStats | null): Moment[] {
+  if (!stats || stats.offers.length === 0) {
+    return [
+      {
+        id: "fixture-bondi-rain",
+        source: "fixture",
+        headline: fallbackHeadline,
+        triggerLine: fallbackTrigger,
+        status: "auto_approved",
+        expiresAt: fallbackExpires,
+        redemptions: 0,
+        cashbackPerRedeem,
+        budgetTotal: totalBudget,
+        budgetSpent: 0,
+        widgetSpec: fallbackWidgetSpec,
+      },
+    ];
+  }
+  return stats.offers.map((offer) => ({
+    id: offer.id,
+    source: "live",
+    headline:
+      offer.copy_seed.headline_de ||
+      offer.copy_seed.headline_en ||
+      offer.merchant_name,
+    triggerLine: deriveTriggerLine(offer.trigger_reason),
+    status: normalizeStatus(offer.status),
+    expiresAt: offer.valid_window?.end || fallbackExpires,
+    redemptions: offer.redemptions,
+    cashbackPerRedeem: offer.cashback_eur,
+    budgetTotal: offer.budget_total,
+    budgetSpent: offer.budget_spent,
+    widgetSpec: offer.widget_spec,
+  }));
+}
+
+const STATUS_LABELS: Record<MomentStatus, { label: string; pillClass: string; dotClass: string }> = {
+  auto_approved: { label: "Auto-approved", pillClass: "is-auto", dotClass: "is-spark" },
+  approved: { label: "Approved", pillClass: "is-approved", dotClass: "is-good" },
+  pending_approval: { label: "Awaiting review", pillClass: "is-pending", dotClass: "is-rain" },
+  rejected: { label: "Rejected", pillClass: "is-rejected", dotClass: "is-rain" },
+};
+
+function App() {
+  const poll = useMerchantStats(MERCHANT_ID, 2000);
+  const moments = useMemo(() => offersToMoments(poll.stats), [poll.stats]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Keep the selection sticky across polls when possible; otherwise default to
+  // the first (most recent) moment so the right pane is never empty.
+  const selected =
+    moments.find((m) => m.id === selectedId) ?? moments[0] ?? null;
+
+  useEffect(() => {
+    if (selected && selected.id !== selectedId) {
+      setSelectedId(selected.id);
+    }
+  }, [selected, selectedId]);
+
+  const totals = poll.stats ?? null;
+  const surfaced = totals?.surfaced ?? 0;
+  const redeemed = totals?.redeemed ?? selected?.redemptions ?? 0;
+  const accepted = Math.max(redeemed, totals?.offer_count ?? 1);
+  const budgetTotal = totals?.budget_total || selected?.budgetTotal || totalBudget;
+  const budgetSpent = totals?.budget_spent ?? selected?.budgetSpent ?? 0;
+  const remaining = Math.max(0, budgetTotal - budgetSpent);
+  const budgetUsedPct = budgetTotal
+    ? Math.min(100, Math.round((budgetSpent / budgetTotal) * 100))
     : 0;
 
   return (
     <main className="shell">
-      <section className="hero-panel">
-        <div>
-          <p className="eyebrow">MomentMarkt Merchant Inbox</p>
+      <header className="header">
+        <div className="header-brand">
+          <span className="eyebrow">MomentMarkt · Merchant Inbox</span>
           <h1>{merchant.display_name}</h1>
-          <p className="subhead">
-            Opportunity Agent is watching rain, local demand, and nearby intent
-            signals for the Berlin lunch window.
-          </p>
         </div>
-        <div className="hero-status">
+        <div className="header-status">
           <ApiStatus />
           <LiveStatus poll={poll} />
         </div>
+      </header>
+
+      <section className="inbox">
+        <Feed moments={moments} selectedId={selected?.id ?? null} onSelect={setSelectedId} />
+
+        <div className="detail">
+          {selected ? (
+            <>
+              <SignalEvidence />
+              <MirrorSection moment={selected} />
+              <CountersSection
+                surfaced={surfaced}
+                accepted={accepted}
+                redeemed={redeemed}
+                remaining={remaining}
+                budgetSpent={budgetSpent}
+                budgetTotal={budgetTotal}
+                budgetUsedPct={budgetUsedPct}
+              />
+              <MatchedRule />
+            </>
+          ) : null}
+        </div>
       </section>
 
-      <DemandGapHero />
-
-      <section className="summary-grid" aria-label="Campaign summary">
-        <Metric label="Surfaced" value={surfaced.toString()} detail="nearby high-intent wallets" />
-        <Metric label="Accepted" value={accepted.toString()} detail="saved to wallet" />
-        <Metric label="Redeemed" value={redeemed.toString()} detail="QR scanned at counter" />
-        <Metric
-          label="Budget left"
-          value={euro(remainingBudget)}
-          detail={`${euro(spentBudget)} used of ${euro(totalBudget)}`}
-        />
-      </section>
-
-      <section className="content-grid">
-        <article className="draft-card">
-          <div className="card-topline">
-            <span>Opportunity Agent draft</span>
-            <span className="approved">Approved by rule</span>
-          </div>
-          <h2>Rain + demand rescue offer for Mia</h2>
-          <p className="offer-copy">“Es regnet bald. 80 m bis zum heissen Kakao.”</p>
-          <div className="offer-box">
-            <div>
-              <span className="label">Offer</span>
-              <strong>{euro(cashbackPerRedeem)} cashback</strong>
-              <small>on hot cocoa + banana bread</small>
-            </div>
-            <div>
-              <span className="label">Expires</span>
-              <strong>15:00</strong>
-              <small>before the lunch dip closes</small>
-            </div>
-          </div>
-          <div className="evidence-row">
-            <Evidence label="Weather" value="Rain incoming" />
-            <Evidence label="Demand gap" value={`${percent(merchant.demand_gap.gap_ratio)} below usual`} />
-            <Evidence label="Distance" value={`${merchant.distance_m} m from Mia`} />
-          </div>
-          <MobileMoment />
-          <Timeline />
-        </article>
-
-        <aside className="rules-panel">
-          <div className="section-heading">
-            <p className="eyebrow">Autopilot rules</p>
-            <h2>Trust gradient</h2>
-          </div>
-
-          <RuleRow
-            title="Rain + demand lunch save"
-            description="Auto-approve when rain is incoming, demand is at least 20% below baseline, and the customer is within 250 m."
-            enabled={approvalRule.approved}
-            locked
-          />
-
-          <RuleRow
-            title="Post-event cocoa boost"
-            description="Auto-approve after nearby event exits if Bondi has budget left and live density stays below baseline."
-            enabled={eventRuleEnabled}
-            onToggle={() => setEventRuleEnabled((enabled) => !enabled)}
-          />
-
-          <div className="rule-detail">
-            <span>Matched rule</span>
-            <code>{approvalRule.rule_id}</code>
-            <ul>
-              {approvalRule.conditions.map((condition) => (
-                <li key={condition}>{condition}</li>
-              ))}
-            </ul>
-          </div>
-        </aside>
-      </section>
-
-      <section className="footer-strip">
+      <footer className="privacy-footer">
         <div>
           <span className="label">Payone-style fixture</span>
           <strong>{density.fixture_id}</strong>
@@ -264,219 +336,226 @@ function App() {
           <span className="label">Privacy boundary</span>
           <code>{`{ intent_token, h3_cell_r8: "${density.demo_context.mia_position.h3_cell_r8}" }`}</code>
         </div>
-        <div className="budget-bar" aria-label={`${budgetUsedPercent}% budget used`}>
-          <span style={{ width: `${budgetUsedPercent}%` }} />
-        </div>
-      </section>
+      </footer>
     </main>
   );
 }
 
-function DemandGapHero() {
-  const width = 760;
-  const height = 220;
-  const gap = gapPosition(width, height);
-  const typicalPoints = curvePoints(merchant.typical_density_curve.points, width, height);
-  const livePoints = curvePoints(merchant.live_samples, width, height);
+function Feed({
+  moments,
+  selectedId,
+  onSelect,
+}: {
+  moments: Moment[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <aside className="feed" aria-label="Moments feed">
+      <div className="feed-heading">
+        <span className="eyebrow">Moments</span>
+        <span className="count">{moments.length}</span>
+      </div>
+      {moments.map((moment) => (
+        <FeedCard
+          key={moment.id}
+          moment={moment}
+          isSelected={moment.id === selectedId}
+          onClick={() => onSelect(moment.id)}
+        />
+      ))}
+    </aside>
+  );
+}
+
+function FeedCard({
+  moment,
+  isSelected,
+  onClick,
+}: {
+  moment: Moment;
+  isSelected: boolean;
+  onClick: () => void;
+}) {
+  const status = STATUS_LABELS[moment.status];
+  const used = moment.budgetTotal
+    ? Math.min(100, Math.round((moment.budgetSpent / moment.budgetTotal) * 100))
+    : 0;
+  // Pulse the row when redemption count ticks up so the merchant catches the
+  // beat without staring at a counter.
+  const previousRedemptions = useRef(moment.redemptions);
+  const [pulseKey, setPulseKey] = useState(0);
+  useEffect(() => {
+    if (previousRedemptions.current !== moment.redemptions) {
+      previousRedemptions.current = moment.redemptions;
+      setPulseKey((k) => k + 1);
+    }
+  }, [moment.redemptions]);
 
   return (
-    <section className="demand-hero" aria-label="Demand gap chart">
-      <div className="demand-copy">
-        <span className="eyebrow">Payone-style live density</span>
-        <h2>Bondi is quiet exactly when Mia walks by.</h2>
-        <p>
-          Typical Saturday lunch traffic should be at {merchant.demand_gap.typical_density}.
-          Live density is {merchant.demand_gap.live_density}, a {percent(merchant.demand_gap.gap_ratio)} gap.
-          That gap is what turns the merchant rule into the mobile offer.
+    <button
+      type="button"
+      className={`feed-card ${isSelected ? "is-selected" : ""}`}
+      onClick={onClick}
+      key={pulseKey}
+    >
+      <span className={`feed-status-dot ${status.dotClass}`} aria-hidden />
+      <div className="feed-card-body">
+        <div className="feed-card-topline">
+          <span>{shortTime(moment.expiresAt)} expiry</span>
+          <span>{moment.source === "fixture" ? "Fixture" : "Live"}</span>
+        </div>
+        <h3>{moment.headline}</h3>
+        <p className="trigger">{moment.triggerLine}</p>
+        <div className="feed-card-foot">
+          <span className={`feed-pill ${status.pillClass}`}>{status.label}</span>
+          <span className="feed-bar" aria-hidden>
+            <span style={{ width: `${used}%` }} />
+          </span>
+          <span className="feed-bar-meta">
+            {moment.redemptions}/{Math.max(1, Math.round(moment.budgetTotal / Math.max(moment.cashbackPerRedeem, 1)))}
+          </span>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function SignalEvidence() {
+  return (
+    <section className="detail-section" aria-label="Signal evidence">
+      <span className="section-eyebrow">Signal evidence</span>
+      <h2>Why this moment fired</h2>
+      <p className="lead">
+        Three signals crossed for {merchant.display_name} at 13:30 — the rule that watches
+        rain + demand gap auto-approved without merchant review.
+      </p>
+      <div className="signal-row">
+        <article className="signal-chip is-rain">
+          <span className="label">Weather</span>
+          <strong>Rain incoming</strong>
+        </article>
+        <article className="signal-chip is-spark">
+          <span className="label">Demand gap</span>
+          <strong>{percent(merchant.demand_gap.gap_ratio)} below usual</strong>
+        </article>
+        <article className="signal-chip is-cocoa">
+          <span className="label">Distance</span>
+          <strong>{merchant.distance_m} m from Mia</strong>
+        </article>
+      </div>
+    </section>
+  );
+}
+
+function MirrorSection({ moment }: { moment: Moment }) {
+  return (
+    <section className="detail-section detail-mirror" aria-label="Customer widget mirror">
+      <div className="mirror-copy">
+        <span className="section-eyebrow">What Mia sees</span>
+        <h2>Same widget, same moment.</h2>
+        <p className="lead">
+          The merchant inbox renders the customer widget from the same GenUI JSON the wallet
+          consumes — what's approved here is what surfaces in Mia's pocket, byte-for-byte.
+        </p>
+        <p className="lead">
+          <strong style={{ color: "var(--cocoa)" }}>{moment.headline}</strong> — expires{" "}
+          {shortTime(moment.expiresAt)}.
         </p>
       </div>
-      <div className="curve-card">
-        <div className="curve-topline">
-          <div>
-            <span className="label">Current gap</span>
-            <strong>{merchant.demand_gap.gap_density_points} pts below baseline</strong>
-          </div>
-          <div className="legend">
-            <span className="legend-item legend-typical">Typical</span>
-            <span className="legend-item legend-live">Live</span>
-          </div>
-        </div>
-        <svg className="curve-svg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Typical versus live density curve">
-          <defs>
-            <linearGradient id="gapFill" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="#f2542d" stopOpacity="0.32" />
-              <stop offset="100%" stopColor="#f2542d" stopOpacity="0.02" />
-            </linearGradient>
-          </defs>
-          <g className="curve-grid">
-            {[0.25, 0.5, 0.75].map((row) => (
-              <line key={row} x1="0" x2={width} y1={height * row} y2={height * row} />
-            ))}
-          </g>
-          <polyline className="curve-line curve-line-typical" points={typicalPoints} />
-          <polyline className="curve-line curve-line-live" points={livePoints} />
-          <line className="gap-line" x1={gap.x} x2={gap.x} y1={gap.typicalY} y2={gap.liveY} />
-          <circle className="gap-dot gap-dot-typical" cx={gap.x} cy={gap.typicalY} r="7" />
-          <circle className="gap-dot gap-dot-live" cx={gap.x} cy={gap.liveY} r="8" />
-        </svg>
-        <div className="curve-axis">
-          {merchant.typical_density_curve.points.map((point) => (
-            <span key={point.time}>{shortTime(point.time)}</span>
-          ))}
+      <div className="phone-frame" aria-hidden>
+        <div className="phone-frame-screen">
+          <WidgetRenderer node={moment.widgetSpec} />
         </div>
       </div>
     </section>
   );
 }
 
-function LiveStatus({ poll }: { poll: MerchantPollState }) {
-  const connected = Boolean(poll.stats && !poll.error);
+function CountersSection({
+  surfaced,
+  accepted,
+  redeemed,
+  remaining,
+  budgetSpent,
+  budgetTotal,
+  budgetUsedPct,
+}: {
+  surfaced: number;
+  accepted: number;
+  redeemed: number;
+  remaining: number;
+  budgetSpent: number;
+  budgetTotal: number;
+  budgetUsedPct: number;
+}) {
   return (
-    <aside className={`live-status ${connected ? "live-status-ok" : "live-status-warn"}`}>
-      <div className="status-pill">
-        <span className="pulse" /> {connected ? "Live API connected" : "Fixture fallback"}
+    <section className="detail-section" aria-label="Live counters">
+      <span className="section-eyebrow">Live counters</span>
+      <h2>Surfaced → accepted → redeemed.</h2>
+      <p className="lead">Polls /merchants/{MERCHANT_ID}/summary every 2s.</p>
+      <div className="counter-grid">
+        <Counter label="Surfaced" value={String(surfaced)} detail="nearby high-intent wallets" />
+        <Counter label="Accepted" value={String(accepted)} detail="saved to wallet" />
+        <Counter label="Redeemed" value={String(redeemed)} detail="QR scanned at counter" />
+        <Counter
+          label="Budget left"
+          value={euro(remaining)}
+          detail={`${euro(budgetSpent)} of ${euro(budgetTotal)}`}
+        />
       </div>
-      <div className="live-status-meta">
-        <span>{timeLabel(poll.lastUpdated)}</span>
-        <code>{poll.baseUrl.replace(/^https?:\/\//, "")}</code>
-        {poll.error ? <small>{poll.error}</small> : null}
+      <div className="counter-budget-bar" aria-label={`${budgetUsedPct}% budget used`}>
+        <span style={{ width: `${budgetUsedPct}%` }} />
       </div>
-    </aside>
+    </section>
   );
 }
 
-function Timeline() {
-  const steps = [
-    {
-      time: "13:30",
-      title: "Signals crossed",
-      detail: "Rain incoming + live density 54% below baseline.",
-    },
-    {
-      time: "+4s",
-      title: "AI draft created",
-      detail: "Cocoa + banana bread offer and GenUI widget spec generated.",
-    },
-    {
-      time: "+6s",
-      title: "Rule auto-approved",
-      detail: "bondi-rain-gap-lunch matched without merchant review.",
-    },
-    {
-      time: "+9s",
-      title: "Surfaced to Mia",
-      detail: "Same offer appears in the wallet drawer 82 m away.",
-    },
-    {
-      time: "+31s",
-      title: "Redeemed",
-      detail: "Simulated girocard checkout increments merchant counter.",
-    },
-  ];
-
-  return (
-    <div className="timeline-card" aria-label="Signal to redemption timeline">
-      <div className="timeline-heading">
-        <span className="label">Same mobile moment</span>
-        <strong>Signal → draft → rule → wallet → redeem</strong>
-      </div>
-      <ol className="timeline-list">
-        {steps.map((step) => (
-          <li key={step.title}>
-            <span className="timeline-dot" />
-            <time>{step.time}</time>
-            <div>
-              <strong>{step.title}</strong>
-              <p>{step.detail}</p>
-            </div>
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
-}
-
-function MobileMoment() {
-  return (
-    <div className="mobile-moment" aria-label="What Mia sees on her phone">
-      <div className="mobile-moment-copy">
-        <span className="label">Mia's mobile moment</span>
-        <p>
-          The same draft becomes a single banner on Mia's phone: hot cocoa,
-          80 m away, expires before the rain stops.
-        </p>
-      </div>
-      <div className="mobile-moment-banner" aria-hidden>
-        <div className="mobile-moment-banner-meta">
-          <span>MomentMarkt</span>
-          <span>now</span>
-        </div>
-        <strong>Cafe Bondi · 80 m</strong>
-        <small>“Es regnet bald. 80 m bis zum heissen Kakao.” · {euro(cashbackPerRedeem)} cashback</small>
-      </div>
-    </div>
-  );
-}
-
-function Metric({ label, value, detail }: { label: string; value: string; detail: string }) {
-  const previousValue = useRef(value);
+function Counter({ label, value, detail }: { label: string; value: string; detail: string }) {
+  const previous = useRef(value);
   const [pulseKey, setPulseKey] = useState(0);
-
   useEffect(() => {
-    if (previousValue.current !== value) {
-      previousValue.current = value;
+    if (previous.current !== value) {
+      previous.current = value;
       setPulseKey((k) => k + 1);
     }
   }, [value]);
-
   return (
-    <article className="metric-card">
-      <span>{label}</span>
-      <strong key={pulseKey} className="metric-value metric-value-pulse">
-        {value}
-      </strong>
+    <article className="counter">
+      <span className="label">{label}</span>
+      <strong key={pulseKey}>{value}</strong>
       <small>{detail}</small>
     </article>
   );
 }
 
-function Evidence({ label, value }: { label: string; value: string }) {
+function MatchedRule() {
   return (
-    <div className="evidence-card">
-      <span>{label}</span>
-      <strong>{value}</strong>
+    <div className="matched-rule" aria-label="Matched autopilot rule">
+      <div>
+        <span className="label">Matched rule</span>
+        <code>{approvalRule.rule_id}</code>
+      </div>
+      <ul className="conditions">
+        {approvalRule.conditions.map((condition) => (
+          <li key={condition}>{condition}</li>
+        ))}
+      </ul>
     </div>
   );
 }
 
-function RuleRow({
-  title,
-  description,
-  enabled,
-  locked = false,
-  onToggle,
-}: {
-  title: string;
-  description: string;
-  enabled: boolean;
-  locked?: boolean;
-  onToggle?: () => void;
-}) {
+function LiveStatus({ poll }: { poll: MerchantPollState }) {
+  const connected = Boolean(poll.stats && !poll.error);
   return (
-    <div className="rule-row">
-      <div>
-        <h3>{title}</h3>
-        <p>{description}</p>
-      </div>
-      <button
-        className={`toggle ${enabled ? "toggle-on" : ""}`}
-        type="button"
-        onClick={onToggle}
-        disabled={locked}
-        aria-pressed={enabled}
-      >
-        <span />
-      </button>
+    <div
+      className={`api-status ${connected ? "api-status-online" : "api-status-degraded"}`}
+      role="status"
+      aria-live="polite"
+    >
+      <span className="api-status-dot" />
+      <span className="api-status-label">{connected ? "Inbox live" : "Fixture"}</span>
+      <span className="api-status-meta">{timeLabel(poll.lastUpdated)}</span>
     </div>
   );
 }
