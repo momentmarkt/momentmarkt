@@ -280,42 +280,61 @@ def reset_subhead_cache() -> None:
 
 # Photo per category. The stack already reads as a stack visually; this
 # completes the differentiation so each card feels like a different place.
-_CATEGORY_IMAGE: dict[str, tuple[str, str]] = {
+_CATEGORY_IMAGES: dict[str, tuple[tuple[str, str], ...]] = {
     "cafe": (
-        "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=1200&q=80",
-        "Cafe table with a steaming pour-over",
+        ("https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=1200&q=80", "Cafe table with a steaming pour-over"),
+        ("https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=1200&q=80", "Warm cafe bar with coffee cups"),
+        ("https://images.unsplash.com/photo-1442512595331-e89e73853f31?auto=format&fit=crop&w=1200&q=80", "Coffee being poured beside a cafe window"),
+        ("https://images.unsplash.com/photo-1453614512568-c4024d13c247?auto=format&fit=crop&w=1200&q=80", "Small cafe storefront with warm lights"),
+        ("https://images.unsplash.com/photo-1459755486867-b55449bb39ff?auto=format&fit=crop&w=1200&q=80", "Cafe counter with cups and pastry plates"),
+        ("https://images.unsplash.com/photo-1521017432531-fbd92d768814?auto=format&fit=crop&w=1200&q=80", "Cozy cafe interior with tables"),
     ),
     "bakery": (
-        "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1200&q=80",
-        "Fresh bread cooling on a wooden counter",
+        ("https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1200&q=80", "Fresh bread cooling on a wooden counter"),
+        ("https://images.unsplash.com/photo-1568254183919-78a4f43a2877?auto=format&fit=crop&w=1200&q=80", "Pastries in a bakery display"),
+        ("https://images.unsplash.com/photo-1549931319-a545dcf3bc73?auto=format&fit=crop&w=1200&q=80", "Loaves stacked in a small bakery"),
     ),
     "bar": (
-        "https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=1200&q=80",
-        "Dim-lit bar with cocktail glasses on the counter",
+        ("https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=1200&q=80", "Dim-lit bar with cocktail glasses on the counter"),
+        ("https://images.unsplash.com/photo-1572116469696-31de0f17cc34?auto=format&fit=crop&w=1200&q=80", "Cocktail bar with warm lights"),
+        ("https://images.unsplash.com/photo-1470337458703-46ad1756a187?auto=format&fit=crop&w=1200&q=80", "Back bar shelves with bottles and low light"),
+        ("https://images.unsplash.com/photo-1575444758702-4a6b9222336e?auto=format&fit=crop&w=1200&q=80", "Cocktails lined up on a bar counter"),
     ),
     "restaurant": (
-        "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80",
-        "Neighbourhood restaurant table set for dinner",
+        ("https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80", "Neighbourhood restaurant table set for dinner"),
+        ("https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80", "Restaurant counter with plates ready"),
+        ("https://images.unsplash.com/photo-1486427944299-d1955d23e34d?auto=format&fit=crop&w=1200&q=80", "Small restaurant table with plates and glasses"),
+        ("https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=1200&q=80", "Fresh meal on a restaurant table"),
     ),
     "bookstore": (
-        "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=1200&q=80",
-        "Bookstore shelves stacked with new releases",
+        ("https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=1200&q=80", "Bookstore shelves stacked with new releases"),
+        ("https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&w=1200&q=80", "Tall bookshelves in a quiet shop"),
+        ("https://images.unsplash.com/photo-1481627834876-b7833e8f5570?auto=format&fit=crop&w=1200&q=80", "Bookstore wall with tightly packed shelves"),
     ),
     "kiosk": (
-        "https://images.unsplash.com/photo-1553531384-cc64ac80f931?auto=format&fit=crop&w=1200&q=80",
-        "Late-night kiosk window glowing under a streetlight",
+        ("https://images.unsplash.com/photo-1553531384-cc64ac80f931?auto=format&fit=crop&w=1200&q=80", "Late-night kiosk window glowing under a streetlight"),
+        ("https://images.unsplash.com/photo-1559925393-8be0ec4767c8?auto=format&fit=crop&w=1200&q=80", "Small local shop counter"),
+        ("https://images.unsplash.com/photo-1528698827591-e19ccd7bc23d?auto=format&fit=crop&w=1200&q=80", "Corner shop aisle with shelves"),
+        ("https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&w=1200&q=80", "Grocery shelves with colorful packaged goods"),
     ),
     "ice_cream": (
-        "https://images.unsplash.com/photo-1488900128323-21503983a07e?auto=format&fit=crop&w=1200&q=80",
-        "Two scoops of ice cream in a waffle cone",
+        ("https://images.unsplash.com/photo-1488900128323-21503983a07e?auto=format&fit=crop&w=1200&q=80", "Two scoops of ice cream in a waffle cone"),
+        ("https://images.unsplash.com/photo-1501443762994-82bd5dace89a?auto=format&fit=crop&w=1200&q=80", "Ice cream cones in a shop window"),
+        ("https://images.unsplash.com/photo-1497034825429-c343d7c6a68f?auto=format&fit=crop&w=1200&q=80", "Ice cream cones with bright scoops"),
+        ("https://images.unsplash.com/photo-1567206563064-6f60f40a2b57?auto=format&fit=crop&w=1200&q=80", "Colorful scoops in an ice cream case"),
     ),
     "boutique": (
-        "https://images.unsplash.com/photo-1488161628813-04466f872be2?auto=format&fit=crop&w=1200&q=80",
-        "Small boutique window with curated outfits",
+        ("https://images.unsplash.com/photo-1488161628813-04466f872be2?auto=format&fit=crop&w=1200&q=80", "Small boutique window with curated outfits"),
+        ("https://images.unsplash.com/photo-1521334884684-d80222895322?auto=format&fit=crop&w=1200&q=80", "Clothing rack in a boutique"),
+        ("https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80", "Boutique retail floor with clothing racks"),
+        ("https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=1200&q=80", "Minimal clothing display in a small shop"),
     ),
     "florist": (
-        "https://images.unsplash.com/photo-1524598171353-ce84a52cf923?auto=format&fit=crop&w=1200&q=80",
-        "Florist counter with fresh tulips and peonies",
+        ("https://images.unsplash.com/photo-1469371670807-013ccf25f16a?auto=format&fit=crop&w=1200&q=80", "Fresh flower bouquets on a florist table"),
+        ("https://images.unsplash.com/photo-1455659817273-f96807779a8a?auto=format&fit=crop&w=1200&q=80", "Fresh flowers gathered in market buckets"),
+        ("https://images.unsplash.com/photo-1487070183336-b863922373d4?auto=format&fit=crop&w=1200&q=80", "Florist wrapping flowers at a counter"),
+        ("https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=1200&q=80", "Bright flower bouquets in a shop"),
+        ("https://images.unsplash.com/photo-1468327768560-75b778cbb551?auto=format&fit=crop&w=1200&q=80", "Florist display with colorful stems"),
     ),
 }
 
@@ -507,7 +526,10 @@ def _build_widget_spec(
         category=category,
         time_bucket=_current_time_bucket(),
     )
-    image_url, image_alt = _CATEGORY_IMAGE.get(category, _DEFAULT_IMAGE)
+    image_url, image_alt = _image_for_merchant(
+        category=category,
+        merchant_id=merchant["id"],
+    )
 
     return {
         "type": "ScrollView",
@@ -559,6 +581,14 @@ def _build_widget_spec(
             },
         ],
     }
+
+
+def _image_for_merchant(*, category: str, merchant_id: str) -> tuple[str, str]:
+    pool = _CATEGORY_IMAGES.get(category)
+    if not pool:
+        return _DEFAULT_IMAGE
+    digest = hashlib.sha256(merchant_id.encode("utf-8")).digest()
+    return pool[int.from_bytes(digest[:2], "big") % len(pool)]
 
 
 def build_alternatives(
