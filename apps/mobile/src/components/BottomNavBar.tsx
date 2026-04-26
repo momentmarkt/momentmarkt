@@ -41,7 +41,7 @@
  *       Active   — spark fill (`#f2542d`), spark stroke ring offset 3pt
  *                  beyond the edge, spark "Discover" label below the
  *                  circle.
- *       Inactive — ink fill (`#17120f`), no ring, NO label (the icon is
+ *       Inactive — cocoa fill (`#6f3f2c`), no ring, NO label (the icon is
  *                  iconic enough on its own — the bare circle silhouette
  *                  doubles as the affordance).
  *       Lift     — translateY=-8 so the circle visually sits slightly
@@ -52,8 +52,8 @@
  *   - Issue #175 — counted badges on Discover + Wallet. Both replace the
  *     old boolean red dot with a pill that shows a digit (count of
  *     unseen specials / saved passes). Spark fill on Wallet (against
- *     cream); ink fill on Discover when the circle is spark, spark fill
- *     when the circle is ink — the badge always carries a 1.5pt cream
+ *     cream); cocoa fill on Discover when the circle is spark, spark fill
+ *     when the circle is cocoa — the badge always carries a 1.5pt cream
  *     border so it pops against either backdrop. Hidden when count = 0.
  *
  * Layout — Approach A (absolute floating circle, #181):
@@ -340,10 +340,10 @@ function DiscoverHeroTab({
   onPress: () => void;
 }): ReactElement {
   const showBadge = badgeCount > 0;
-  // Inverse of the outer tabs: spark fill when active, ink when inactive
+  // Inverse of the outer tabs: spark fill when active, cocoa when inactive
   // (vs cream/cocoa-text on the others). The contrast inversion is what
   // makes the circle read as "different rhythm" from its siblings.
-  const circleBackground = active ? "#f2542d" : "#17120f";
+  const circleBackground = active ? "#f2542d" : "#6f3f2c";
   return (
     <Pressable
       accessibilityRole="button"
@@ -430,8 +430,8 @@ function DiscoverHeroTab({
 
         {/* Counted badge (#175, repositioned in #181). Anchored to the
             circle's top-right. Cream 1.5pt border bumps the contrast
-            against either the spark or ink circle backdrop. Fill flips
-            against the circle: ink-on-spark when active, spark-on-ink
+            against either the spark or cocoa circle backdrop. Fill flips
+            against the circle: cocoa-on-spark when active, spark-on-cocoa
             when inactive — either way the badge reads as a distinct
             chip rather than blending into the circle. */}
         {showBadge ? (
@@ -448,7 +448,7 @@ function DiscoverHeroTab({
               height: 18,
               borderRadius: 9,
               paddingHorizontal: 5,
-              backgroundColor: active ? "#17120f" : "#f2542d",
+              backgroundColor: active ? "#6f3f2c" : "#f2542d",
               borderWidth: 1.5,
               borderColor: "#fff8ee",
               alignItems: "center",

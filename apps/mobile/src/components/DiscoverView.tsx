@@ -36,7 +36,7 @@
 
 import { SymbolView } from "expo-symbols";
 import { type ReactElement, useCallback, useEffect, useRef, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -88,6 +88,20 @@ type Props = {
    *  badge ticks down on each gesture. Forwarded straight through to
    *  SwipeOfferStack. Optional so older callers / tests keep working. */
   onCardConsumed?: (variantId: string) => void;
+  /** Issue #177 — running set of variant_ids the user has already
+   *  swiped through in this session. Forwarded to the backend on
+   *  every /offers/alternatives fetch as `seen_variant_ids` so the
+   *  rotation contract kicks in (no more looping the same 3 cards).
+   *  Optional; defaults to empty so older callers / tests keep working. */
+  seenVariantIds?: string[];
+  /** Issue #177 — fired after a round completes (settle or all-passed)
+   *  with every variant_id the user actually saw. App.tsx accumulates
+   *  these into the global session-local `seenVariantIds` Set. Optional. */
+  onConsumeVariants?: (variantIds: string[]) => void;
+  /** Issue #177 — manual "Refresh" affordance on the exhausted end
+   *  state. Clears the session seen-set so the next fetch starts from
+   *  the top of the pool again. Optional. */
+  onResetSeenVariants?: () => void;
 };
 
 export function DiscoverView({
@@ -99,6 +113,9 @@ export function DiscoverView({
   onSavePass,
   onVariantsResolved,
   onCardConsumed,
+  seenVariantIds,
+  onConsumeVariants,
+  onResetSeenVariants,
 }: Props): ReactElement {
   const insets = useSafeAreaInsets();
   const [variants, setVariants] = useState<AlternativeOffer[] | null>(null);
@@ -106,6 +123,14 @@ export function DiscoverView({
   // Re-mount key so flipping the lens / completing a round resets
   // SwipeOfferStack's internal index without a stale top-card peek.
   const [stackKey, setStackKey] = useState(0);
+  // Issue #177 — last response's exhausted flag. When true AND the
+  // backend returned variants=[], we render the dedicated end state
+  // ("You've seen everything") instead of the generic empty copy.
+  // Tracking this separately from `variants` lets us distinguish
+  // "this lens has nothing right now" (variants=[], exhausted=false)
+  // from "you've already swiped through every available card"
+  // (variants=[], exhausted=true).
+  const [exhausted, setExhausted] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
   // Snapshot the latest history so the fetch picks up the most-recent
@@ -123,6 +148,22 @@ export function DiscoverView({
   useEffect(() => {
     onVariantsResolvedRef.current = onVariantsResolved;
   }, [onVariantsResolved]);
+  // Issue #177 — same ref pattern for the running seen-set. We DON'T
+  // want the fetch effect to re-fire on every swipe (each swipe grows
+  // the set, but the next fetch lands at the END of the round, not on
+  // every consumption). The ref lets the fetch read the latest
+  // seen-set at request time while keeping the dep array tight to
+  // things that should ACTUALLY trigger a new round: city / lens /
+  // fetchToken (Refresh CTA / round-completion).
+  const seenVariantIdsRef = useRef<string[]>(seenVariantIds ?? []);
+  useEffect(() => {
+    seenVariantIdsRef.current = seenVariantIds ?? [];
+  }, [seenVariantIds]);
+  // Issue #177 — manual fetch trigger. Bumped after every round
+  // completion + when the user taps the Refresh CTA on the exhausted
+  // end state. Listed in the fetch effect's dep array so a Refresh
+  // re-fires the request even when city + lens haven't changed.
+  const [fetchToken, setFetchToken] = useState(0);
 
   useEffect(() => {
     abortRef.current?.abort();
@@ -131,6 +172,7 @@ export function DiscoverView({
     setLoading(true);
 
     const history = swipeHistoryRef.current;
+    const seenIds = seenVariantIdsRef.current;
     fetchOfferAlternatives({
       lens,
       city: citySlug,
@@ -139,14 +181,25 @@ export function DiscoverView({
       // honest about what's actually consumed.
       preferenceContext:
         lens === "for_you" && history.length > 0 ? history : undefined,
+      // Issue #177 — rotation contract. Forward the running seen-set
+      // so the backend filters the candidate pool BEFORE picking this
+      // round. Without this, every re-fetch returned the same top-3
+      // and the swipe stack felt like an infinite loop.
+      seenVariantIds: seenIds.length > 0 ? seenIds : undefined,
       signal: ctrl.signal,
     })
       .then((res) => {
         if (ctrl.signal.aborted) return;
         if (res === null) {
+          // Network / parse failure (or pre-#177 backend with empty
+          // variants and no metadata). Treat as "no offers" — exhausted
+          // stays false so the simpler "No X picks right now" copy
+          // renders instead of the rotation end state.
           setVariants(null);
+          setExhausted(false);
         } else {
           setVariants(res.variants);
+          setExhausted(res.exhausted === true);
           setStackKey((k) => k + 1);
           // Issue #156 phase 4 — feed the resolved variants up to App.tsx
           // so the unread-special detector can arm the Discover-tab red
@@ -161,7 +214,7 @@ export function DiscoverView({
       });
 
     return () => ctrl.abort();
-  }, [citySlug, lens]);
+  }, [citySlug, lens, fetchToken]);
 
   // Dwell-aware history-append helpers. Mirrors the old
   // WalletSheetContent (#137) logic so the For-you re-rank keeps
@@ -188,6 +241,14 @@ export function DiscoverView({
         const entries = buildPriorSwipes(dwellByVariant, variant, variants);
         if (entries.length > 0) onAppendSwipeHistory(entries);
       }
+      // Issue #177 — record every variant the user actually saw this
+      // round into the global seen-set. The keys of dwellByVariant are
+      // the source of truth ("a card the user dwelled on" === "a card
+      // the user saw"); they include both the right-swiped settle and
+      // every preceding left-swiped pass. The next /offers/alternatives
+      // fetch forwards this set so the backend rotates the pool.
+      const seenIds = Object.keys(dwellByVariant);
+      if (seenIds.length > 0) onConsumeVariants?.(seenIds);
       // Issue #154 — right-swipe is now BOTH a preference signal AND
       // a save-to-wallet commit. The pass lands in the Wallet tab; the
       // user picks WHEN to redeem by tapping it there. This decouples
@@ -195,8 +256,13 @@ export function DiscoverView({
       // landing the user in a redeem flow they didn't mean.
       onSavePass(variant);
       setStackKey((k) => k + 1);
+      // Issue #177 — settle is the natural moment to fetch the next
+      // round (the user committed to one and the stack is now empty).
+      // Bumping fetchToken re-fires the effect; the seen-set is read
+      // from the ref, so the new round excludes everything just swiped.
+      setFetchToken((t) => t + 1);
     },
-    [variants, onAppendSwipeHistory, onSavePass, buildPriorSwipes],
+    [variants, onAppendSwipeHistory, onSavePass, onConsumeVariants, buildPriorSwipes],
   );
 
   const handleAllPassed = useCallback(
@@ -205,10 +271,27 @@ export function DiscoverView({
         const entries = buildPriorSwipes(dwellByVariant, null, variants);
         if (entries.length > 0) onAppendSwipeHistory(entries);
       }
+      // Issue #177 — same consumption signal as handleSettle, minus the
+      // save-to-wallet commit (the user passed on every card).
+      const seenIds = Object.keys(dwellByVariant);
+      if (seenIds.length > 0) onConsumeVariants?.(seenIds);
       setStackKey((k) => k + 1);
+      // Issue #177 — re-fetch the next round so the swipe surface keeps
+      // moving instead of going empty after the user clears the stack
+      // by passing on every card.
+      setFetchToken((t) => t + 1);
     },
-    [variants, onAppendSwipeHistory, buildPriorSwipes],
+    [variants, onAppendSwipeHistory, onConsumeVariants, buildPriorSwipes],
   );
+
+  // Issue #177 — manual "Refresh" CTA on the exhausted end state.
+  // Asks App.tsx to clear the global seen-set, then bumps fetchToken
+  // so the effect re-fires with `seen_variant_ids=[]` and the backend
+  // returns the top of the pool again.
+  const handleRefresh = useCallback(() => {
+    onResetSeenVariants?.();
+    setFetchToken((t) => t + 1);
+  }, [onResetSeenVariants]);
 
   return (
     <View style={[...s("flex-1 bg-cream"), { paddingTop: insets.top + 10 }]}>
@@ -261,7 +344,19 @@ export function DiscoverView({
           lens={lens}
           onSettle={handleSettle}
           onAllPassed={handleAllPassed}
+          // Issue #175 — per-card-consume signal forwarded down to
+          // SwipeOfferStack. App.tsx subscribes to decrement its
+          // unseen-special set so the Discover-tab counted badge ticks
+          // down on every swipe (left or right).
           onCardConsumed={onCardConsumed}
+          // Issue #177 — render-state inputs for the new exhausted end
+          // state. `exhausted=true + variants=[]` triggers the rotation
+          // copy ("You've seen everything") with Refresh + lens-switch
+          // CTAs; `exhausted=false + variants=[]` keeps the simpler
+          // "No X picks right now" copy.
+          exhausted={exhausted}
+          citySlug={citySlug}
+          onRefresh={handleRefresh}
         />
       </View>
     </View>
@@ -284,6 +379,9 @@ function DiscoverBody({
   onSettle,
   onAllPassed,
   onCardConsumed,
+  exhausted,
+  citySlug,
+  onRefresh,
 }: {
   loading: boolean;
   variants: AlternativeOffer[] | null;
@@ -291,8 +389,16 @@ function DiscoverBody({
   lens: LensKey;
   onSettle: (variant: AlternativeOffer, dwellByVariant: DwellByVariant) => void;
   onAllPassed: (dwellByVariant: DwellByVariant) => void;
-  /** Issue #175 — per-swipe consumed signal forwarded down. */
+  /** Issue #175 — per-swipe consumed signal forwarded to SwipeOfferStack. */
   onCardConsumed?: (variantId: string) => void;
+  /** Issue #177 — true when the backend signalled the seen-set covers
+   *  the entire candidate pool. Only flips the empty-state copy. */
+  exhausted: boolean;
+  /** Issue #177 — passed through so the exhausted end state can show
+   *  "all offers in {lens} for {city} today." */
+  citySlug: string;
+  /** Issue #177 — Refresh CTA on the exhausted end state. */
+  onRefresh: () => void;
 }): ReactElement {
   // showSkeleton drives the cross-fade. We pin it true while loading
   // and the variants haven't landed yet — once the first variant arrives,
@@ -346,6 +452,16 @@ function DiscoverBody({
               onCardConsumed={onCardConsumed}
               cardScale="discover"
             />
+          ) : exhausted ? (
+            // Issue #177 — explicit rotation end state. The user has
+            // swiped through every available card in the city's pool;
+            // this is the moment we stop pretending and tell them so,
+            // with a Refresh affordance and a hint to switch lenses.
+            <DiscoverExhaustedState
+              lens={lens}
+              citySlug={citySlug}
+              onRefresh={onRefresh}
+            />
           ) : (
             <DiscoverEmptyState lens={lens} loading={loading} />
           )}
@@ -353,6 +469,117 @@ function DiscoverBody({
       ) : null}
     </View>
   );
+}
+
+/**
+ * Issue #177 — rotation end state. Rendered when the backend returns
+ * variants=[] AND exhausted=true, signalling the running seen-set
+ * covers the entire candidate pool for this lens / city.
+ *
+ * Layout: centered SF Symbol + headline + subhead + two side-by-side
+ * CTAs ("Try another lens" + "Refresh"). The lens chip row above stays
+ * mounted so the user can switch lenses without dismissing this view.
+ *
+ * Copy follows the merchant-facing rules: no issue numbers, no
+ * implementation details, just the user-facing outcome.
+ */
+function DiscoverExhaustedState({
+  lens,
+  citySlug,
+  onRefresh,
+}: {
+  lens: LensKey;
+  citySlug: string;
+  onRefresh: () => void;
+}): ReactElement {
+  return (
+    <View
+      style={[
+        ...s("flex-1 items-center justify-center"),
+        { paddingHorizontal: 24 },
+      ]}
+    >
+      <SymbolView
+        name="checkmark.circle.fill"
+        tintColor="#6f3f2c"
+        size={44}
+        weight="medium"
+        style={{ width: 44, height: 44 }}
+      />
+      <Text
+        style={[
+          ...s("mt-4 text-2xl font-black text-ink text-center"),
+          { letterSpacing: -0.4 },
+        ]}
+      >
+        You&rsquo;ve seen everything
+      </Text>
+      <Text style={s("mt-2 text-sm text-cocoa text-center")}>
+        All offers in <Text style={s("font-bold")}>{lensLabel(lens)}</Text> for{" "}
+        <Text style={s("font-bold")}>{cityDisplayName(citySlug)}</Text> today.
+        Try another lens above, or refresh to start over.
+      </Text>
+      <View style={[...s("mt-6 flex-row"), { gap: 12 }]}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Try another lens"
+          // Tap-target is the lens chip row at the top of Discover; the
+          // button itself is a hint, not a separate action. We let the
+          // user keep their finger near the bottom of the screen
+          // (where the swipe stack normally lives) so this still feels
+          // like a forward path even when no card is on screen.
+          onPress={onRefresh}
+          style={({ pressed }) => [
+            ...s("rounded-full items-center justify-center"),
+            {
+              width: 140,
+              height: 44,
+              backgroundColor: "rgba(23, 18, 15, 0.06)",
+              borderWidth: 1,
+              borderColor: "rgba(23, 18, 15, 0.12)",
+              opacity: pressed ? 0.7 : 1,
+            },
+          ]}
+        >
+          <Text style={s("text-sm font-bold text-ink")}>Try another lens</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Refresh and start over"
+          onPress={onRefresh}
+          style={({ pressed }) => [
+            ...s("rounded-full items-center justify-center"),
+            {
+              width: 140,
+              height: 44,
+              backgroundColor: "#f2542d",
+              opacity: pressed ? 0.85 : 1,
+            },
+          ]}
+        >
+          <Text style={s("text-sm font-bold text-white")}>Refresh</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+/**
+ * Cheap city-slug → display-name map for the exhausted end-state copy.
+ * Lives here (not in cityProfiles.ts) so DiscoverView stays decoupled
+ * from the demo profile shape — the only thing it needs is a friendly
+ * name to inline into a sentence. Falls back to a Title-cased slug for
+ * any unknown id (defensive — today there are exactly 2).
+ */
+function cityDisplayName(slug: string): string {
+  switch (slug.toLowerCase()) {
+    case "berlin":
+      return "Berlin";
+    case "zurich":
+      return "Zurich";
+    default:
+      return slug.charAt(0).toUpperCase() + slug.slice(1);
+  }
 }
 
 function DiscoverEmptyState({

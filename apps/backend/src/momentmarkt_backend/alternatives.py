@@ -45,7 +45,7 @@ from datetime import datetime
 from typing import Any, Literal
 
 from .genui import validate_widget_node
-from .merchants import get_merchants
+from .merchants import current_active_offer, get_merchants
 from .negotiation_agent import (
     MerchantBounds,
     NegotiationContext,
@@ -386,7 +386,7 @@ def _candidate_merchants(
     anchor_category = anchor["category"]
 
     def _has_offer(m: dict[str, Any]) -> bool:
-        return m.get("active_offer") is not None
+        return current_active_offer(m) is not None
 
     def _sorted_pool(category: str) -> list[dict[str, Any]]:
         return sorted(
@@ -499,7 +499,7 @@ def _build_widget_spec(
     """
     name = merchant["display_name"]
     category = merchant.get("category", "")
-    active = merchant.get("active_offer") or {}
+    active = current_active_offer(merchant) or {}
     headline = active.get("headline") or f"{name} — local pick"
     label = _format_label_from_offer(active)
     body = subhead or pick_fallback_subhead(
@@ -645,7 +645,7 @@ def build_alternatives_with_meta(
 
     variants: list[dict[str, Any]] = []
     for position, merchant in enumerate(picks):
-        active = merchant.get("active_offer") or {}
+        active = current_active_offer(merchant) or {}
         label = _format_label_from_offer(active)
         pct = _discount_pct_from_offer(active)
         headline = active.get("headline") or f"{merchant['display_name']} — local pick"
@@ -666,6 +666,7 @@ def build_alternatives_with_meta(
                 "headline": headline,
                 "discount_pct": pct,
                 "discount_label": label,
+                "expires_at_iso": active.get("expires_at_iso"),
                 "widget_spec": widget_spec,
                 # Issue #156: the first card of every fresh fetch is the
                 # "special surface" — the mobile overlays a "⚡ Just for
@@ -693,7 +694,7 @@ def _build_variant_dict(
     which curation strategy chose the merchant. The mobile renderer treats
     each variant as a swipeable card; the lens just decides ordering.
     """
-    active = merchant.get("active_offer") or {}
+    active = current_active_offer(merchant) or {}
     label = _format_label_from_offer(active)
     pct = _discount_pct_from_offer(active)
     headline = active.get("headline") or f"{merchant['display_name']} — local pick"
@@ -709,6 +710,7 @@ def _build_variant_dict(
         "headline": headline,
         "discount_pct": pct,
         "discount_label": label,
+        "expires_at_iso": active.get("expires_at_iso"),
         "widget_spec": widget_spec,
         # Issue #156: default False — caller (the lens builder) flips
         # the top-of-pool card's flag to True after the list is sorted.
@@ -727,7 +729,7 @@ def _city_with_offers(city_slug: str) -> list[dict[str, Any]]:
     catalog.
     """
     catalog = get_merchants(city_slug) or []
-    return [m for m in catalog if m.get("active_offer") is not None]
+    return [m for m in catalog if current_active_offer(m) is not None]
 
 
 def _resolve_weather_trigger(city_slug: str) -> str:
@@ -863,7 +865,7 @@ def build_alternatives_for_lens_with_meta(
         # Stable sort: distance tiebreaker first, then discount desc.
         filtered_pool.sort(key=lambda m: m.get("distance_m", 10_000))
         filtered_pool.sort(
-            key=lambda m: _discount_pct_from_offer(m.get("active_offer")),
+            key=lambda m: _discount_pct_from_offer(current_active_offer(m)),
             reverse=True,
         )
     else:

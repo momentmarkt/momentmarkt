@@ -47,7 +47,12 @@ import {
   type PriorSwipe,
 } from "./src/lib/api";
 import { lightTap } from "./src/lib/haptics";
-import { makeSavedPassId, type SavedPass } from "./src/types/savedPass";
+import {
+  isSavedPassExpired,
+  makeSavedPassId,
+  savedPassExpiresAtIso,
+  type SavedPass,
+} from "./src/types/savedPass";
 import { useSignals } from "./src/lib/useSignals";
 import { cityProfiles, type DemoCityId, type DemoCityProfile } from "./src/demo/cityProfiles";
 import { miaRainOffer } from "./src/demo/miaOffer";
@@ -197,6 +202,24 @@ export default function App() {
   // redemption, the pass is removed (handled in handleRedeemComplete).
   // Session-local — see types/savedPass.ts for the persistence note.
   const [savedPasses, setSavedPasses] = useState<SavedPass[]>([]);
+  const activeSavedPasses = useMemo(
+    () => savedPasses.filter((pass) => !isSavedPassExpired(pass)),
+    [savedPasses],
+  );
+  useEffect(() => {
+    if (savedPasses.length === 0) return undefined;
+    const nextExpiryMs = Math.min(
+      ...savedPasses
+        .map((pass) => Date.parse(pass.expires_at_iso))
+        .filter((value) => Number.isFinite(value)),
+    );
+    if (!Number.isFinite(nextExpiryMs)) return undefined;
+    const delayMs = Math.max(0, nextExpiryMs - Date.now() + 1000);
+    const timer = setTimeout(() => {
+      setSavedPasses((prev) => prev.filter((pass) => !isSavedPassExpired(pass)));
+    }, Math.min(delayMs, 2_147_483_647));
+    return () => clearTimeout(timer);
+  }, [savedPasses]);
   // Tracks which saved pass (if any) the current redeem flow originated
   // from, so handleRedeemComplete can pop it from the list. Null for the
   // legacy demo flow + the merchant-tap-from-Browse-list flow (those
@@ -316,23 +339,24 @@ export default function App() {
     setStep("silent");
   }, []);
 
-  // Issue #154 — saved-pass save/remove/redeem handlers. Save fires
-  // from the Discover swipe-right; redeem fires from the Wallet tab
-  // tap; remove fires from the Wallet tab long-press confirmation.
+  // Issue #182 — saved-pass lifecycle. Save fires from Discover swipe-right,
+  // expires automatically after 3 days, and redeem still removes the pass.
   const handleSavePass = useCallback((variant: AlternativeOffer) => {
+    const savedAtIso = new Date().toISOString();
     const newPass: SavedPass = {
       id: makeSavedPassId(variant.variant_id),
       variant,
-      saved_at_iso: new Date().toISOString(),
+      saved_at_iso: savedAtIso,
+      expires_at_iso: savedPassExpiresAtIso(savedAtIso),
     };
     setSavedPasses((prev) => [newPass, ...prev]);
   }, []);
 
-  const handleRemovePass = useCallback((id: string) => {
-    setSavedPasses((prev) => prev.filter((p) => p.id !== id));
-  }, []);
-
   const handleRedeemPass = useCallback((pass: SavedPass) => {
+    if (isSavedPassExpired(pass)) {
+      setSavedPasses((prev) => prev.filter((p) => p.id !== pass.id));
+      return;
+    }
     // Mirror the merchant-tap path: settle on the variant, jump to
     // step="offer" so SheetBody renders the focused widget. The user
     // then taps the widget CTA → step="redeeming" → step="success" →
@@ -848,9 +872,8 @@ export default function App() {
               {viewMode === "wallet" ? (
                 <View style={StyleSheet.absoluteFill}>
                   <WalletView
-                    passes={savedPasses}
+                    passes={activeSavedPasses}
                     onPassTap={handleRedeemPass}
-                    onRemovePass={handleRemovePass}
                     onGoToDiscover={handleGoToDiscover}
                   />
                 </View>
@@ -889,7 +912,13 @@ export default function App() {
               <BottomNavBar
                 activeView={viewMode}
                 onViewChange={handleViewChange}
+                // Issue #175 — counted badges driven by App.tsx state.
+                // Discover surfaces the running count of unseen
+                // specials (decrements per swipe via markSpecialSeen);
+                // Wallet surfaces only non-expired saved passes. 0 hides
+                // the badge.
                 discoverBadgeCount={unseenSpecialCount}
+                walletBadgeCount={activeSavedPasses.length}
               />
             ) : null}
           </View>
@@ -917,6 +946,74 @@ export default function App() {
           onRedeem={handleRedeemFromMerchantDetail}
           onGoToDiscover={handleGoToDiscoverFromDetail}
         />
+
+        {/* Issue #182 — redeem flow as full-screen takeover. Pulled out
+            of SheetBody (Browse-only BottomSheet) so tapping a saved
+            pass from Wallet no longer yanks the user into Browse to
+            render the redeem. Slides up over ANY view. App.tsx owns
+            per-step content via children; overlay provides chrome
+            (slide animation + chevron + swipe-down dismiss). */}
+        <RedeemOverlay
+          visible={
+            step === "offer" ||
+            step === "surfacing" ||
+            step === "redeeming" ||
+            step === "success"
+          }
+          onClose={handleResetToSilent}
+        >
+          {step === "offer" || step === "surfacing" ? (
+            settledVariant ? (
+              <View style={[...s("flex-1 px-5 py-6")]}>
+                <View style={[...s("mb-3 rounded-2xl bg-spark px-4 py-3")]}>
+                  <Text
+                    style={s(
+                      "text-xs font-bold uppercase tracking-[2px] text-white",
+                    )}
+                  >
+                    Your pick
+                  </Text>
+                  <Text
+                    style={s(
+                      "mt-1 text-base font-black leading-6 text-white",
+                    )}
+                  >
+                    {`${settledVariant.discount_label} · ${settledVariant.headline}`}
+                  </Text>
+                </View>
+                <WidgetRenderer
+                  node={settledVariant.widget_spec}
+                  onRedeem={handleAdvanceFromOffer}
+                />
+              </View>
+            ) : (
+              <View style={[...s("flex-1 px-5 py-6")]}>
+                <OfferStack
+                  widgetVariant={widgetVariant}
+                  highIntent={highIntent}
+                  aggressiveHeadline={aggressiveHeadline}
+                  onWidgetVariantChange={setWidgetVariant}
+                  onWidgetCta={handleAdvanceFromOffer}
+                />
+              </View>
+            )
+          ) : step === "redeeming" ? (
+            <View style={s("flex-1 bg-cream")}>
+              <RedeemFlow
+                offer={miaRainOffer}
+                onComplete={handleRedeemComplete}
+                onCancel={handleResetToSilent}
+              />
+            </View>
+          ) : step === "success" ? (
+            <View style={s("flex-1 bg-cream")}>
+              <CheckoutSuccessScreen
+                cashbackEur={FALLBACK_CASHBACK_EUR}
+                onDone={handleResetToSilent}
+              />
+            </View>
+          ) : null}
+        </RedeemOverlay>
       </View>
     </GestureHandlerRootView>
   );

@@ -245,16 +245,26 @@ export function SwipeOfferStack({
     (variant: AlternativeOffer) => {
       recordDwell(variant.variant_id);
       lightTap();
+      // Issue #175 — count the right-swipe as "card consumed" so the
+      // Discover-tab unseen-special badge decrements as the user
+      // actually swipes through specials. Fires BEFORE onSettle so the
+      // parent state mutations land in the same React batch.
+      onCardConsumed?.(variant.variant_id);
       // eslint-disable-next-line no-console
       console.log("settled", variant.variant_id, dwellRef.current);
       onSettle(variant, { ...dwellRef.current });
     },
-    [onSettle, recordDwell],
+    [onSettle, recordDwell, onCardConsumed],
   );
 
   const handleLeft = useCallback(
     (variant: AlternativeOffer) => {
       recordDwell(variant.variant_id);
+      // Issue #175 — left-swipe also counts as "consumed" — the user
+      // saw the card and explicitly chose to skip. Fires for every
+      // left-swipe in the round, including the final one that triggers
+      // onAllPassed.
+      onCardConsumed?.(variant.variant_id);
       const next = index + 1;
       if (next >= variants.length) {
         // eslint-disable-next-line no-console
@@ -265,7 +275,14 @@ export function SwipeOfferStack({
       promoteStack();
       setIndex(next);
     },
-    [index, variants.length, onAllPassed, recordDwell, promoteStack],
+    [
+      index,
+      variants.length,
+      onAllPassed,
+      recordDwell,
+      promoteStack,
+      onCardConsumed,
+    ],
   );
 
   // Programmatic-fling handle on the top card so the Tinder-style tap

@@ -22,6 +22,7 @@ Cafe Bondi's offer is locked to the rain-trigger demo copy.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 # Allowed categories. Keep in sync with the API contract documented in
@@ -37,6 +38,9 @@ CATEGORIES = (
     "ice_cream",
     "florist",
 )
+
+CATALOG_NOW_ISO = "2026-04-26T12:00:00+02:00"
+CATALOG_WALLET_EXPIRES_DATE = "2026-04-29"
 
 # Single-glyph avatars by category. The mobile card uses these as a fallback
 # when no merchant photo is available (which is always, for this demo).
@@ -58,12 +62,48 @@ CATEGORY_EMOJI: dict[str, str] = {
 _BONDI_OFFER = {
     "headline": "20% off rainy-day filter coffee",
     "discount": "−20%",
-    "expires_at_iso": "2026-04-26T15:00:00+02:00",
+    "expires_at_iso": "2026-04-29T15:00:00+02:00",
 }
 
 
 def _offer(headline: str, discount: str, expires: str = "2026-04-26T18:00:00+02:00") -> dict[str, str]:
-    return {"headline": headline, "discount": discount, "expires_at_iso": expires}
+    return {"headline": headline, "discount": discount, "expires_at_iso": _wallet_expiry(expires)}
+
+
+def _wallet_expiry(expires: str) -> str:
+    if expires.startswith("2026-04-26T"):
+        return f"{CATALOG_WALLET_EXPIRES_DATE}{expires[10:]}"
+    return expires
+
+
+def active_offer_is_current(
+    active_offer: dict[str, Any] | None,
+    now_iso: str = CATALOG_NOW_ISO,
+) -> bool:
+    if not active_offer:
+        return False
+    expires = active_offer.get("expires_at_iso")
+    if not isinstance(expires, str) or not expires:
+        return False
+    try:
+        return datetime.fromisoformat(expires) > datetime.fromisoformat(now_iso)
+    except ValueError:
+        return False
+
+
+def current_active_offer(
+    merchant: dict[str, Any],
+    now_iso: str = CATALOG_NOW_ISO,
+) -> dict[str, Any] | None:
+    offer = merchant.get("active_offer")
+    return offer if active_offer_is_current(offer, now_iso=now_iso) else None
+
+
+def _with_current_active_offer(merchant: dict[str, Any]) -> dict[str, Any]:
+    item = dict(merchant)
+    offer = current_active_offer(merchant)
+    item["active_offer"] = dict(offer) if offer else None
+    return item
 
 
 # ---------------------------------------------------------------------------
@@ -777,7 +817,7 @@ def search_merchants(
             ]
     if limit > 0:
         filtered = filtered[:limit]
-    return filtered
+    return [_with_current_active_offer(m) for m in filtered]
 
 
 def emoji_for(category: str) -> str:

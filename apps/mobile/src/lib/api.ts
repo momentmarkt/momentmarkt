@@ -583,6 +583,7 @@ export type AlternativeOffer = {
   discount_pct: number;
   /** Display string like "−10%" — already formatted by the backend. */
   discount_label: string;
+  expires_at_iso?: string;
   /** Validated downstream by widgetSchema.ts (unknown shape on the wire). */
   widget_spec: unknown;
   /**
@@ -606,6 +607,21 @@ export type AlternativesResponse = {
    *  got. Issue #137. */
   lens?: LensKey;
   variants: AlternativeOffer[];
+  /**
+   * Issue #177 — rotation contract. The backend filters
+   * `seen_variant_ids` out of the candidate pool BEFORE picking the
+   * round, so passing the running set of swiped ids guarantees the
+   * mobile keeps getting fresh cards instead of looping the same 3
+   * variants forever. `total_candidates` is the lens's full pool size
+   * (today, for this city). `exhausted=true` means the seen-set covers
+   * the entire non-anchor pool — the backend returned `variants=[]`
+   * because there's nothing fresh left to show. Both fields are
+   * optional on the wire so an old backend response still parses; the
+   * UI treats the absence as "rotation contract not enforced" and
+   * keeps the legacy behaviour.
+   */
+  total_candidates?: number;
+  exhausted?: boolean;
 };
 
 /**
@@ -658,6 +674,15 @@ export type FetchOfferAlternativesOptions = {
   lens?: LensKey;
   city?: string;
   preferenceContext?: PriorSwipe[];
+  /**
+   * Issue #177 — running set of variant_ids the user has already
+   * swiped through this session. Forwarded to the backend as
+   * `seen_variant_ids` so the candidate pool is filtered BEFORE the
+   * round is picked — the mobile no longer loops the same 3 cards on
+   * a re-fetch, it gets the next 3 in the rotation. Defaults to empty;
+   * callers that don't track seen ids keep the legacy behaviour.
+   */
+  seenVariantIds?: string[];
   signal?: AbortSignal;
 };
 
@@ -674,7 +699,14 @@ export type FetchOfferAlternativesOptions = {
 export async function fetchOfferAlternatives(
   options: FetchOfferAlternativesOptions = {},
 ): Promise<AlternativesResponse | null> {
-  const { merchantId, lens, city, preferenceContext, signal } = options;
+  const {
+    merchantId,
+    lens,
+    city,
+    preferenceContext,
+    seenVariantIds,
+    signal,
+  } = options;
   try {
     const body: Record<string, unknown> = {
       n: 3,
@@ -697,6 +729,14 @@ export async function fetchOfferAlternatives(
         dwell_ms: Math.max(0, Math.round(p.dwell_ms)),
         swiped_right: p.swiped_right,
       }));
+    }
+    // Issue #177 — forward the running seen-set so the backend filters
+    // the candidate pool BEFORE picking this round. Empty list is
+    // omitted (mirrors the backend default) so old fixture responses
+    // and call sites that don't track seen ids stay byte-identical to
+    // pre-#177 traffic.
+    if (seenVariantIds && seenVariantIds.length > 0) {
+      body.seen_variant_ids = seenVariantIds;
     }
     const r = await fetch(`${apiBase()}/offers/alternatives`, {
       method: "POST",
@@ -735,6 +775,8 @@ export async function fetchOfferAlternatives(
         headline: v.headline,
         discount_pct: v.discount_pct,
         discount_label: v.discount_label,
+        expires_at_iso:
+          typeof v.expires_at_iso === "string" ? v.expires_at_iso : undefined,
         widget_spec: v.widget_spec,
         // Issue #156 — optional flag; absent on old backends, present on
         // post-#156 backends. Default to false so consumers can read it
@@ -744,11 +786,30 @@ export async function fetchOfferAlternatives(
             ? v.is_special_surface
             : false,
       }));
-    if (variants.length === 0) return null;
+    // Issue #177 — keep returning the response when variants is empty
+    // IF the backend is signalling an explicit exhausted / total_candidates
+    // contract. The DiscoverView renders a dedicated end state in that
+    // case (instead of the legacy "fall back to focused offer view").
+    // Pre-#177 backends that just return `{variants: []}` with no
+    // metadata still collapse to null so legacy call sites take the
+    // existing fallback path.
+    const exhausted =
+      typeof data.exhausted === "boolean" ? data.exhausted : undefined;
+    const totalCandidates =
+      typeof data.total_candidates === "number" ? data.total_candidates : undefined;
+    if (
+      variants.length === 0 &&
+      exhausted === undefined &&
+      totalCandidates === undefined
+    ) {
+      return null;
+    }
     return {
       merchant_id: typeof data.merchant_id === "string" ? data.merchant_id : null,
       lens: typeof data.lens === "string" ? (data.lens as LensKey) : undefined,
       variants,
+      total_candidates: totalCandidates,
+      exhausted,
     };
   } catch {
     return null;

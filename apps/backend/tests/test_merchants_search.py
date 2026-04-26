@@ -7,6 +7,7 @@ Covers the API contract agreed with the mobile agent:
 from fastapi.testclient import TestClient
 
 from momentmarkt_backend.main import app
+from momentmarkt_backend.merchants import active_offer_is_current
 
 
 client = TestClient(app)
@@ -118,7 +119,26 @@ def test_cafe_bondi_active_offer_matches_rain_trigger_demo() -> None:
     assert offer is not None
     assert offer["headline"] == "20% off rainy-day filter coffee"
     assert offer["discount"] == "−20%"
-    assert offer["expires_at_iso"] == "2026-04-26T15:00:00+02:00"
+    assert offer["expires_at_iso"] == "2026-04-29T15:00:00+02:00"
+
+
+def test_catalog_offer_expiry_helper_respects_expires_at_iso() -> None:
+    assert active_offer_is_current(
+        {
+            "headline": "Still live",
+            "discount": "-10%",
+            "expires_at_iso": "2026-04-29T12:00:01+02:00",
+        },
+        now_iso="2026-04-26T12:00:00+02:00",
+    )
+    assert not active_offer_is_current(
+        {
+            "headline": "Expired",
+            "discount": "-10%",
+            "expires_at_iso": "2026-04-26T11:59:59+02:00",
+        },
+        now_iso="2026-04-26T12:00:00+02:00",
+    )
 
 
 def test_limit_caps_returned_merchants() -> None:

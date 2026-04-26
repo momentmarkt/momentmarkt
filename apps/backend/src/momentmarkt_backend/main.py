@@ -644,6 +644,7 @@ class AlternativeOffer(BaseModel):
     headline: str
     discount_pct: float
     discount_label: str
+    expires_at_iso: str | None = None
     widget_spec: dict[str, Any]
     is_special_surface: bool = False
     nominal_discount_pct: float | None = None

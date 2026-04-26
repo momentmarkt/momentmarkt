@@ -22,7 +22,21 @@ export type SavedPass = {
   id: string;
   variant: AlternativeOffer;
   saved_at_iso: string;
+  expires_at_iso: string;
 };
+
+export const SAVED_PASS_TTL_MS = 3 * 24 * 60 * 60 * 1000;
+
+export function savedPassExpiresAtIso(savedAtIso: string): string {
+  const savedAtMs = Date.parse(savedAtIso);
+  const base = Number.isFinite(savedAtMs) ? savedAtMs : Date.now();
+  return new Date(base + SAVED_PASS_TTL_MS).toISOString();
+}
+
+export function isSavedPassExpired(pass: SavedPass, nowMs = Date.now()): boolean {
+  const expiresAtMs = Date.parse(pass.expires_at_iso);
+  return Number.isFinite(expiresAtMs) && expiresAtMs <= nowMs;
+}
 
 /**
  * Generate a SavedPass id without pulling in a uuid dep. Combines the
