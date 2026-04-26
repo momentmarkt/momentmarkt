@@ -291,7 +291,7 @@ code {
 .section-body {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   max-width: 1180px;
   margin: 0 auto;
   animation: section-fade 320ms cubic-bezier(0.16, 0.84, 0.3, 1) both;
@@ -3136,10 +3136,10 @@ code {
   overflow: hidden;
   background: linear-gradient(135deg, #5d3324 0%, var(--cocoa) 55%, #7a4030 100%);
   color: #fff8ee;
-  padding: 28px 32px;
-  border-radius: 20px;
+  padding: 20px 26px;
+  border-radius: 18px;
   box-shadow:
-    0 18px 44px rgba(111, 63, 44, 0.22),
+    0 14px 36px rgba(111, 63, 44, 0.2),
     inset 0 1px 0 rgba(255, 248, 238, 0.06);
   isolation: isolate;
 }
@@ -3201,12 +3201,12 @@ code {
 }
 
 .briefing h3 {
-  font-size: 1.55rem;
+  font-size: 1.32rem;
   margin: 0;
   line-height: 1.25;
   font-weight: 800;
   letter-spacing: -0.015em;
-  max-width: 36ch;
+  max-width: 38ch;
 }
 
 .briefing h3 strong {
@@ -3295,11 +3295,11 @@ code {
 .today-curve {
   background: #ffffff;
   border: 1px solid var(--hairline);
-  border-radius: 16px;
-  padding: 18px 20px 14px;
+  border-radius: 14px;
+  padding: 14px 18px 10px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .today-curve-head {
@@ -3318,10 +3318,10 @@ code {
 }
 
 .today-curve-head h2 {
-  font-size: 1.15rem;
+  font-size: 1rem;
   font-weight: 800;
   letter-spacing: -0.01em;
-  margin: 4px 0 4px;
+  margin: 2px 0 2px;
   color: var(--ink);
 }
 
@@ -3369,11 +3369,11 @@ code {
 .roi-strip {
   background: linear-gradient(135deg, var(--cream-soft), #ffffff 70%);
   border: 1px solid var(--hairline);
-  border-radius: 16px;
-  padding: 18px 20px 14px;
+  border-radius: 14px;
+  padding: 14px 18px 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .roi-strip-head .eyebrow {
@@ -3385,10 +3385,10 @@ code {
 }
 
 .roi-strip-head h2 {
-  font-size: 1.7rem;
+  font-size: 1.4rem;
   font-weight: 900;
   letter-spacing: -0.02em;
-  margin: 4px 0 2px;
+  margin: 2px 0 2px;
   color: var(--good);
 }
 
@@ -3503,11 +3503,11 @@ code {
 
 .active-mini {
   display: grid;
-  grid-template-columns: 88px minmax(0, 1fr);
+  grid-template-columns: 76px minmax(0, 1fr);
   align-items: center;
-  gap: 14px;
-  padding: 14px;
-  border-radius: 14px;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
   background: #ffffff;
   border: 1px solid var(--hairline);
   cursor: pointer;
@@ -3579,8 +3579,8 @@ code {
 
 .burndown {
   position: relative;
-  width: 80px;
-  height: 80px;
+  width: 68px;
+  height: 68px;
   display: inline-block;
 }
 
@@ -4340,11 +4340,75 @@ code {
   font-weight: 800;
 }
 
-/* ── Offers: row foot trimmed (no status pill) ─────────────────────────── */
+/* ── Offers: row meta line ─────────────────────────────────────────────── */
 
-.offer-row-discount {
-  color: var(--cocoa);
-  font-weight: 900;
+.offer-row-meta {
+  margin: 0 0 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.74rem;
+  color: var(--ink-mute);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.offer-row-meta strong {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.offer-row-meta .dot-sep {
+  color: var(--ink-mute);
+  opacity: 0.6;
+}
+
+/* ── Offers: detail header meta strip ──────────────────────────────────── */
+
+.offer-detail-meta-row {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--cream-soft);
+}
+
+@media (max-width: 720px) {
+  .offer-detail-meta-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.offer-detail-meta-row li {
+  padding: 10px 14px;
+  border-right: 1px solid var(--hairline);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.offer-detail-meta-row li:last-child {
+  border-right: none;
+}
+
+.offer-detail-meta-row .l {
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--ink-mute);
+}
+
+.offer-detail-meta-row strong {
+  font-size: 0.96rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ink);
 }
 
 /* ── Bounds: blackout list ─────────────────────────────────────────────── */
@@ -4360,19 +4424,46 @@ code {
 
 .blackout-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) 36px;
+  grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr) 44px;
   gap: 10px;
-  align-items: center;
+  align-items: stretch;
+}
+
+.blackout-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  font: inherit;
+  font-weight: 600;
+  background: #ffffff;
+  color: var(--ink);
+}
+
+.blackout-input:focus {
+  outline: 2px solid var(--cocoa);
+  outline-offset: 1px;
+}
+
+.blackout-dash {
+  align-self: center;
+  text-align: center;
+  color: var(--ink-mute);
+  font-weight: 700;
 }
 
 .blackout-remove {
   background: transparent;
   border: 1px solid var(--hairline);
-  border-radius: 8px;
-  width: 32px;
-  height: 32px;
+  border-radius: 10px;
+  width: 100%;
+  height: 40px;
+  display: grid;
+  place-items: center;
   font: inherit;
-  font-size: 1.05rem;
+  font-size: 1.2rem;
+  font-weight: 600;
   color: var(--ink-mute);
   cursor: pointer;
   transition: color 120ms ease, border-color 120ms ease, background 120ms ease;

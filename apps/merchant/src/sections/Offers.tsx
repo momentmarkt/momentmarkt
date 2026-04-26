@@ -207,12 +207,12 @@ function OfferRow({
   onClick: () => void;
 }) {
   const status = STATUS_LABELS[moment.status];
-  const trigger = TRIGGER_LABELS[moment.triggerKind];
   const slots = Math.max(
     1,
     Math.round(moment.budgetTotal / Math.max(moment.cashbackPerRedeem, 1)),
   );
   const used = slots > 0 ? Math.min(100, Math.round((moment.redemptions / slots) * 100)) : 0;
+  const expires = shortTime(moment.expiresAt);
   return (
     <button
       type="button"
@@ -221,20 +221,24 @@ function OfferRow({
     >
       <span className={`offer-row-dot ${status.dotClass}`} aria-hidden />
       <div className="offer-row-body">
-        <div className="offer-row-topline">
-          <span className={`trigger-chip ${trigger.tone}`}>{trigger.word}</span>
-          <span className="offer-row-discount">−{moment.discountPct}%</span>
-        </div>
         <h3>{moment.headline}</h3>
         <p className="trigger">{moment.triggerLine}</p>
-        <div className="offer-row-foot">
-          <span className="feed-bar" aria-hidden>
-            <span style={{ width: `${used}%` }} />
+        <div className="offer-row-meta">
+          <span>Expires {expires}</span>
+          <span className="dot-sep" aria-hidden>·</span>
+          <span>
+            <strong>{moment.redemptions}</strong> of {slots} redeemed
           </span>
-          <span className="feed-bar-meta">
-            {moment.redemptions}/{slots} redeemed
-          </span>
+          {moment.inventoryGoal ? (
+            <>
+              <span className="dot-sep" aria-hidden>·</span>
+              <span>Goal {moment.inventoryGoal}</span>
+            </>
+          ) : null}
         </div>
+        <span className="feed-bar" aria-hidden>
+          <span style={{ width: `${used}%` }} />
+        </span>
       </div>
     </button>
   );
@@ -270,15 +274,28 @@ function OfferDetail({
   return (
     <div className="offer-detail-body">
       <header className="offer-detail-head">
-        <div>
-          <span className={`trigger-chip ${TRIGGER_LABELS[moment.triggerKind].tone}`}>
-            {TRIGGER_LABELS[moment.triggerKind].word}
-          </span>
-          <h2>{moment.headline}</h2>
-          <p className="lead">
-            Generated {shortTime(moment.expiresAt)} expiry · {moment.triggerLine}
-          </p>
-        </div>
+        <h2>{moment.headline}</h2>
+        <p className="lead">{moment.triggerLine}</p>
+        <ul className="offer-detail-meta-row" aria-label="Offer details">
+          <li>
+            <span className="l">Expires</span>
+            <strong>{shortTime(moment.expiresAt)}</strong>
+          </li>
+          <li>
+            <span className="l">Discount</span>
+            <strong>−{moment.discountPct}%</strong>
+          </li>
+          <li>
+            <span className="l">Inventory</span>
+            <strong>
+              {moment.redemptions}/{moment.inventoryGoal ?? "—"}
+            </strong>
+          </li>
+          <li>
+            <span className="l">Trigger</span>
+            <strong>{TRIGGER_LABELS[moment.triggerKind].word}</strong>
+          </li>
+        </ul>
       </header>
 
       <div className="offer-detail-grid">

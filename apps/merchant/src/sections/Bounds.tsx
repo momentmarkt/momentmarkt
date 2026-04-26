@@ -111,23 +111,23 @@ export function BoundsSection() {
           <ul className="blackout-list">
             {blackouts.map((w) => (
               <li key={w.id} className="blackout-row">
-                <label className="time-field">
-                  <span>Start</span>
-                  <input
-                    type="time"
-                    value={w.start}
-                    onChange={(e) => updateBlackout(w.id, { start: e.target.value })}
-                  />
-                </label>
-                <span className="time-dash">—</span>
-                <label className="time-field">
-                  <span>End</span>
-                  <input
-                    type="time"
-                    value={w.end}
-                    onChange={(e) => updateBlackout(w.id, { end: e.target.value })}
-                  />
-                </label>
+                <input
+                  type="time"
+                  className="blackout-input"
+                  aria-label="Start time"
+                  value={w.start}
+                  onChange={(e) => updateBlackout(w.id, { start: e.target.value })}
+                />
+                <span className="blackout-dash" aria-hidden>
+                  —
+                </span>
+                <input
+                  type="time"
+                  className="blackout-input"
+                  aria-label="End time"
+                  value={w.end}
+                  onChange={(e) => updateBlackout(w.id, { end: e.target.value })}
+                />
                 <button
                   type="button"
                   className="blackout-remove"
