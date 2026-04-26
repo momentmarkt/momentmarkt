@@ -30,6 +30,7 @@ import { NativeTabBar, type NativeTabKey } from "./src/components/NativeTabBar";
 import { RedeemFlow } from "./src/components/RedeemFlow";
 import { WalletSheetContent } from "./src/components/WalletSheetContent";
 import { WidgetRenderer } from "./src/components/WidgetRenderer";
+import type { MerchantListItem } from "./src/lib/api";
 import { cityProfiles, type DemoCityId, type DemoCityProfile } from "./src/demo/cityProfiles";
 import { miaRainOffer } from "./src/demo/miaOffer";
 import { demoWidgetSpecs } from "./src/demo/widgetSpecs";
@@ -203,6 +204,16 @@ export default function App() {
 
   const handleResetToSilent = useCallback(() => {
     setStep("silent");
+  }, []);
+
+  // Issue #116: tapping a merchant card in the wallet drawer's search list
+  // surfaces that merchant's offer in the drawer's expanded slot. We re-use
+  // the existing offer beat (step === "offer") + OfferStack — no parallel
+  // surface required. Cards without an active offer just play a haptic and
+  // stay put (handled by MerchantSearchList's lightTap call); we only flip
+  // the demo step when there's actually an offer to render.
+  const handleMerchantTap = useCallback((merchant: MerchantListItem) => {
+    if (merchant.active_offer) setStep("offer");
   }, []);
 
   // Issue #103: translate the new NativeTabBar's tab keys into the
@@ -396,6 +407,7 @@ export default function App() {
           onWidgetCta={handleAdvanceFromOffer}
           onRedeemComplete={handleRedeemComplete}
           onSuccessDone={handleResetToSilent}
+          onMerchantTap={handleMerchantTap}
         />
       </BottomSheet>
 
@@ -527,6 +539,7 @@ type SheetBodyProps = {
   onWidgetCta: () => void;
   onRedeemComplete: () => void;
   onSuccessDone: () => void;
+  onMerchantTap: ComponentProps<typeof WalletSheetContent>["onMerchantTap"];
 };
 
 function SheetBody({
@@ -541,6 +554,7 @@ function SheetBody({
   onWidgetCta,
   onRedeemComplete,
   onSuccessDone,
+  onMerchantTap,
 }: SheetBodyProps) {
   // Redeem/Success screens own their own scroll surfaces internally, so a
   // plain BottomSheetView wrapper is fine here — gorhom requires a direct
@@ -580,6 +594,7 @@ function SheetBody({
   return (
     <WalletSheetContent
       cityLabel={cityProfile.cityLabel}
+      citySlug={city}
       tempC={city === "berlin" ? 11 : 14}
       weatherLabel={
         city === "berlin"
@@ -589,6 +604,7 @@ function SheetBody({
       pulseLabel={city === "berlin" ? "Rain in ~22 min" : "Clear · light breeze"}
       animatedIndex={animatedIndex}
       expandedSlot={offerSlot}
+      onMerchantTap={onMerchantTap}
     />
   );
 }

@@ -12,11 +12,15 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
+import type { MerchantListItem } from "../lib/api";
 import { s } from "../styles";
+import { MerchantSearchList } from "./MerchantSearchList";
 
 type Props = {
   /** City label rendered inside the chip + weather widget. */
   cityLabel?: string;
+  /** Backend city slug used by the merchant search list (e.g. "berlin"). */
+  citySlug?: string;
   /** Current temperature (°C) shown as the big number in the weather widget. */
   tempC?: number;
   /** Short condition label, e.g. "overcast • rain in ~22 min". */
@@ -37,6 +41,12 @@ type Props = {
    * Only rendered (and animated in) once the sheet passes the medium snap.
    */
   expandedSlot?: ReactNode;
+  /**
+   * Fired when the user taps a merchant card in the "Offers for you" list.
+   * App.tsx wires this to the surfaced offer flow when the merchant has
+   * an `active_offer`. Issue #116.
+   */
+  onMerchantTap?: (merchant: MerchantListItem) => void;
 };
 
 /**
@@ -55,11 +65,13 @@ type Props = {
  */
 export function WalletSheetContent({
   cityLabel = "Berlin Mitte",
+  citySlug = "berlin",
   tempC = 11,
   weatherLabel = "overcast • rain in ~22 min",
   pulseLabel = "Rain in ~22 min",
   animatedIndex,
   expandedSlot,
+  onMerchantTap,
 }: Props): ReactElement {
   const pulse = useSharedValue(0);
   const dot = useSharedValue(0);
@@ -133,9 +145,16 @@ export function WalletSheetContent({
       </View>
 
       <Animated.View style={[mediumLayerStyle, ...s("mt-4")]}>
+        {/* Issue #116: search bar + "Offers for you" list. Lives above the
+            existing city pill / weather card so it's the first thing the user
+            sees once the sheet is dragged past the collapsed snap. Falls back
+            to a hardcoded canonical Berlin list when /merchants/{city} is
+            unreachable so the demo recording stays deterministic. */}
+        <MerchantSearchList city={citySlug} onMerchantTap={onMerchantTap} />
+
         <View
           style={[
-            ...s("rounded-full bg-white px-3 py-2 flex-row items-center gap-2 mb-4"),
+            ...s("rounded-full bg-white px-3 py-2 flex-row items-center gap-2 mb-4 mt-4"),
             {
               alignSelf: "center",
               borderWidth: 1,

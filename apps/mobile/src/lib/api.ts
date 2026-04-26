@@ -106,6 +106,105 @@ export type OpportunityRequest = {
   suppress_rejected?: boolean;
 };
 
+/**
+ * Lightweight merchant list item returned by `GET /merchants/{city}`
+ * (issue #115 backend / #116 mobile). Mirrors the agreed contract so the
+ * mobile wallet drawer can render a "Offers for you" + search list above
+ * the city pill without pulling in the full merchant summary payload.
+ */
+export type ActiveOffer = {
+  headline: string;
+  discount: string;
+  expires_at_iso: string;
+};
+
+export type MerchantListItem = {
+  id: string;
+  display_name: string;
+  /** cafe | bakery | bookstore | kiosk | restaurant | bar | boutique | ice_cream | florist */
+  category: string;
+  emoji: string;
+  distance_m: number;
+  neighborhood: string;
+  active_offer: ActiveOffer | null;
+};
+
+export type MerchantListResponse = {
+  city: string;
+  query: string | null;
+  count: number;
+  merchants: MerchantListItem[];
+};
+
+/**
+ * Fetch the merchant list for a city, optionally filtered by free-text query.
+ * Returns null on any failure (network, non-2xx, parse) so callers fall
+ * back to a hardcoded canonical Berlin list — keeps the demo recordable
+ * even if the backend hasn't deployed `/merchants/{city}` yet.
+ */
+export async function fetchMerchants(
+  city: string,
+  query?: string,
+  limit = 50,
+  signal?: AbortSignal,
+): Promise<MerchantListResponse | null> {
+  try {
+    const params = new URLSearchParams();
+    if (query && query.trim().length > 0) params.set("q", query.trim());
+    params.set("limit", String(limit));
+    const url = `${apiBase()}/merchants/${encodeURIComponent(city)}?${params.toString()}`;
+    const r = await fetch(url, { signal });
+    if (!r.ok) return null;
+    const data = (await r.json()) as Partial<MerchantListResponse> & Record<string, unknown>;
+    if (
+      typeof data.city !== "string" ||
+      typeof data.count !== "number" ||
+      !Array.isArray(data.merchants)
+    ) {
+      return null;
+    }
+    const merchants: MerchantListItem[] = data.merchants
+      .filter(
+        (m): m is MerchantListItem =>
+          !!m &&
+          typeof (m as MerchantListItem).id === "string" &&
+          typeof (m as MerchantListItem).display_name === "string" &&
+          typeof (m as MerchantListItem).category === "string" &&
+          typeof (m as MerchantListItem).emoji === "string" &&
+          typeof (m as MerchantListItem).distance_m === "number" &&
+          typeof (m as MerchantListItem).neighborhood === "string",
+      )
+      .map((m) => ({
+        id: m.id,
+        display_name: m.display_name,
+        category: m.category,
+        emoji: m.emoji,
+        distance_m: m.distance_m,
+        neighborhood: m.neighborhood,
+        active_offer:
+          m.active_offer &&
+          typeof m.active_offer === "object" &&
+          typeof (m.active_offer as ActiveOffer).headline === "string" &&
+          typeof (m.active_offer as ActiveOffer).discount === "string" &&
+          typeof (m.active_offer as ActiveOffer).expires_at_iso === "string"
+            ? {
+                headline: (m.active_offer as ActiveOffer).headline,
+                discount: (m.active_offer as ActiveOffer).discount,
+                expires_at_iso: (m.active_offer as ActiveOffer).expires_at_iso,
+              }
+            : null,
+      }));
+    return {
+      city: data.city,
+      query: typeof data.query === "string" ? data.query : null,
+      count: data.count,
+      merchants,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchOpportunityMeta(
   body: OpportunityRequest,
   signal?: AbortSignal,
