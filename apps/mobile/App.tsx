@@ -1,6 +1,11 @@
-import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
+import BottomSheet, {
+  BottomSheetScrollView,
+  BottomSheetView,
+} from "@gorhom/bottom-sheet";
 // (BottomSheetView still used as wrapper for redeem/success steps; the
-// scroll-aware sheet content lives inside WalletSheetContent — issue #88.)
+// scroll-aware sheet content lives inside WalletSheetContent — issue #88.
+// BottomSheetScrollView is also used inside SheetBody's focused offer view —
+// issue #122.)
 import { StatusBar } from "expo-status-bar";
 import {
   type ComponentProps,
@@ -675,19 +680,66 @@ function SheetBody({
     );
   }
 
-  const offerSlot =
-    step === "offer" || step === "surfacing" ? (
-      <OfferStack
-        widgetVariant={widgetVariant}
-        highIntent={highIntent}
-        aggressiveHeadline={aggressiveHeadline}
-        onWidgetVariantChange={onWidgetVariantChange}
-        onWidgetCta={onWidgetCta}
-      />
-    ) : null;
+  // Issue #122: focused offer view. After #118 made the wallet drawer's
+  // search list + weather card visible at the 25% snap, slotting the offer
+  // card into <WalletSheetContent expandedSlot={...} /> meant tapping a
+  // merchant pushed the OfferStack BELOW the search list — invisible at
+  // the auto-snapped 80% sheet height. Treat the offer/surfacing step like
+  // redeem/success: an early-return focused screen with its own back
+  // chevron back to the silent wallet, mirroring QrRedeemScreen's header.
+  if (step === "offer" || step === "surfacing") {
+    return (
+      <BottomSheetScrollView
+        style={[...s("flex-1 bg-cream")]}
+        contentContainerStyle={s("px-5 py-6")}
+      >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Back to wallet"
+          onPress={onSuccessDone}
+          hitSlop={12}
+          style={({ pressed }) => [
+            ...s("flex-row items-center"),
+            {
+              opacity: pressed ? 0.55 : 1,
+              marginLeft: -6,
+              paddingVertical: 6,
+              paddingRight: 4,
+              alignSelf: "flex-start",
+            },
+          ]}
+        >
+          <SymbolView
+            name="chevron.left"
+            tintColor="#f2542d"
+            size={22}
+            weight="semibold"
+            style={{ width: 22, height: 22 }}
+          />
+        </Pressable>
+        <Text
+          style={s("mt-2 text-xs font-bold uppercase tracking-[3px] text-cocoa")}
+        >
+          MomentMarkt
+        </Text>
+        <View style={s("mt-4")}>
+          <OfferStack
+            widgetVariant={widgetVariant}
+            highIntent={highIntent}
+            aggressiveHeadline={aggressiveHeadline}
+            onWidgetVariantChange={onWidgetVariantChange}
+            onWidgetCta={onWidgetCta}
+          />
+        </View>
+      </BottomSheetScrollView>
+    );
+  }
 
   // WalletSheetContent renders BottomSheetScrollView at its root (issue #88)
   // so it doubles as the gorhom scroll surface — no extra wrapper needed.
+  // expandedSlot is intentionally omitted: with the focused offer view above
+  // owning the offer/surfacing steps (issue #122), the silent-step wallet
+  // drawer never needs to slot an OfferStack inside its scroll surface.
   return (
     <WalletSheetContent
       cityLabel={cityProfile.cityLabel}
@@ -700,7 +752,6 @@ function SheetBody({
       }
       pulseLabel={city === "berlin" ? "Rain in ~22 min" : "Clear · light breeze"}
       animatedIndex={animatedIndex}
-      expandedSlot={offerSlot}
       onMerchantTap={onMerchantTap}
     />
   );
