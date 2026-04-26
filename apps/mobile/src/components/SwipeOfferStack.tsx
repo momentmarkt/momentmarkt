@@ -77,6 +77,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
+import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
 import type { AlternativeOffer } from "../lib/api";
 import { lightTap, mediumTap } from "../lib/haptics";
@@ -853,31 +854,93 @@ function SwipeCard({
             </Text>
           </View>
         ) : null}
-        {/* Accept / skip overlays — corner badges so the swipe direction is
-            unambiguous as the user pans. */}
+        {/* Accept / skip overlays — Tinder-style stamps centered on the
+            card. Wrappers fill the entire card surface and center their
+            stamp child so the label appears at true vertical+horizontal
+            middle (not in a corner anchor). Each stamp is a bordered
+            block, slightly tilted (KEEP −10°, SKIP +10°) so the labels
+            read as physical "stamps" pressed onto the card as the user
+            commits to a direction. pointerEvents="none" on the wrapper
+            preserves the underlying pan gesture. */}
         <Animated.View
           pointerEvents="none"
           style={[
-            ...s("rounded-full bg-spark px-3 py-2"),
-            { position: "absolute", top: 24, left: 24 },
+            {
+              position: "absolute",
+              top: 0,
+              bottom: 0,
+              left: 0,
+              right: 0,
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 7,
+            },
             acceptStyle,
           ]}
         >
-          <Text style={s("text-xs font-black uppercase tracking-[2px] text-white")}>
-            ✓ Keep
-          </Text>
+          <View
+            style={{
+              borderWidth: 4,
+              borderColor: "#F2542D",
+              borderRadius: 12,
+              paddingHorizontal: 18,
+              paddingVertical: 8,
+              backgroundColor: "rgba(255, 255, 255, 0.08)",
+              transform: [{ rotate: "-10deg" }],
+            }}
+          >
+            <Text
+              style={{
+                color: "#F2542D",
+                fontSize: 36,
+                fontWeight: "900",
+                letterSpacing: 4,
+                textTransform: "uppercase",
+              }}
+            >
+              Keep
+            </Text>
+          </View>
         </Animated.View>
         <Animated.View
           pointerEvents="none"
           style={[
-            ...s("rounded-full bg-cocoa px-3 py-2"),
-            { position: "absolute", top: 24, right: 24 },
+            {
+              position: "absolute",
+              top: 0,
+              bottom: 0,
+              left: 0,
+              right: 0,
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 7,
+            },
             skipStyle,
           ]}
         >
-          <Text style={s("text-xs font-black uppercase tracking-[2px] text-white")}>
-            ✗ Skip
-          </Text>
+          <View
+            style={{
+              borderWidth: 4,
+              borderColor: "#3A2418",
+              borderRadius: 12,
+              paddingHorizontal: 18,
+              paddingVertical: 8,
+              backgroundColor: "rgba(255, 255, 255, 0.08)",
+              transform: [{ rotate: "10deg" }],
+            }}
+          >
+            <Text
+              style={{
+                color: "#3A2418",
+                fontSize: 36,
+                fontWeight: "900",
+                letterSpacing: 4,
+                textTransform: "uppercase",
+              }}
+            >
+              Skip
+            </Text>
+          </View>
         </Animated.View>
       </Animated.View>
     </GestureDetector>
@@ -966,9 +1029,11 @@ function CardSurface({
  *     in SwipeCard's parent — see CardSurface; we replicate it here
  *     so the simplified card still carries the discount signal)
  *   • Headline as a large white overlay at the bottom of the photo,
- *     with a dark gradient under it for legibility (gradient faked
- *     by stacked semi-transparent black layers — no native dep
- *     needed; expo-linear-gradient isn't installed)
+ *     with a dark gradient under it for legibility. The gradient is
+ *     a real react-native-svg LinearGradient (no expo-linear-gradient
+ *     dep needed — we already pull react-native-svg via
+ *     react-native-qrcode-svg). The previous 3-rect stepped overlay
+ *     read as visible bands of black against bright photos.
  *   • Subhead just below the headline overlay (small light text;
  *     Agent 21 is improving the LLM-generated subhead copy quality
  *     in parallel — this surface auto-picks up the better text)
@@ -1048,11 +1113,16 @@ function SimplifiedCardSurface({
         </Text>
       </View>
 
-      {/* Bottom dark gradient — stacked semi-transparent black layers
-          fake a vertical gradient so the headline reads against any
-          photo (bright daylight cafe interiors, dim bakery shots, …).
-          Three layers ≈ smooth enough for the demo without pulling
-          in expo-linear-gradient. */}
+      {/* Bottom dark gradient — real SVG linear gradient (top → bottom)
+          via react-native-svg, replacing the previous 3-rect stepped
+          overlay (which read as visible bands of black against the
+          photo). preserveAspectRatio="none" stretches the gradient
+          across whatever aspect ratio the slot becomes. Stops tuned:
+          clear at top, soft mid, deep at bottom — the headline (which
+          sits in the bottom 22pt of the card) lands on the densest
+          portion so white text always has contrast. The wrapper View
+          pins the SVG to the bottom 55% of the card, the same slot
+          the old layered stack used. */}
       <View
         pointerEvents="none"
         style={{
@@ -1061,39 +1131,19 @@ function SimplifiedCardSurface({
           right: 0,
           bottom: 0,
           height: "55%",
-          backgroundColor: "rgba(23, 18, 15, 0.0)",
         }}
       >
-        <View
-          style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: "100%",
-            backgroundColor: "rgba(23, 18, 15, 0.35)",
-          }}
-        />
-        <View
-          style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: "70%",
-            backgroundColor: "rgba(23, 18, 15, 0.45)",
-          }}
-        />
-        <View
-          style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: "40%",
-            backgroundColor: "rgba(23, 18, 15, 0.55)",
-          }}
-        />
+        <Svg width="100%" height="100%" preserveAspectRatio="none">
+          <Defs>
+            <LinearGradient id="cardTitleFade" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor="#17120F" stopOpacity="0" />
+              <Stop offset="0.35" stopColor="#17120F" stopOpacity="0.20" />
+              <Stop offset="0.7" stopColor="#17120F" stopOpacity="0.55" />
+              <Stop offset="1" stopColor="#17120F" stopOpacity="0.85" />
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100%" height="100%" fill="url(#cardTitleFade)" />
+        </Svg>
       </View>
 
       {/* Headline + subhead overlay — bottom of the card. Headline
