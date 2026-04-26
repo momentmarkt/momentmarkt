@@ -286,6 +286,59 @@ class DemoStore:
             for row in rows
         ]
 
+    def recent_events(self, merchant_id: str, limit: int = 20) -> list[dict[str, Any]]:
+        """Activity feed for the merchant dashboard.
+
+        UNION over inbox_events (offer_drafted / offer_approved /
+        offer_rejected / offer_auto_approved) and redemptions for offers
+        belonging to this merchant, ordered by `t DESC`. Each row tagged
+        with `kind`, joined with the offer's German headline so the feed
+        renders without N+1 lookups in the client.
+        """
+        rows = self._connection.execute(
+            """
+            SELECT
+              inbox_events.event_type AS kind,
+              inbox_events.t AS t,
+              inbox_events.offer_id AS offer_id,
+              offers.copy_seed AS copy_seed,
+              NULL AS amount
+            FROM inbox_events
+            JOIN offers ON offers.id = inbox_events.offer_id
+            WHERE inbox_events.merchant_id = ?
+
+            UNION ALL
+
+            SELECT
+              'redemption' AS kind,
+              redemptions.t AS t,
+              redemptions.offer_id AS offer_id,
+              offers.copy_seed AS copy_seed,
+              redemptions.amount AS amount
+            FROM redemptions
+            JOIN offers ON offers.id = redemptions.offer_id
+            WHERE offers.merchant_id = ?
+
+            ORDER BY t DESC
+            LIMIT ?
+            """,
+            (merchant_id, merchant_id, limit),
+        ).fetchall()
+        events: list[dict[str, Any]] = []
+        for row in rows:
+            copy_seed = json.loads(row["copy_seed"])
+            events.append(
+                {
+                    "kind": row["kind"],
+                    "t": row["t"],
+                    "offer_id": row["offer_id"],
+                    "headline": copy_seed.get("headline_de")
+                    or copy_seed.get("headline_en"),
+                    "amount": row["amount"],
+                }
+            )
+        return events
+
     def cached_headline(self, offer_id: str, weather_state: str, intent_state: str) -> str | None:
         row = self._connection.execute(
             """

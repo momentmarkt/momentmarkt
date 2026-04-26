@@ -318,6 +318,20 @@ def merchant_summary(merchant_id: str) -> dict[str, Any]:
     return store.merchant_summary(merchant_id)
 
 
+@app.get("/merchants/{merchant_id}/events")
+def merchant_events(merchant_id: str, limit: int = 20) -> dict[str, Any]:
+    """Activity feed for the merchant dashboard (issue #126).
+
+    Unified stream of inbox + redemption events ordered newest-first, used by
+    the operator's "recent activity" panel so they can see "redeemed 2 min
+    ago" without a separate redemptions query.
+    """
+    return {
+        "merchant_id": merchant_id,
+        "events": store.recent_events(merchant_id=merchant_id, limit=limit),
+    }
+
+
 @app.get("/merchants/{merchant_id}/demand-chart")
 def merchant_demand_chart(merchant_id: str, city: str = "berlin") -> dict[str, Any]:
     try:
