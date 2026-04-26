@@ -30,16 +30,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SymbolView } from "expo-symbols";
 import type { SFSymbol } from "sf-symbols-typescript";
 
+import { BottomNavBar, type ViewMode } from "./src/components/BottomNavBar";
 import { CityMap } from "./src/components/CityMap";
 import { DevPanel, type DevPanelSignal } from "./src/components/DevPanel";
+import { DiscoverView } from "./src/components/DiscoverView";
 import { DEFAULT_LENS, type LensKey } from "./src/components/LensChips";
 import { RedeemFlow } from "./src/components/RedeemFlow";
-import { SwipeFullScreenOverlay } from "./src/components/SwipeFullScreenOverlay";
 import { SwipeOfferStack } from "./src/components/SwipeOfferStack";
-import {
-  WalletSheetContent,
-  type WalletSwipeState,
-} from "./src/components/WalletSheetContent";
+import { WalletSheetContent } from "./src/components/WalletSheetContent";
 import { WidgetRenderer } from "./src/components/WidgetRenderer";
 import {
   fetchOfferAlternatives,
@@ -154,21 +152,15 @@ export default function App() {
   // need to lift them up.
   const [showPrivacyEnvelope, setShowPrivacyEnvelope] = useState(true);
   const [language, setLanguage] = useState<"de" | "en">("de");
-  // Issue #145 — Apple-Music-style mini-player → full-screen player
-  // overlay for the lens-driven swipe stack. The lens lives at the
-  // App-level so the drawer + the full-screen overlay drive the SAME
-  // value (no fork). The drawer's silent-step swipe state (variants /
-  // loading / stackKey) is reported up via WalletSheetContent's
-  // `onSwipeStateChange` and held in `drawerSwipeState` so the overlay
-  // renders the same data the drawer is rendering.
-  const [swipeFullScreen, setSwipeFullScreen] = useState(false);
-  const [drawerLens, setDrawerLens] = useState<LensKey>(DEFAULT_LENS);
-  const [drawerSwipeState, setDrawerSwipeState] = useState<WalletSwipeState>({
-    variants: null,
-    loading: false,
-    lens: DEFAULT_LENS,
-    stackKey: 0,
-  });
+  // Issue #152 — 2-view IA refactor. The app has two top-level surfaces
+  // switched by a custom JS bottom navbar:
+  //   "discover" (DEFAULT) — full-screen swipe + lens chips, no map.
+  //   "browse"             — map + drawer (search + list + weather).
+  // The lens + swipeHistory + variants pool live here so flipping
+  // views preserves the user's session state — flip to Browse, flip
+  // back to Discover, the lens choice survives.
+  const [viewMode, setViewMode] = useState<ViewMode>("discover");
+  const [discoverLens, setDiscoverLens] = useState<LensKey>(DEFAULT_LENS);
 
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -246,9 +238,6 @@ export default function App() {
     // Reset swipe history on city swap — preferences for Berlin cafés
     // shouldn't bias Zurich cafés (DESIGN_PRINCIPLES.md #8).
     setSwipeHistory([]);
-    // Issue #145 — close the full-screen swipe overlay if it's open
-    // so the city swap takes the user back to a clean silent wallet.
-    setSwipeFullScreen(false);
   }, []);
 
   const handleToggleHighIntent = useCallback(() => {
@@ -283,6 +272,12 @@ export default function App() {
   const handleMerchantTap = useCallback(
     async (merchant: MerchantListItem) => {
       if (!merchant.active_offer) return;
+      // Defensive (#152): the merchant list lives in Browse, so the user
+      // is already on Browse when this fires. The flip is a no-op in
+      // practice but keeps the focused offer / redeem flow safe even if
+      // a future surface (e.g. a long-press on a Discover card) routes
+      // through this handler from the wrong view.
+      setViewMode("browse");
       // Reset any prior settled variant so the offer step renders the focused
       // demo widget while we wait for alternatives.
       setSettledVariant(null);
@@ -354,63 +349,6 @@ export default function App() {
   const handleAppendSwipeHistory = useCallback((entries: PriorSwipe[]) => {
     if (entries.length === 0) return;
     setSwipeHistory((prev) => [...prev, ...entries]);
-  }, []);
-
-  // Issue #145 — the full-screen overlay re-uses the SAME swipe-stack
-  // settle/all-passed handlers as the drawer; it just closes itself
-  // afterwards so the user lands back on the cream wallet drawer with
-  // the (potentially appended) history + lens preserved. No fork —
-  // these are thin wrappers over the silent-step path that lives
-  // inside WalletSheetContent.
-  //
-  // The drawer's silent-step swipe handlers live inside WalletSheetContent
-  // (handleSilentSettle / handleSilentAllPassed) and call
-  // onAppendSwipeHistory + bump the local stackKey to refresh the stack.
-  // We can't reach those from here, so we replicate the relevant signal
-  // (history append) and rely on `onSwipeStateChange` to pick up the
-  // refreshed stackKey on the next drawer render.
-  const handleFullScreenSettle = useCallback(
-    (
-      variant: AlternativeOffer,
-      dwellByVariant: Record<string, number>,
-    ) => {
-      if (drawerSwipeState.variants) {
-        const entries = buildPriorSwipes(
-          dwellByVariant,
-          variant,
-          drawerSwipeState.variants,
-        );
-        if (entries.length > 0) {
-          setSwipeHistory((prev) => [...prev, ...entries]);
-        }
-      }
-      setSwipeFullScreen(false);
-    },
-    [drawerSwipeState.variants, buildPriorSwipes],
-  );
-
-  const handleFullScreenAllPassed = useCallback(
-    (dwellByVariant: Record<string, number>) => {
-      if (drawerSwipeState.variants) {
-        const entries = buildPriorSwipes(
-          dwellByVariant,
-          null,
-          drawerSwipeState.variants,
-        );
-        if (entries.length > 0) {
-          setSwipeHistory((prev) => [...prev, ...entries]);
-        }
-      }
-      setSwipeFullScreen(false);
-    },
-    [drawerSwipeState.variants, buildPriorSwipes],
-  );
-
-  const handleOpenSwipeFullScreen = useCallback(() => {
-    setSwipeFullScreen(true);
-  }, []);
-  const handleCloseSwipeFullScreen = useCallback(() => {
-    setSwipeFullScreen(false);
   }, []);
 
   const handleAlternativesAllPassed = useCallback(
@@ -535,6 +473,29 @@ export default function App() {
     return { opacity, transform: [{ translateX }] };
   });
 
+  // Issue #152 — cross-fade between Discover + Browse views. 250ms
+  // is enough to feel like a deliberate switch without dragging on
+  // the user; no slide so the navbar tap reads as instant. Both
+  // views render absolute-positioned (so the unfocused one stays
+  // mounted to keep its fetch state hot) but only the active one
+  // accepts pointer events.
+  const viewFade = useSharedValue(viewMode === "discover" ? 0 : 1);
+  useEffect(() => {
+    viewFade.value = withTiming(viewMode === "browse" ? 1 : 0, {
+      duration: 250,
+      easing: Easing.out(Easing.exp),
+    });
+  }, [viewMode, viewFade]);
+  const discoverFadeStyle = useAnimatedStyle(() => ({
+    opacity: 1 - viewFade.value,
+  }));
+  const browseFadeStyle = useAnimatedStyle(() => ({
+    opacity: viewFade.value,
+  }));
+  const handleViewChange = useCallback((next: ViewMode) => {
+    setViewMode(next);
+  }, []);
+
   const walletArea = (
     <View style={s("flex-1")}>
       {/* Full-bleed Apple Map background. Tapping a merchant's offer
@@ -629,12 +590,6 @@ export default function App() {
           onSearchFocus={handleSearchFocus}
           onAlternativesSettle={handleAlternativesSettle}
           onAlternativesAllPassed={handleAlternativesAllPassed}
-          swipeHistory={swipeHistory}
-          onAppendSwipeHistory={handleAppendSwipeHistory}
-          drawerLens={drawerLens}
-          onDrawerLensChange={setDrawerLens}
-          onSwipeStateChange={setDrawerSwipeState}
-          onExpandSwipe={handleOpenSwipeFullScreen}
         />
       </BottomSheet>
 
@@ -678,73 +633,121 @@ export default function App() {
     },
   };
 
+  // Issue #152 — Browse view = the full walletArea (map + drawer +
+  // top-of-map weather pill / clock / gear) wrapped in a stack that
+  // owns the silent-step top overlay. The wrapper renders the
+  // overlay only when `step === "silent"` AND `viewMode === "browse"`
+  // so the focused offer / redeem / success surfaces inside the
+  // BottomSheet don't compete with the floating pill + icons.
+  const browseView = (
+    <View style={s("flex-1")}>
+      {walletArea}
+      {viewMode === "browse" && step === "silent" ? (
+        <View
+          style={[
+            ...s("absolute flex-row items-center"),
+            {
+              top: insets.top + 12,
+              left: 16,
+              right: 16,
+              justifyContent: "space-between",
+            },
+          ]}
+          // Pointer events follow sheetIndex (the JS mirror of
+          // animatedIndex). When the sheet is at medium / expanded,
+          // the icons are visually invisible so they shouldn't
+          // intercept taps that would otherwise reach the map.
+          pointerEvents={sheetIndex >= 1 ? "none" : "box-none"}
+        >
+          <Animated.View style={topOverlayLeftStyle}>
+            <MapWeatherPill
+              cityName={city === "berlin" ? "Berlin" : "Zurich"}
+              neighborhood={city === "berlin" ? "Mitte" : "HB"}
+              tempC={citySignals.tempC}
+              sfSymbol={citySignals.weatherSfSymbol}
+              onPress={handleSwapCity}
+            />
+          </Animated.View>
+          <Animated.View style={[topOverlayRightStyle, ...s("flex-row gap-2")]}>
+            <MapIconButton
+              sfSymbol="clock"
+              accessibilityLabel="Open history"
+              onPress={handleOpenHistory}
+            />
+            <MapIconButton
+              sfSymbol="gearshape"
+              accessibilityLabel="Open settings"
+              onPress={handleOpenSettings}
+            />
+          </Animated.View>
+        </View>
+      ) : null}
+    </View>
+  );
+
+  // Issue #152 — Discover view (full-screen swipe + lens chips). Lives
+  // as a sibling to Browse; the BottomNavBar swaps which one is
+  // pointer-active. Owns its own per-lens variant fetch so flipping
+  // away to Browse and back doesn't cost a re-fetch beat.
+  const discoverView = (
+    <DiscoverView
+      citySlug={city}
+      lens={discoverLens}
+      onLensChange={setDiscoverLens}
+      swipeHistory={swipeHistory}
+      onAppendSwipeHistory={handleAppendSwipeHistory}
+    />
+  );
+
+  // Hide the navbar whenever a focused overlay step has taken over
+  // (alternatives / surfacing / offer / redeeming / success). The
+  // navbar reappears as soon as we're back at silent. This applies
+  // to both views — Browse's BottomSheet renders the focused screens,
+  // Discover doesn't initiate any non-silent step today but the
+  // logic is shared so the demo cut feels consistent.
+  const showNavBar = step === "silent";
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={s("flex-1 bg-ink")}>
         <StatusBar style="light" />
-        <View style={[...s("flex-1"), { flexDirection: sideBySide ? "row" : "column" }]}>
-          {/* Wide (≥820px): wallet + DevPanel sidecar (dev-only layout,
-              not the demo-recording surface). Compact (<820px): just the
-              wallet area — the bottom tab bar was dropped in favour of
-              two icons (clock = History, gear = Settings) over the map's
-              top-right corner, plus the existing MapTopChip search. */}
-          {sideBySide ? (
-            <>
-              {walletArea}
-              <DevPanel {...devPanelProps} />
-            </>
-          ) : (
-            <>
-              {walletArea}
-              {/* Top-of-map overlay (compact only, silent step only). Single
-                  absolutely-positioned row holding the LEFT frosted weather
-                  pill (info-only) and the RIGHT icon cluster (clock = History,
-                  gear = Settings). Hidden while a non-silent step is active so
-                  they don't compete with the surfaced offer / redeem / success
-                  surfaces. */}
-              {step === "silent" ? (
-                <View
-                  style={[
-                    ...s("absolute flex-row items-center"),
-                    {
-                      top: insets.top + 12,
-                      left: 16,
-                      right: 16,
-                      justifyContent: "space-between",
-                    },
-                  ]}
-                  // Pointer events follow sheetIndex (the JS mirror of
-                  // animatedIndex). When the sheet is at medium / expanded,
-                  // the icons are visually invisible so they shouldn't
-                  // intercept taps that would otherwise reach the map.
-                  pointerEvents={sheetIndex >= 1 ? "none" : "box-none"}
-                >
-                  <Animated.View style={topOverlayLeftStyle}>
-                    <MapWeatherPill
-                      cityName={city === "berlin" ? "Berlin" : "Zurich"}
-                      neighborhood={city === "berlin" ? "Mitte" : "HB"}
-                      tempC={citySignals.tempC}
-                      sfSymbol={citySignals.weatherSfSymbol}
-                      onPress={handleSwapCity}
-                    />
-                  </Animated.View>
-                  <Animated.View style={[topOverlayRightStyle, ...s("flex-row gap-2")]}>
-                    <MapIconButton
-                      sfSymbol="clock"
-                      accessibilityLabel="Open history"
-                      onPress={handleOpenHistory}
-                    />
-                    <MapIconButton
-                      sfSymbol="gearshape"
-                      accessibilityLabel="Open settings"
-                      onPress={handleOpenSettings}
-                    />
-                  </Animated.View>
-                </View>
-              ) : null}
-            </>
-          )}
-        </View>
+        {sideBySide ? (
+          // Wide (≥820px): the dev-only layout keeps the existing
+          // walletArea + DevPanel sidecar — no view switching, no
+          // navbar. The wide layout is for development on tablets /
+          // simulators only; the recordable demo runs in compact mode.
+          <View style={[...s("flex-1"), { flexDirection: "row" }]}>
+            {walletArea}
+            <DevPanel {...devPanelProps} />
+          </View>
+        ) : (
+          // Compact (<820px): the recordable demo surface. Two views
+          // stacked absolute-positioned with cross-fade + bottom
+          // navbar (when at silent). The unfocused view stays mounted
+          // so its fetch state stays hot across switches.
+          <View style={s("flex-1")}>
+            <View style={s("flex-1")}>
+              <Animated.View
+                style={[StyleSheet.absoluteFill, browseFadeStyle]}
+                pointerEvents={viewMode === "browse" ? "auto" : "none"}
+              >
+                {browseView}
+              </Animated.View>
+              <Animated.View
+                style={[StyleSheet.absoluteFill, discoverFadeStyle]}
+                pointerEvents={viewMode === "discover" ? "auto" : "none"}
+              >
+                {discoverView}
+              </Animated.View>
+            </View>
+            {showNavBar ? (
+              <BottomNavBar
+                activeView={viewMode}
+                onViewChange={handleViewChange}
+              />
+            ) : null}
+          </View>
+        )}
 
         {/* Settings + History slide-in overlays. Each owns its own
             translateX choreography (300ms ease-out). Tap the X in the
@@ -760,25 +763,6 @@ export default function App() {
           devPanelProps={settingsDevPanelProps}
         />
         <HistoryScreen visible={historyOpen} onClose={handleCloseHistory} />
-        {/* Issue #145 — Apple-Music-style mini-player → full-screen
-            player overlay for the lens-driven swipe stack. Sibling to
-            SettingsScreen/HistoryScreen so it lives above the wallet
-            drawer + map but doesn't fight the bottom-sheet animation
-            for the same coordinate space. Same variants/lens/history
-            as the drawer's silent-step swipe surface — closing the
-            overlay returns the user to the drawer with the lens
-            preserved. */}
-        <SwipeFullScreenOverlay
-          visible={swipeFullScreen}
-          onClose={handleCloseSwipeFullScreen}
-          variants={drawerSwipeState.variants ?? []}
-          loading={drawerSwipeState.loading}
-          lens={drawerLens}
-          onLensChange={setDrawerLens}
-          onSettle={handleFullScreenSettle}
-          onAllPassed={handleFullScreenAllPassed}
-          stackKey={drawerSwipeState.stackKey}
-        />
       </View>
     </GestureHandlerRootView>
   );
@@ -962,25 +946,6 @@ type SheetBodyProps = {
   /** Issue #132 + #136 — fired when the user swipes left through every
    *  card. Same dwell-map shape as onAlternativesSettle. */
   onAlternativesAllPassed: (dwellByVariant: Record<string, number>) => void;
-  /** Issue #137 — accumulated swipe history. Threaded into the silent
-   *  WalletSheetContent so the For-you lens inside the wallet drawer
-   *  reuses the same preference signal as the merchant-tap path. */
-  swipeHistory: PriorSwipe[];
-  /** Issue #137 — callback the silent-step swipe stack uses to append
-   *  fresh PriorSwipe entries to the canonical history kept in App.tsx. */
-  onAppendSwipeHistory: (entries: PriorSwipe[]) => void;
-  /** Issue #145 — controlled lens for the silent-step swipe surface.
-   *  Lifted to App.tsx so the full-screen overlay drives the same
-   *  value the drawer renders (no fork). */
-  drawerLens: LensKey;
-  onDrawerLensChange: (lens: LensKey) => void;
-  /** Issue #145 — snapshot the drawer's silent-step swipe state so
-   *  App.tsx can hand the same variants/loading/stackKey to the
-   *  full-screen overlay. */
-  onSwipeStateChange: (state: WalletSwipeState) => void;
-  /** Issue #145 — fired when the user taps the "Full screen" expand
-   *  affordance above the silent-step swipe stack. */
-  onExpandSwipe: () => void;
 };
 
 function SheetBody({
@@ -1004,12 +969,6 @@ function SheetBody({
   onSearchFocus,
   onAlternativesSettle,
   onAlternativesAllPassed,
-  swipeHistory,
-  onAppendSwipeHistory,
-  drawerLens,
-  onDrawerLensChange,
-  onSwipeStateChange,
-  onExpandSwipe,
 }: SheetBodyProps) {
   // Redeem/Success screens own their own scroll surfaces internally, so a
   // plain BottomSheetView wrapper is fine here — gorhom requires a direct
@@ -1179,12 +1138,9 @@ function SheetBody({
 
   // WalletSheetContent renders BottomSheetScrollView at its root (issue #88)
   // so it doubles as the gorhom scroll surface — no extra wrapper needed.
-  // expandedSlot is intentionally omitted: with the focused offer view above
-  // owning the offer/surfacing steps (issue #122), the silent-step wallet
-  // drawer never needs to slot an OfferStack inside its scroll surface.
-  // Issue #137: swipeHistory + onAppendSwipeHistory thread the canonical
-  // App-level preference signal into the silent-step swipe surface so the
-  // For-you lens reacts in real time without forking history state.
+  // Post-#152 the drawer is browse-only (search + list + weather card);
+  // the swipe + lens chips live in the Discover view rendered as a
+  // sibling at App.tsx.
   return (
     <WalletSheetContent
       cityLabel={cityProfile.cityLabel}
@@ -1195,12 +1151,6 @@ function SheetBody({
       animatedIndex={animatedIndex}
       onMerchantTap={onMerchantTap}
       onSearchFocus={onSearchFocus}
-      swipeHistory={swipeHistory}
-      onAppendSwipeHistory={onAppendSwipeHistory}
-      lens={drawerLens}
-      onLensChange={onDrawerLensChange}
-      onSwipeStateChange={onSwipeStateChange}
-      onExpand={onExpandSwipe}
     />
   );
 }
