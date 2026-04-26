@@ -1,6 +1,30 @@
 from __future__ import annotations
 
+import os
+from pathlib import Path
 from typing import Any
+
+
+def _load_repo_env() -> None:
+    """Best-effort .env loader: walks up from this file looking for a .env at
+    the repo root (apps/backend/../..) so credentials like OPENAI_API_KEY
+    are available even when uvicorn is launched without --env-file."""
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        candidate = parent / ".env"
+        if candidate.exists():
+            for raw in candidate.read_text(encoding="utf-8").splitlines():
+                line = raw.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, _, value = line.partition("=")
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                os.environ.setdefault(key, value)
+            break
+
+
+_load_repo_env()
 
 import logfire
 from fastapi import FastAPI, HTTPException

@@ -4,7 +4,7 @@
  * shell mounts; on POST /complete it sets the flag and the dashboard takes over.
  */
 
-import { useCallback, useReducer } from "react";
+import { useCallback, useEffect, useReducer } from "react";
 import { ProgressStepper } from "./components/ProgressStepper";
 import { initialState, reduce, setOnboarded } from "./state/onboardingMachine";
 import { DropStep } from "./steps/DropStep";
@@ -20,6 +20,11 @@ type Props = {
 
 export function OnboardingShell({ onComplete }: Props) {
   const [state, dispatch] = useReducer(reduce, initialState);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [state.step]);
 
   const handleStarted = useCallback(
     (args: { onboardingId: string; merchantId: string; fileName: string; gmapsUrl: string }) => {

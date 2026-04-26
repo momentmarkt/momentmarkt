@@ -4845,3 +4845,257 @@ code {
   color: var(--cocoa);
   flex: 0 0 auto;
 }
+
+/* === Onboarding satisfying motion === */
+
+/* Step entrance: fade + gentle rise */
+.ob-step {
+  animation: ob-step-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes ob-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Stepper completion: dot pulse + bar fill from left */
+.ob-stepper-dot {
+  transition:
+    background 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    color 280ms ease,
+    border-color 280ms ease,
+    box-shadow 280ms ease;
+}
+.ob-stepper-item.is-active .ob-stepper-dot {
+  animation: ob-dot-active 480ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes ob-dot-active {
+  0% { transform: scale(0.85); }
+  60% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+.ob-stepper-item.is-done .ob-stepper-dot {
+  animation: ob-dot-done 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes ob-dot-done {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+.ob-stepper-bar {
+  position: relative;
+  background: var(--hairline);
+  overflow: hidden;
+}
+.ob-stepper-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--good);
+  transform-origin: left center;
+  transform: scaleX(0);
+  transition: transform 480ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ob-stepper-item.is-done .ob-stepper-bar::after {
+  transform: scaleX(1);
+}
+
+/* Stage list: each row slides in, icons pop on activation */
+.ob-stage {
+  animation: ob-stage-row-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition: background 220ms ease, color 220ms ease;
+}
+.ob-stage:nth-child(1) { animation-delay: 0ms; }
+.ob-stage:nth-child(2) { animation-delay: 60ms; }
+.ob-stage:nth-child(3) { animation-delay: 120ms; }
+.ob-stage:nth-child(4) { animation-delay: 180ms; }
+.ob-stage:nth-child(5) { animation-delay: 240ms; }
+@keyframes ob-stage-row-in {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.ob-stage-icon {
+  transition: background 240ms ease, color 240ms ease, transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ob-stage.is-active .ob-stage-icon {
+  animation: ob-icon-pop 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ob-stage.is-done .ob-stage-icon {
+  animation: ob-icon-done 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes ob-icon-pop {
+  0% { transform: scale(0.7); }
+  60% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+@keyframes ob-icon-done {
+  0% { transform: scale(0.85) rotate(-8deg); }
+  60% { transform: scale(1.18) rotate(0deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+/* Drop zone: gentle bounce when a file lands */
+.ob-drop-zone.is-set {
+  animation: ob-drop-confirm 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes ob-drop-confirm {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.015); }
+  100% { transform: scale(1); }
+}
+
+/* Flow diagram: nodes stagger in, explainer crossfades on hover/click */
+.ob-flow-node {
+  animation: ob-flow-node-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.ob-flow-node:nth-child(1) { animation-delay: 40ms; }
+.ob-flow-node:nth-child(2) { animation-delay: 100ms; }
+.ob-flow-node:nth-child(3) { animation-delay: 160ms; }
+.ob-flow-node:nth-child(4) { animation-delay: 220ms; }
+.ob-flow-node:nth-child(5) { animation-delay: 280ms; }
+.ob-flow-node:nth-child(6) { animation-delay: 340ms; }
+@keyframes ob-flow-node-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.ob-flow-explainer {
+  transition: background 200ms ease;
+}
+
+/* Limits cards: cascade in on flow step */
+.ob-limits .ob-card {
+  animation: ob-card-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.ob-limits .ob-card:nth-child(1) { animation-delay: 380ms; }
+.ob-limits .ob-card:nth-child(2) { animation-delay: 460ms; }
+.ob-limits .ob-card:nth-child(3) { animation-delay: 540ms; }
+@keyframes ob-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Range slider bubble: subtle bounce on value change via brief scale on hover */
+.ob-range-bubble {
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), left 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ob-range-fill {
+  transition: left 220ms cubic-bezier(0.22, 1, 0.36, 1), width 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Auto-approve switch + rules: snappier transitions */
+.ob-switch,
+.ob-switch-thumb {
+  transition: background 220ms cubic-bezier(0.22, 1, 0.36, 1), border-color 220ms ease, transform 280ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.ob-auto-rule {
+  transition:
+    border-color 200ms ease,
+    background 200ms ease,
+    box-shadow 200ms ease,
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ob-auto-rule:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.ob-auto-rule.is-on .ob-auto-rule-check {
+  animation: ob-check-pop 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes ob-check-pop {
+  0% { transform: scale(0.7); }
+  60% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+/* Demand chart: cross-fade + slight slide when day changes */
+.ob-chart-svg {
+  animation: ob-chart-fade 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes ob-chart-fade {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}
+.ob-chart-baseline-line,
+.ob-chart-baseline-area,
+.ob-chart-live-line,
+.ob-chart-blackout {
+  transition: d 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Menu confirm rows: subtle entrance */
+.ob-menu-cat {
+  animation: ob-card-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.ob-menu-cat:nth-child(1) { animation-delay: 60ms; }
+.ob-menu-cat:nth-child(2) { animation-delay: 120ms; }
+.ob-menu-cat:nth-child(3) { animation-delay: 180ms; }
+.ob-menu-cat:nth-child(4) { animation-delay: 240ms; }
+.ob-menu-cat:nth-child(5) { animation-delay: 300ms; }
+
+/* Reduced-motion respects user OS preference */
+@media (prefers-reduced-motion: reduce) {
+  .ob-step,
+  .ob-stage,
+  .ob-flow-node,
+  .ob-limits .ob-card,
+  .ob-menu-cat,
+  .ob-chart-svg {
+    animation: none;
+  }
+  .ob-stepper-bar::after {
+    transition: none;
+  }
+  .ob-stepper-dot {
+    transition: none;
+  }
+  html {
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Primary buttons: weighted press */
+.primary-button {
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), background 180ms ease, box-shadow 180ms ease;
+}
+.primary-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.primary-button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* Chips & soft buttons get the same treatment */
+.chip,
+.ob-chip {
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    border-color 160ms ease,
+    transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.chip:active:not(:disabled),
+.ob-chip:active:not(:disabled) {
+  transform: scale(0.95);
+}

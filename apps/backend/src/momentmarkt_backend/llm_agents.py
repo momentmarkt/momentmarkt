@@ -159,17 +159,45 @@ async def _run_structured_agent(
 def _model_name() -> Any:
     """Build a pydantic-ai model from env config.
 
-    Dispatches on MOMENTMARKT_LLM_PROVIDER:
+    Dispatches on MOMENTMARKT_LLM_PROVIDER (explicit), or auto-detects when
+    unset:
       azure       → OpenAIChatModel + AzureProvider (AZURE_OPENAI_ENDPOINT/API_KEY).
       openrouter  → OpenAIChatModel + OpenAIProvider with OpenRouter base_url.
-      (unset)     → string form like "openai:gpt-5.2" passed straight to Agent.
+      openai      → OpenAIChatModel + OpenAIProvider (OPENAI_API_KEY).
+      (unset)     → auto-detect: AZURE_* present → azure;
+                    else OPENAI_API_KEY present → openai;
+                    else string form like "openai:gpt-5.2" passed to Agent.
+
+    MOMENTMARKT_LLM_MODEL: required for Azure (= deployment name) and OpenRouter;
+    optional for OpenAI (defaults to gpt-4o-mini).
     """
     provider = os.environ.get("MOMENTMARKT_LLM_PROVIDER", "").strip().lower()
     model_name = os.environ.get("MOMENTMARKT_LLM_MODEL") or os.environ.get(
         "MOMENTMARKT_PYDANTIC_AI_MODEL"
     )
+
+    if not provider:
+        if os.environ.get("AZURE_OPENAI_API_KEY") and os.environ.get("AZURE_OPENAI_ENDPOINT"):
+            provider = "azure"
+        elif os.environ.get("OPENAI_API_KEY"):
+            provider = "openai"
+
+    if provider == "openai" and not model_name:
+        model_name = "gpt-4o-mini"
+
     if not model_name:
         raise RuntimeError("MOMENTMARKT_LLM_MODEL is not set")
+
+    if provider == "openai":
+        from pydantic_ai.models.openai import OpenAIChatModel
+        from pydantic_ai.providers.openai import OpenAIProvider
+
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            raise RuntimeError(
+                "MOMENTMARKT_LLM_PROVIDER=openai requires OPENAI_API_KEY"
+            )
+        return OpenAIChatModel(model_name, provider=OpenAIProvider(api_key=api_key))
 
     if provider == "azure":
         from pydantic_ai.models.openai import OpenAIChatModel

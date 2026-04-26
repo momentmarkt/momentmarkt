@@ -41,7 +41,7 @@ from .menu_edit_agent import apply_diffs, run_menu_edit_agent
 from .paths import DATA_DIR
 
 GMAPS_DIR = DATA_DIR / "google-maps"
-STAGE_GATE_SECONDS = 2.5
+STAGE_GATE_SECONDS = 0.7
 
 StageId = Literal[
     "reading_menu",
@@ -230,16 +230,127 @@ async def _run_pipeline(session: OnboardingSession) -> None:
             session.stages[session.current_stage] = "error"
 
 
-def _detect_blackouts(density: dict[str, Any]) -> dict[str, list[dict[str, str]]]:
-    return detect_for_density_fixture(density)
+DAYS_ORDER = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+WEEKEND = {"sat", "sun"}
+
+# Day-of-week multipliers. Saturday is the anchor (1.0).
+DAY_MULTIPLIERS: dict[str, float] = {
+    "mon": 0.85,
+    "tue": 0.85,
+    "wed": 0.85,
+    "thu": 0.90,
+    "fri": 1.05,
+    "sat": 1.00,
+    "sun": 0.75,
+}
+
+# Weekday cafe pattern: morning commute peak around 08:30, midday dip, big
+# lunch peak (anchors the Saturday fixture data when scaled), afternoon dip,
+# small after-work bump.
+WEEKDAY_TEMPLATE: list[tuple[str, float]] = [
+    ("08:00", 32),
+    ("08:30", 68),  # commute peak
+    ("09:00", 60),
+    ("09:30", 48),
+    ("10:00", 38),
+    ("10:30", 36),
+    ("11:00", 38),
+    ("11:30", 48),
+    ("12:00", 58),
+    ("12:30", 72),
+    ("13:00", 80),
+    ("13:30", 82),
+    ("14:00", 74),
+    ("14:30", 56),
+    ("15:00", 42),
+    ("15:30", 38),
+    ("16:00", 36),
+    ("16:30", 38),
+    ("17:00", 44),
+    ("17:30", 48),
+    ("18:00", 40),
+]
+
+# Weekend cafe pattern: nobody's commuting, so the morning ramps slowly into
+# brunch. Lunch peak still anchors 13:00-14:00 to match the Saturday fixture.
+# Afternoon stays mellow; no after-work bump.
+WEEKEND_TEMPLATE: list[tuple[str, float]] = [
+    ("08:00", 16),
+    ("08:30", 22),
+    ("09:00", 30),
+    ("09:30", 42),
+    ("10:00", 56),  # brunch ramping
+    ("10:30", 64),
+    ("11:00", 68),
+    ("11:30", 72),
+    ("12:00", 76),
+    ("12:30", 78),
+    ("13:00", 80),  # lunch peak (anchor)
+    ("13:30", 82),  # lunch peak (anchor)
+    ("14:00", 74),
+    ("14:30", 62),
+    ("15:00", 52),
+    ("15:30", 44),
+    ("16:00", 38),
+    ("16:30", 36),
+    ("17:00", 36),
+    ("17:30", 34),
+    ("18:00", 30),
+]
+
+
+_NOISE_AMPLITUDE = 3.0  # ±3 density points — visible wobble without flattening peaks
+
+
+def _noise(day: str, time: str) -> float:
+    """Deterministic per-(day, time) jitter so curves look measured, not synthetic.
+    Stable across reloads — same hash → same noise. Amplitude tuned to leave the
+    blackout detection peaks intact."""
+    import hashlib
+
+    digest = hashlib.md5(f"{day}-{time}".encode()).digest()
+    raw = int.from_bytes(digest[:2], "big") / 65535.0  # 0..1
+    return (raw * 2 - 1) * _NOISE_AMPLITUDE
+
+
+def _scaled_curve(
+    day: str,
+    template: list[tuple[str, float]],
+    multiplier: float,
+) -> list[dict[str, Any]]:
+    return [
+        {
+            "time": t,
+            "density": round(min(100.0, max(0.0, v * multiplier + _noise(day, t))), 1),
+        }
+        for t, v in template
+    ]
+
+
+def _per_day_baselines() -> dict[str, list[dict[str, Any]]]:
+    return {
+        day: _scaled_curve(
+            day,
+            WEEKEND_TEMPLATE if day in WEEKEND else WEEKDAY_TEMPLATE,
+            DAY_MULTIPLIERS[day],
+        )
+        for day in DAYS_ORDER
+    }
+
+
+def _detect_blackouts(_density: dict[str, Any]) -> dict[str, list[dict[str, str]]]:
+    return detect_for_density_fixture({}, day_to_points=_per_day_baselines())
 
 
 def _shape_demand_curve(density: dict[str, Any]) -> dict[str, Any]:
     typical = density.get("typical_density_curve", {})
-    points = typical.get("points", [])
+    anchor_day = (typical.get("day_of_week") or "saturday").lower()[:3]
+    if anchor_day not in DAYS_ORDER:
+        anchor_day = "sat"
     return {
         "day_of_week": typical.get("day_of_week", "saturday"),
-        "baseline": [{"time": p["time"], "density": p["density"]} for p in points],
+        "anchor_day": anchor_day,
+        "per_day": _per_day_baselines(),
         "live": [
             {"time": s["time_local"][11:16], "density": s["density"]}
             for s in density.get("live_samples", [])
