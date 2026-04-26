@@ -1,4 +1,5 @@
 import type { ExtractedMenu, LimitsBody } from "../api/onboardingApi";
+import { RangeSlider } from "./RangeSlider";
 
 type Props = {
   menu: ExtractedMenu;
@@ -7,8 +8,16 @@ type Props = {
 };
 
 const DEFAULT_RULES = [
-  { id: "rain_hot_drink", label: "Rain + a hot-drink category → auto-approve" },
-  { id: "demand_gap_lunch", label: "Demand gap during lunch → auto-approve" },
+  {
+    id: "rain_hot_drink",
+    label: "Rain + hot drinks",
+    hint: "Surface a hot-drink offer when rain is rolling in.",
+  },
+  {
+    id: "demand_gap_lunch",
+    label: "Lunch demand gap",
+    hint: "Surface when foot traffic is well below your typical lunch.",
+  },
 ];
 
 export function LimitsPanel({ menu, value, onChange }: Props) {
@@ -32,8 +41,6 @@ export function LimitsPanel({ menu, value, onChange }: Props) {
       : [...value.auto_approve_rules, id];
     onChange({ ...value, auto_approve_rules: next });
   };
-
-  const fillPct = (n: number) => `${Math.min(100, Math.max(0, n * 2))}%`;
 
   return (
     <div className="ob-limits">
@@ -64,81 +71,65 @@ export function LimitsPanel({ menu, value, onChange }: Props) {
           The lowest you'd ever start at, and the highest you'd ever go.
         </p>
 
-        <div className="ob-slider-row">
-          <div className="ob-slider-row-head">
-            <strong>Floor</strong>
-            <span className="ob-slider-value tone-cocoa">{value.discount_floor}%</span>
-          </div>
-          <input
-            type="range"
-            min={0}
-            max={50}
-            step={1}
-            value={value.discount_floor}
-            onChange={(e) => setFloor(Number(e.target.value))}
-            className="slider tone-cocoa"
-          />
-        </div>
-
-        <div className="ob-slider-row">
-          <div className="ob-slider-row-head">
-            <strong>Ceiling</strong>
-            <span className="ob-slider-value tone-spark">{value.discount_ceiling}%</span>
-          </div>
-          <input
-            type="range"
-            min={0}
-            max={50}
-            step={1}
-            value={value.discount_ceiling}
-            onChange={(e) => setCeiling(Number(e.target.value))}
-            className="slider tone-spark"
-          />
-        </div>
-
-        <div className="bounds-band" aria-hidden>
-          <span
-            className="bounds-band-fill"
-            style={{
-              left: fillPct(value.discount_floor),
-              width: fillPct(value.discount_ceiling - value.discount_floor),
-            }}
-          />
-          <span className="bounds-band-label" style={{ left: fillPct(value.discount_floor) }}>
-            {value.discount_floor}%
-          </span>
-          <span className="bounds-band-label" style={{ left: fillPct(value.discount_ceiling) }}>
-            {value.discount_ceiling}%
-          </span>
-        </div>
+        <RangeSlider
+          floor={value.discount_floor}
+          ceiling={value.discount_ceiling}
+          min={0}
+          max={50}
+          onFloor={setFloor}
+          onCeiling={setCeiling}
+        />
       </article>
 
-      <article className="ob-card">
-        <h2>Auto-approve</h2>
-        <label className="ob-toggle">
-          <input
-            type="checkbox"
-            checked={value.auto_approve}
-            onChange={(e) => onChange({ ...value, auto_approve: e.target.checked })}
-          />
-          <span>Approve drafts that match a trusted rule</span>
-        </label>
+      <article className="ob-card ob-auto">
+        <header className="ob-auto-head">
+          <div>
+            <h2>Auto-approve</h2>
+            <p className="ob-muted">
+              Skip the inbox when one of your trusted rules matches. Otherwise everything
+              waits for one tap.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={value.auto_approve}
+            className={`ob-switch ${value.auto_approve ? "is-on" : ""}`}
+            onClick={() => onChange({ ...value, auto_approve: !value.auto_approve })}
+          >
+            <span className="ob-switch-thumb" aria-hidden />
+            <span className="sr-only">{value.auto_approve ? "On" : "Off"}</span>
+          </button>
+        </header>
 
-        {value.auto_approve ? (
-          <ul className="ob-rule-list">
+        <div className={`ob-auto-rules ${value.auto_approve ? "" : "is-disabled"}`} aria-hidden={!value.auto_approve}>
+          <span className="ob-auto-rules-label">Trusted rules</span>
+          <ul>
             {DEFAULT_RULES.map((r) => {
               const on = value.auto_approve_rules.includes(r.id);
               return (
                 <li key={r.id}>
-                  <label>
-                    <input type="checkbox" checked={on} onChange={() => toggleRule(r.id)} />
-                    <span>{r.label}</span>
-                  </label>
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={on}
+                    disabled={!value.auto_approve}
+                    className={`ob-auto-rule ${on ? "is-on" : ""}`}
+                    onClick={() => toggleRule(r.id)}
+                  >
+                    <span className="ob-auto-rule-check" aria-hidden>
+                      {on ? "✓" : ""}
+                    </span>
+                    <span className="ob-auto-rule-content">
+                      <strong>{r.label}</strong>
+                      <small>{r.hint}</small>
+                    </span>
+                  </button>
                 </li>
               );
             })}
           </ul>
-        ) : null}
+        </div>
       </article>
     </div>
   );

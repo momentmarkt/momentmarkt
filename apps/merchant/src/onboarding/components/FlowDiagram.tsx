@@ -38,6 +38,13 @@ const NODES: Node[] = [
     explainer:
       "The offer surfaces only to nearby customers in the right context — never blasted to everyone. Quiet by default.",
   },
+  {
+    id: "negotiate",
+    title: "We negotiate for you",
+    subtitle: "Always inside your range",
+    explainer:
+      "If someone hesitates, we can nudge the discount up — but never below your floor and never above your ceiling. You stay in control of the math.",
+  },
 ];
 
 export function FlowDiagram() {

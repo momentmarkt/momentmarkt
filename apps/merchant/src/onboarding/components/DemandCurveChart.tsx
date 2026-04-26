@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 
 type Curve = {
-  baseline: { time: string; density: number }[];
+  per_day: Record<string, { time: string; density: number }[]>;
   live: { time: string; density: number }[];
 };
 
@@ -40,17 +40,18 @@ function timeToMin(t: string): number {
 }
 
 export function DemandCurveChart({ curve, blackouts, selectedDay, onDayChange, curveDay }: Props) {
-  const showLiveAndBaseline = selectedDay === curveDay;
+  const showLive = selectedDay === curveDay && curve.live.length > 0;
 
   const { xMin, xMax, points, livePoints, dayBlackouts } = useMemo(() => {
-    const all = [...curve.baseline, ...curve.live];
+    const dayPoints = curve.per_day[selectedDay] ?? [];
+    const all = [...dayPoints, ...curve.live];
     const times = all.map((p) => timeToMin(p.time));
     const xMinV = Math.min(...times, 8 * 60);
-    const xMaxV = Math.max(...times, 22 * 60);
+    const xMaxV = Math.max(...times, 19 * 60);
     return {
       xMin: xMinV,
       xMax: xMaxV,
-      points: curve.baseline,
+      points: dayPoints,
       livePoints: curve.live,
       dayBlackouts: blackouts[selectedDay] ?? [],
     };
@@ -129,35 +130,25 @@ export function DemandCurveChart({ curve, blackouts, selectedDay, onDayChange, c
           />
         ))}
 
-        {showLiveAndBaseline && points.length > 1 ? (
+        {points.length > 1 ? (
           <>
             <path d={baselineArea} className="ob-chart-baseline-area" />
             <path d={path(points)} className="ob-chart-baseline-line" />
           </>
         ) : null}
-        {showLiveAndBaseline && livePoints.length > 1 ? (
+        {showLive && livePoints.length > 1 ? (
           <path d={path(livePoints)} className="ob-chart-live-line" />
-        ) : null}
-
-        {!showLiveAndBaseline ? (
-          <text x={W / 2} y={H / 2} textAnchor="middle" className="ob-chart-empty">
-            We'll have demand data here after a few business days.
-          </text>
         ) : null}
       </svg>
 
       <div className="ob-chart-legend">
-        {showLiveAndBaseline ? (
-          <>
-            <span className="ob-chart-legend-item">
-              <span className="ob-chart-legend-dot is-baseline" /> Typical
-            </span>
-            {livePoints.length ? (
-              <span className="ob-chart-legend-item">
-                <span className="ob-chart-legend-dot is-live" /> Live this week
-              </span>
-            ) : null}
-          </>
+        <span className="ob-chart-legend-item">
+          <span className="ob-chart-legend-dot is-baseline" /> Typical
+        </span>
+        {showLive ? (
+          <span className="ob-chart-legend-item">
+            <span className="ob-chart-legend-dot is-live" /> Live this week
+          </span>
         ) : null}
         {dayBlackouts.length ? (
           <span className="ob-chart-legend-item">

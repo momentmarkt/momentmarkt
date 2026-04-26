@@ -2897,14 +2897,25 @@ code {
   padding: 0;
   margin: 0;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 4px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  column-gap: 22px;
+  row-gap: 12px;
   align-items: stretch;
 }
 
-@media (max-width: 880px) {
+@media (max-width: 1080px) {
+  .ob-flow-track {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .ob-flow-node:nth-child(3n) .ob-flow-arrow {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
   .ob-flow-track {
     grid-template-columns: 1fr;
+    column-gap: 12px;
   }
   .ob-flow-arrow {
     display: none;
@@ -2923,7 +2934,7 @@ code {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 14px 14px 14px 14px;
+  padding: 12px 12px;
   background: var(--cream-soft);
   border: 1px solid var(--hairline);
   border-radius: 14px;
@@ -2974,12 +2985,18 @@ code {
 .ob-flow-arrow {
   position: absolute;
   top: 50%;
-  right: -6px;
-  width: 12px;
-  height: 12px;
+  right: -16px;
+  width: 10px;
+  height: 10px;
   transform: translateY(-50%) rotate(45deg);
   border-top: 1.5px solid var(--ink-mute);
   border-right: 1.5px solid var(--ink-mute);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.ob-flow-node.is-active .ob-flow-arrow {
+  border-color: var(--cocoa);
 }
 
 .ob-flow-explainer {
@@ -4816,4 +4833,15 @@ code {
   color: var(--ink-soft);
   font-size: 12px;
   line-height: 1.4;
+}
+
+/* Inline icons in onboarding input labels */
+.ob-input-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ob-input-icon {
+  color: var(--cocoa);
+  flex: 0 0 auto;
 }

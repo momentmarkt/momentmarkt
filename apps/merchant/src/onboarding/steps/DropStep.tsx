@@ -3,6 +3,24 @@ import { startOnboarding } from "../api/onboardingApi";
 
 const GMAPS_URL_RE = /^https?:\/\/(www\.)?(google\.[a-z.]+\/maps|maps\.app\.goo\.gl)\//i;
 
+function MenuIcon() {
+  return (
+    <svg className="ob-input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M5 4h14v16H5z" />
+      <path d="M9 8h6M9 12h6M9 16h4" />
+    </svg>
+  );
+}
+
+function PinIcon() {
+  return (
+    <svg className="ob-input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z" />
+      <circle cx="12" cy="9" r="2.5" />
+    </svg>
+  );
+}
+
 type Props = {
   onStarted: (args: { onboardingId: string; merchantId: string; fileName: string; gmapsUrl: string }) => void;
 };
@@ -86,11 +104,11 @@ export function DropStep({ onStarted }: Props) {
             onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
             hidden
           />
-          <span className="eyebrow">Menu</span>
+          <span className="eyebrow ob-input-label"><MenuIcon /> Menu</span>
           {file ? (
             <>
               <strong className="ob-drop-filename">{file.name}</strong>
-              <small>{(file.size / 1024).toFixed(1)} KB · ready to read</small>
+              <small>{(file.size / 1024).toFixed(1)} KB</small>
               <button type="button" className="ob-link" onClick={() => fileRef.current?.click()}>
                 Replace
               </button>
@@ -107,7 +125,7 @@ export function DropStep({ onStarted }: Props) {
         </label>
 
         <label className="ob-drop-field">
-          <span className="eyebrow">Google Maps link</span>
+          <span className="eyebrow ob-input-label"><PinIcon /> Google Maps link</span>
           <input
             type="url"
             value={url}
