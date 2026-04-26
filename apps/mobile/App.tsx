@@ -184,7 +184,6 @@ export default function App() {
   // Cosmetic toggles inside SettingsScreen own their own local state — no
   // need to lift them up.
   const [showPrivacyEnvelope, setShowPrivacyEnvelope] = useState(true);
-  const [language, setLanguage] = useState<"de" | "en">("de");
   // Issue #152 — 2-view IA refactor (now 5-view per #154). The app
   // has five top-level surfaces switched by a custom JS bottom navbar:
   //   "discover" (DEFAULT) — full-screen swipe + lens chips, no map.
@@ -549,9 +548,6 @@ export default function App() {
   // HistoryScreen overlay renders at the App return have been dropped too.
   const handleTogglePrivacyEnvelope = useCallback(() => {
     setShowPrivacyEnvelope((prev) => !prev);
-  }, []);
-  const handleSetLanguage = useCallback((lang: "de" | "en") => {
-    setLanguage(lang);
   }, []);
   const handleResetDemoFromSettings = useCallback(() => {
     setStep("silent");
@@ -963,8 +959,6 @@ export default function App() {
                     mode="tab"
                     showPrivacyEnvelope={showPrivacyEnvelope}
                     onTogglePrivacyEnvelope={handleTogglePrivacyEnvelope}
-                    language={language}
-                    onSetLanguage={handleSetLanguage}
                     onResetDemo={handleResetDemoFromSettings}
                     devPanelProps={settingsDevPanelProps}
                     // Issue #159 — promote city swap to a top-level

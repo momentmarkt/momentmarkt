@@ -106,12 +106,13 @@ type Props = {
   onResetSeenVariants?: () => void;
 };
 
-type DistanceRadius = 250 | 500 | 1000;
+type DistanceRadius = 250 | 500 | 1000 | 5000;
 
 const DISTANCE_FILTERS: readonly { radius: DistanceRadius; label: string }[] = [
   { radius: 250, label: "250 m" },
   { radius: 500, label: "500 m" },
   { radius: 1000, label: "1 km" },
+  { radius: 5000, label: "5 km" },
 ] as const;
 
 const DISTANCE_SELECTOR_SPRING = {
@@ -137,6 +138,8 @@ export function DiscoverView({
   const [variants, setVariants] = useState<AlternativeOffer[] | null>(null);
   const [distanceRadius, setDistanceRadius] = useState<DistanceRadius>(500);
   const [loading, setLoading] = useState(false);
+  const [savedPulseLabel, setSavedPulseLabel] = useState<string | null>(null);
+  const savedPulse = useSharedValue(0);
   // Re-mount key so flipping the lens / completing a round resets
   // SwipeOfferStack's internal index without a stale top-card peek.
   const [stackKey, setStackKey] = useState(0);
@@ -256,7 +259,11 @@ export function DiscoverView({
   );
 
   const handleSettle = useCallback(
-    (variant: AlternativeOffer, dwellByVariant: DwellByVariant) => {
+    (
+      variant: AlternativeOffer,
+      dwellByVariant: DwellByVariant,
+      exhaustedRound: boolean,
+    ) => {
       if (variants) {
         const entries = buildPriorSwipes(dwellByVariant, variant, variants);
         if (entries.length > 0) onAppendSwipeHistory(entries);
@@ -279,15 +286,33 @@ export function DiscoverView({
       // discovery from redemption — no more "oops swiped too eagerly"
       // landing the user in a redeem flow they didn't mean.
       onSavePass(variant);
-      setStackKey((k) => k + 1);
-      // Issue #177 — settle is the natural moment to fetch the next
-      // round (the user committed to one and the stack is now empty).
-      // Bumping fetchToken re-fires the effect; the seen-set is read
-      // from the ref, so the new round excludes everything just swiped.
-      setFetchToken((t) => t + 1);
+      setSavedPulseLabel(variant.merchant_display_name);
+      savedPulse.value = 0;
+      savedPulse.value = withSequence(
+        withTiming(1, { duration: 180, easing: Easing.out(Easing.cubic) }),
+        withTiming(1, { duration: 650 }),
+        withTiming(0, { duration: 220, easing: Easing.in(Easing.cubic) }),
+      );
+      if (exhaustedRound) {
+        setStackKey((k) => k + 1);
+        setFetchToken((t) => t + 1);
+      }
     },
-    [variants, onAppendSwipeHistory, onSavePass, onConsumeVariants, buildPriorSwipes],
+    [variants, onAppendSwipeHistory, onSavePass, onConsumeVariants, buildPriorSwipes, savedPulse],
   );
+
+  const savedPulseStyle = useAnimatedStyle(() => ({
+    opacity: savedPulse.value,
+    transform: [
+      { translateY: (1 - savedPulse.value) * -10 },
+      { scale: 0.96 + savedPulse.value * 0.04 },
+    ],
+  }));
+
+  const savedPulseRingStyle = useAnimatedStyle(() => ({
+    opacity: (1 - savedPulse.value) * 0.28,
+    transform: [{ scale: 1 + savedPulse.value * 1.6 }],
+  }));
 
   const handleAllPassed = useCallback(
     (dwellByVariant: DwellByVariant) => {
@@ -348,9 +373,62 @@ export function DiscoverView({
           Discover
         </Text>
       </View>
-      <View style={[...s("px-5"), { paddingBottom: 8 }]}>
+      <View style={[...s("px-5"), { paddingBottom: 8 }]}> 
         <DistanceControl active={distanceRadius} onChange={setDistanceRadius} />
       </View>
+      {savedPulseLabel ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            ...s("absolute left-5 right-5 items-center"),
+            { top: insets.top + 78, zIndex: 8 },
+            savedPulseStyle,
+          ]}
+        >
+          <View style={{ position: "relative" }}>
+            <Animated.View
+              style={[
+                {
+                  position: "absolute",
+                  left: -8,
+                  right: -8,
+                  top: -8,
+                  bottom: -8,
+                  borderRadius: 999,
+                  backgroundColor: "#f2542d",
+                },
+                savedPulseRingStyle,
+              ]}
+            />
+            <View
+              style={[
+                ...s("rounded-full bg-white flex-row items-center"),
+                {
+                  paddingHorizontal: 14,
+                  height: 38,
+                  borderWidth: 1,
+                  borderColor: "rgba(242, 84, 45, 0.22)",
+                  shadowColor: "#17120f",
+                  shadowOpacity: 0.12,
+                  shadowRadius: 10,
+                  shadowOffset: { width: 0, height: 4 },
+                },
+              ]}
+            >
+              <SymbolView
+                name="wallet.pass.fill"
+                tintColor="#f2542d"
+                size={15}
+                weight="semibold"
+                style={{ width: 16, height: 16, marginRight: 8 }}
+              />
+              <Text style={s("text-xs font-black uppercase tracking-[1.5px] text-ink")}>
+                Added to Wallet
+              </Text>
+            </View>
+          </View>
+        </Animated.View>
+      ) : null}
 
       {/* Swipe stack body. Fills remaining vertical space; the heart/X
           buttons live INSIDE SwipeOfferStack so the spacing between
@@ -418,7 +496,11 @@ function DiscoverBody({
   variants: AlternativeOffer[] | null;
   stackKey: number;
   distanceRadius: DistanceRadius;
-  onSettle: (variant: AlternativeOffer, dwellByVariant: DwellByVariant) => void;
+  onSettle: (
+    variant: AlternativeOffer,
+    dwellByVariant: DwellByVariant,
+    exhaustedRound: boolean,
+  ) => void;
   onAllPassed: (dwellByVariant: DwellByVariant) => void;
   /** Issue #175 — per-swipe consumed signal forwarded to SwipeOfferStack. */
   onCardConsumed?: (variantId: string) => void;

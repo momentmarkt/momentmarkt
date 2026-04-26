@@ -22,6 +22,8 @@ import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
+  withSequence,
+  withSpring,
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -48,7 +50,6 @@ import { s } from "../styles";
  *  - Account (placeholder Mia avatar + persona-switch link)
  *  - Privacy & Daten (the GDPR moment — 2 cosmetic toggles + 1 real toggle
  *    that hides the {intent_token, h3_cell_r8} chip in the dev panel)
- *  - Sprache (DE / EN segmented control — real toggle if onSetLanguage given)
  *  - Demo-Steuerung (yellow-outlined debug section; only "reset" is real)
  *  - Demo & Debug (issue #80) — full DevPanel inlined as a Settings section
  *    so the engineering surface stays reachable from the gear icon even when
@@ -57,8 +58,6 @@ import { s } from "../styles";
  *    Settings overlay so the surfacing beat plays out on the underlying sheet.
  *  - Über MomentMarkt (version, credits, GitHub, sponsor, hackathon)
  */
-
-type Language = "de" | "en";
 
 /** Props the parent must thread through so we can render the DevPanel inline.
  *  Mirrors `ComponentProps<typeof DevPanel>` minus `visible` (we always want
@@ -91,9 +90,6 @@ type Props = {
   /** Real toggle: hides the privacy envelope chip in DevPanel when false. */
   showPrivacyEnvelope?: boolean;
   onTogglePrivacyEnvelope?: () => void;
-  /** Real toggle if onSetLanguage is provided; cosmetic otherwise. */
-  language?: Language;
-  onSetLanguage?: (lang: Language) => void;
   /** Real action — bumps the demo state machine back to silent. */
   onResetDemo?: () => void;
   /** Issue #80: full DevPanel prop bag rendered as a "Demo & Debug" section.
@@ -117,8 +113,6 @@ export function SettingsScreen(props: Props): ReactElement | null {
     onClose,
     showPrivacyEnvelope = true,
     onTogglePrivacyEnvelope,
-    language = "de",
-    onSetLanguage,
     onResetDemo,
     devPanelProps,
     currentCity,
@@ -326,27 +320,7 @@ export function SettingsScreen(props: Props): ReactElement | null {
           <>
             <SectionHeader>City</SectionHeader>
             <GroupedSection>
-              <View
-                style={[
-                  ...s("flex-row px-4"),
-                  { paddingVertical: 12, gap: 8 },
-                ]}
-              >
-                <CityPill
-                  label="Berlin"
-                  active={currentCity === "berlin"}
-                  onPress={() => {
-                    if (currentCity !== "berlin") onSwapCity();
-                  }}
-                />
-                <CityPill
-                  label="Zurich"
-                  active={currentCity === "zurich"}
-                  onPress={() => {
-                    if (currentCity !== "zurich") onSwapCity();
-                  }}
-                />
-              </View>
+              <CitySegmentedControl currentCity={currentCity} onSwapCity={onSwapCity} />
             </GroupedSection>
             <SectionFooter>
               Swaps the wallet&apos;s entire context — merchants, weather,
@@ -410,28 +384,6 @@ export function SettingsScreen(props: Props): ReactElement | null {
           Location data never leaves the device. Only an anonymous intent
           token is sent.
         </SectionFooter>
-
-        {/* ── Sprache ─────────────────────────────────────────────────── */}
-        <SectionHeader>Language</SectionHeader>
-        <GroupedSection>
-          <View
-            style={[
-              ...s("flex-row px-4"),
-              { paddingVertical: 12, gap: 8 },
-            ]}
-          >
-            <LangSegment
-              label="Deutsch"
-              active={language === "de"}
-              onPress={() => onSetLanguage?.("de")}
-            />
-            <LangSegment
-              label="English"
-              active={language === "en"}
-              onPress={() => onSetLanguage?.("en")}
-            />
-          </View>
-        </GroupedSection>
 
         {/* ── Demo & Debug (issue #80, restyled #100) ──────────────────
             Hand-rolled cream-styled rendering of the same engineering data
@@ -960,47 +912,103 @@ function LangSegment({
   );
 }
 
-/**
- * Issue #159 — top-level City segmented control. Visually distinct from
- * LangSegment on purpose: this row is the primary swap mechanic, so the
- * active pill uses the spark accent (#f2542d) instead of ink. White
- * inactive bg + faint border keeps the inactive option readable without
- * competing — instant active/inactive read at a glance.
- */
-function CityPill({
-  label,
-  active,
-  onPress,
+const CITY_SEGMENT_SPRING = {
+  damping: 16,
+  stiffness: 260,
+  mass: 0.75,
+} as const;
+
+function CitySegmentedControl({
+  currentCity,
+  onSwapCity,
 }: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
+  currentCity: "berlin" | "zurich";
+  onSwapCity: () => void;
 }) {
+  const [controlWidth, setControlWidth] = useState(0);
+  const activeIndex = currentCity === "berlin" ? 0 : 1;
+  const segmentWidth = controlWidth > 0 ? (controlWidth - 8) / 2 : 0;
+  const indicatorX = useSharedValue(0);
+  const indicatorScale = useSharedValue(1);
+
+  useEffect(() => {
+    if (segmentWidth <= 0) return;
+    indicatorX.value = withSpring(activeIndex * segmentWidth, CITY_SEGMENT_SPRING);
+    indicatorScale.value = withSequence(
+      withSpring(1.06, CITY_SEGMENT_SPRING),
+      withSpring(1, CITY_SEGMENT_SPRING),
+    );
+  }, [activeIndex, indicatorScale, indicatorX, segmentWidth]);
+
+  const indicatorStyle = useAnimatedStyle(() => ({
+    width: segmentWidth,
+    transform: [
+      { translateX: indicatorX.value },
+      { scaleX: indicatorScale.value },
+    ],
+  }));
+
+  const options = [
+    { key: "berlin" as const, label: "Berlin" },
+    { key: "zurich" as const, label: "Zurich" },
+  ];
+
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected: active }}
-      onPress={onPress}
-      style={({ pressed }) => [
-        ...s("flex-1 items-center rounded-2xl"),
+    <View
+      onLayout={(event) => setControlWidth(event.nativeEvent.layout.width)}
+      style={[
+        ...s("mx-4 my-3 rounded-2xl bg-white flex-row p-1"),
         {
-          paddingVertical: 12,
-          backgroundColor: active ? "#f2542d" : "#ffffff",
-          borderWidth: active ? 0 : 1,
+          position: "relative",
+          overflow: "hidden",
+          borderWidth: 1,
           borderColor: "rgba(23, 18, 15, 0.06)",
-          opacity: pressed ? 0.85 : 1,
         },
       ]}
     >
-      <Text
-        style={[
-          ...s(active ? "text-sm font-bold" : "text-sm font-semibold"),
-          { color: active ? "#ffffff" : "#6f3f2c" },
-        ]}
-      >
-        {label}
-      </Text>
-    </Pressable>
+      {segmentWidth > 0 ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            {
+              position: "absolute",
+              left: 4,
+              top: 4,
+              bottom: 4,
+              borderRadius: 14,
+              backgroundColor: "#f2542d",
+            },
+            indicatorStyle,
+          ]}
+        />
+      ) : null}
+      {options.map((option) => {
+        const active = option.key === currentCity;
+        return (
+          <Pressable
+            key={option.key}
+            accessibilityRole="button"
+            accessibilityState={{ selected: active }}
+            onPress={() => {
+              if (!active) onSwapCity();
+            }}
+            style={({ pressed }) => [
+              ...s("flex-1 items-center justify-center rounded-2xl"),
+              { height: 42, opacity: pressed ? 0.82 : 1 },
+            ]}
+          >
+            <Text
+              style={[
+                ...s(active ? "text-sm font-black" : "text-sm font-bold"),
+                { color: active ? "#ffffff" : "#6f3f2c" },
+              ]}
+            >
+              {option.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
 

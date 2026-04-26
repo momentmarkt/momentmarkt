@@ -151,7 +151,11 @@ export type SwipeCardScale = "drawer" | "discover";
 type Props = {
   variants: AlternativeOffer[];
   /** Fired when the user swipes RIGHT on a card. */
-  onSettle: (variant: AlternativeOffer, dwellMsByVariant: DwellByVariant) => void;
+  onSettle: (
+    variant: AlternativeOffer,
+    dwellMsByVariant: DwellByVariant,
+    exhaustedRound: boolean,
+  ) => void;
   /** Fired when every card has been swiped LEFT. */
   onAllPassed: (dwellMsByVariant: DwellByVariant) => void;
   /** Render-size variant. Defaults to "drawer" so the in-sheet
@@ -252,9 +256,15 @@ export function SwipeOfferStack({
       onCardConsumed?.(variant.variant_id);
       // eslint-disable-next-line no-console
       console.log("settled", variant.variant_id, dwellRef.current);
-      onSettle(variant, { ...dwellRef.current });
+      const next = index + 1;
+      const exhaustedRound = next >= variants.length;
+      onSettle(variant, { ...dwellRef.current }, exhaustedRound);
+      if (!exhaustedRound) {
+        promoteStack();
+        setIndex(next);
+      }
     },
-    [onSettle, recordDwell, onCardConsumed],
+    [index, variants.length, onSettle, recordDwell, onCardConsumed, promoteStack],
   );
 
   const handleLeft = useCallback(
