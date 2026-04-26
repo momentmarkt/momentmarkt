@@ -138,6 +138,41 @@ class TestGenerateOfferContract:
         )
 
 
+class TestMerchantEnrichmentAttach:
+    """Issue #165 — merchant enrichment must thread into the LLM prompt."""
+
+    def test_attach_returns_context_with_enrichment_when_present(self) -> None:
+        from momentmarkt_backend.merchant_enrichment import get_enrichment, reset_cache
+        from momentmarkt_backend.opportunity_agent import _attach_merchant_enrichment
+
+        reset_cache()
+        ctx = build_signal_context(
+            city="berlin", merchant_id="berlin-mitte-cafe-bondi"
+        )
+        attached = _attach_merchant_enrichment(ctx)
+        # Don't break — falls back to bare context if enrichment missing.
+        if get_enrichment("berlin", "berlin-mitte-cafe-bondi") is None:
+            assert attached is ctx
+            return
+        assert "merchant_enrichment" in attached
+        assert attached["merchant_enrichment"]["id"] == "berlin-mitte-cafe-bondi"
+        assert isinstance(attached["merchant_enrichment"]["signature_items"], list)
+        # Original context untouched (shallow copy semantics).
+        assert "merchant_enrichment" not in ctx
+
+    def test_attach_passes_through_when_enrichment_missing(self) -> None:
+        from momentmarkt_backend.opportunity_agent import _attach_merchant_enrichment
+
+        # Synthetic context with an unknown merchant id — must not raise and
+        # must not invent a key.
+        ctx = {
+            "city_id": "berlin",
+            "merchant": {"id": "nonexistent-merchant-id-xyz"},
+        }
+        out = _attach_merchant_enrichment(ctx)
+        assert "merchant_enrichment" not in out
+
+
 class TestZurichOpportunityFallback:
     def test_zurich_draft_validates_and_uses_clear_weather_mood(self) -> None:
         ctx = build_signal_context(city="zurich")

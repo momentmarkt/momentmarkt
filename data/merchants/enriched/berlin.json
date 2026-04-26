@@ -1,0 +1,1418 @@
+{
+  "city": "berlin",
+  "generated_at": "2026-04-26T07:16:24+00:00",
+  "source": "offline_heuristic",
+  "merchant_count": 39,
+  "failures": 0,
+  "entries": [
+    {
+      "id": "berlin-mitte-cafe-bondi",
+      "display_name": "Cafe Bondi",
+      "category": "cafe",
+      "hours_typical": {
+        "mon-fri": "08:00-18:00",
+        "sat-sun": "09:00-18:00"
+      },
+      "signature_items": [
+        {
+          "name": "Flat white",
+          "price_eur": null,
+          "popularity_note": "go-to morning order"
+        },
+        {
+          "name": "Filter coffee",
+          "price_eur": null,
+          "popularity_note": "house brew, refilled often"
+        },
+        {
+          "name": "Cinnamon roll",
+          "price_eur": null,
+          "popularity_note": "warm out of the oven"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "third-wave coffee",
+        "laptop-friendly",
+        "warm wood + ceramics"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "☕"
+    },
+    {
+      "id": "berlin-mitte-baeckerei-rosenthal",
+      "display_name": "Backerei Rosenthal",
+      "category": "bakery",
+      "hours_typical": {
+        "mon-fri": "06:30-18:00",
+        "sat": "07:00-16:00",
+        "sun": "07:30-14:00"
+      },
+      "signature_items": [
+        {
+          "name": "Sourdough loaf",
+          "price_eur": null,
+          "popularity_note": "sells out by midday"
+        },
+        {
+          "name": "Butter pretzel",
+          "price_eur": null,
+          "popularity_note": "afternoon snack staple"
+        },
+        {
+          "name": "Cinnamon snail",
+          "price_eur": null,
+          "popularity_note": "weekend favourite"
+        }
+      ],
+      "price_tier": "€",
+      "vibe_descriptors": [
+        "traditional German bakery",
+        "early-morning crowd",
+        "warm bread smell"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🥨"
+    },
+    {
+      "id": "berlin-mitte-kiezbuchhandlung-august",
+      "display_name": "Kiezbuchhandlung August",
+      "category": "bookstore",
+      "hours_typical": {
+        "mon-sat": "10:00-19:00",
+        "sun": "closed"
+      },
+      "signature_items": [
+        {
+          "name": "Hand-picked staff recommendation",
+          "price_eur": null,
+          "popularity_note": "rotated weekly"
+        },
+        {
+          "name": "Berlin/Zurich photo book",
+          "price_eur": null,
+          "popularity_note": "tourist-friendly gift"
+        },
+        {
+          "name": "German contemporary fiction",
+          "price_eur": null,
+          "popularity_note": "front-table feature"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "independent bookstore",
+        "curated shelves",
+        "neighbourhood institution"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "📚"
+    },
+    {
+      "id": "berlin-mitte-eisgarten-weinmeister",
+      "display_name": "Eisgarten Weinmeister",
+      "category": "ice_cream",
+      "hours_typical": {
+        "mon-sun": "12:00-22:00"
+      },
+      "signature_items": [
+        {
+          "name": "Pistachio scoop",
+          "price_eur": 2.0,
+          "popularity_note": "house favourite"
+        },
+        {
+          "name": "Stracciatella",
+          "price_eur": 2.0,
+          "popularity_note": "classic order"
+        },
+        {
+          "name": "Sorbet of the day",
+          "price_eur": 2.0,
+          "popularity_note": "rotating fruit"
+        }
+      ],
+      "price_tier": "€",
+      "vibe_descriptors": [
+        "artisan gelato",
+        "queue out the door on warm days",
+        "kid-friendly"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🍦"
+    },
+    {
+      "id": "berlin-mitte-mein-haus-am-see-02998",
+      "display_name": "Mein Haus am See",
+      "category": "bar",
+      "hours_typical": {
+        "mon-thu": "18:00-01:00",
+        "fri-sat": "18:00-03:00",
+        "sun": "18:00-00:00"
+      },
+      "signature_items": [
+        {
+          "name": "Aperol spritz",
+          "price_eur": 7.5,
+          "popularity_note": "happy-hour staple"
+        },
+        {
+          "name": "Natural wine pour",
+          "price_eur": null,
+          "popularity_note": "rotating list"
+        },
+        {
+          "name": "Negroni",
+          "price_eur": null,
+          "popularity_note": "house classic"
+        }
+      ],
+      "price_tier": "€€€",
+      "vibe_descriptors": [
+        "late-night spritz",
+        "low lighting",
+        "after-work locals"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🍷"
+    },
+    {
+      "id": "berlin-mitte-sharlie-cheen-bar-03019",
+      "display_name": "Sharlie Cheen Bar",
+      "category": "bar",
+      "hours_typical": {
+        "mon-thu": "18:00-01:00",
+        "fri-sat": "18:00-03:00",
+        "sun": "18:00-00:00"
+      },
+      "signature_items": [
+        {
+          "name": "Aperol spritz",
+          "price_eur": 7.5,
+          "popularity_note": "happy-hour staple"
+        },
+        {
+          "name": "Natural wine pour",
+          "price_eur": null,
+          "popularity_note": "rotating list"
+        },
+        {
+          "name": "Negroni",
+          "price_eur": null,
+          "popularity_note": "house classic"
+        }
+      ],
+      "price_tier": "€€€",
+      "vibe_descriptors": [
+        "late-night spritz",
+        "low lighting",
+        "after-work locals"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🍷"
+    },
+    {
+      "id": "berlin-mitte-the-barn-03005",
+      "display_name": "The Barn",
+      "category": "cafe",
+      "hours_typical": {
+        "mon-fri": "08:00-18:00",
+        "sat-sun": "09:00-18:00"
+      },
+      "signature_items": [
+        {
+          "name": "Flat white",
+          "price_eur": null,
+          "popularity_note": "go-to morning order"
+        },
+        {
+          "name": "Filter coffee",
+          "price_eur": null,
+          "popularity_note": "house brew, refilled often"
+        },
+        {
+          "name": "Cinnamon roll",
+          "price_eur": null,
+          "popularity_note": "warm out of the oven"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "third-wave coffee",
+        "laptop-friendly",
+        "warm wood + ceramics"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "☕"
+    },
+    {
+      "id": "berlin-mitte-huong-que-03039",
+      "display_name": "Huong Quê",
+      "category": "restaurant",
+      "hours_typical": {
+        "mon-sat": "12:00-23:00",
+        "sun": "12:00-22:00"
+      },
+      "signature_items": [
+        {
+          "name": "Daily lunch special",
+          "price_eur": null,
+          "popularity_note": "12-15 EUR midday deal"
+        },
+        {
+          "name": "House dinner plate",
+          "price_eur": null,
+          "popularity_note": "shareable mains"
+        },
+        {
+          "name": "Local craft beer",
+          "price_eur": null,
+          "popularity_note": "rotating tap"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "neighbourhood dining",
+        "casual sit-down",
+        "lively dinner crowd"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🍴"
+    },
+    {
+      "id": "berlin-mitte-rosies-03015",
+      "display_name": "Rosie's",
+      "category": "bar",
+      "hours_typical": {
+        "mon-thu": "18:00-01:00",
+        "fri-sat": "18:00-03:00",
+        "sun": "18:00-00:00"
+      },
+      "signature_items": [
+        {
+          "name": "Aperol spritz",
+          "price_eur": 7.5,
+          "popularity_note": "happy-hour staple"
+        },
+        {
+          "name": "Natural wine pour",
+          "price_eur": null,
+          "popularity_note": "rotating list"
+        },
+        {
+          "name": "Negroni",
+          "price_eur": null,
+          "popularity_note": "house classic"
+        }
+      ],
+      "price_tier": "€€€",
+      "vibe_descriptors": [
+        "late-night spritz",
+        "low lighting",
+        "after-work locals"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🍷"
+    },
+    {
+      "id": "berlin-mitte-crosta-03046",
+      "display_name": "Crosta",
+      "category": "restaurant",
+      "hours_typical": {
+        "mon-sat": "12:00-23:00",
+        "sun": "12:00-22:00"
+      },
+      "signature_items": [
+        {
+          "name": "Daily lunch special",
+          "price_eur": null,
+          "popularity_note": "12-15 EUR midday deal"
+        },
+        {
+          "name": "House dinner plate",
+          "price_eur": null,
+          "popularity_note": "shareable mains"
+        },
+        {
+          "name": "Local craft beer",
+          "price_eur": null,
+          "popularity_note": "rotating tap"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "neighbourhood dining",
+        "casual sit-down",
+        "lively dinner crowd"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🍴"
+    },
+    {
+      "id": "berlin-mitte-100-gramm-lounge-03052",
+      "display_name": "100 Gramm Lounge",
+      "category": "bar",
+      "hours_typical": {
+        "mon-thu": "18:00-01:00",
+        "fri-sat": "18:00-03:00",
+        "sun": "18:00-00:00"
+      },
+      "signature_items": [
+        {
+          "name": "Aperol spritz",
+          "price_eur": 7.5,
+          "popularity_note": "happy-hour staple"
+        },
+        {
+          "name": "Natural wine pour",
+          "price_eur": null,
+          "popularity_note": "rotating list"
+        },
+        {
+          "name": "Negroni",
+          "price_eur": null,
+          "popularity_note": "house classic"
+        }
+      ],
+      "price_tier": "€€€",
+      "vibe_descriptors": [
+        "late-night spritz",
+        "low lighting",
+        "after-work locals"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🍷"
+    },
+    {
+      "id": "berlin-mitte-fam-dang-02977",
+      "display_name": "Fam. Dang",
+      "category": "restaurant",
+      "hours_typical": {
+        "mon-sat": "12:00-23:00",
+        "sun": "12:00-22:00"
+      },
+      "signature_items": [
+        {
+          "name": "Daily lunch special",
+          "price_eur": null,
+          "popularity_note": "12-15 EUR midday deal"
+        },
+        {
+          "name": "House dinner plate",
+          "price_eur": null,
+          "popularity_note": "shareable mains"
+        },
+        {
+          "name": "Local craft beer",
+          "price_eur": null,
+          "popularity_note": "rotating tap"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "neighbourhood dining",
+        "casual sit-down",
+        "lively dinner crowd"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🍴"
+    },
+    {
+      "id": "berlin-mitte-zeit-fur-brot-03038",
+      "display_name": "Zeit für Brot",
+      "category": "bakery",
+      "hours_typical": {
+        "mon-fri": "06:30-18:00",
+        "sat": "07:00-16:00",
+        "sun": "07:30-14:00"
+      },
+      "signature_items": [
+        {
+          "name": "Sourdough loaf",
+          "price_eur": null,
+          "popularity_note": "sells out by midday"
+        },
+        {
+          "name": "Butter pretzel",
+          "price_eur": null,
+          "popularity_note": "afternoon snack staple"
+        },
+        {
+          "name": "Cinnamon snail",
+          "price_eur": null,
+          "popularity_note": "weekend favourite"
+        }
+      ],
+      "price_tier": "€",
+      "vibe_descriptors": [
+        "traditional German bakery",
+        "early-morning crowd",
+        "warm bread smell"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🥨"
+    },
+    {
+      "id": "berlin-mitte-late-night-shop-02949",
+      "display_name": "Late Night Shop",
+      "category": "kiosk",
+      "hours_typical": {
+        "daily": "07:00-23:00"
+      },
+      "signature_items": [
+        {
+          "name": "Club-Mate",
+          "price_eur": 2.5,
+          "popularity_note": "Berlin staple"
+        },
+        {
+          "name": "Berliner Pilsner",
+          "price_eur": 1.8,
+          "popularity_note": "evening grab-and-go"
+        },
+        {
+          "name": "Newspaper + lottery ticket",
+          "price_eur": null,
+          "popularity_note": "morning regulars"
+        }
+      ],
+      "price_tier": "€",
+      "vibe_descriptors": [
+        "late-night Späti",
+        "cash-friendly",
+        "neighbourhood corner stop"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "📰"
+    },
+    {
+      "id": "berlin-mitte-aiko-03053",
+      "display_name": "Aiko",
+      "category": "restaurant",
+      "hours_typical": {
+        "mon-sat": "12:00-23:00",
+        "sun": "12:00-22:00"
+      },
+      "signature_items": [
+        {
+          "name": "Daily lunch special",
+          "price_eur": null,
+          "popularity_note": "12-15 EUR midday deal"
+        },
+        {
+          "name": "House dinner plate",
+          "price_eur": null,
+          "popularity_note": "shareable mains"
+        },
+        {
+          "name": "Local craft beer",
+          "price_eur": null,
+          "popularity_note": "rotating tap"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "neighbourhood dining",
+        "casual sit-down",
+        "lively dinner crowd"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🍴"
+    },
+    {
+      "id": "berlin-mitte-st-oberholz-02953",
+      "display_name": "St. Oberholz",
+      "category": "cafe",
+      "hours_typical": {
+        "mon-fri": "08:00-18:00",
+        "sat-sun": "09:00-18:00"
+      },
+      "signature_items": [
+        {
+          "name": "Flat white",
+          "price_eur": null,
+          "popularity_note": "go-to morning order"
+        },
+        {
+          "name": "Filter coffee",
+          "price_eur": null,
+          "popularity_note": "house brew, refilled often"
+        },
+        {
+          "name": "Cinnamon roll",
+          "price_eur": null,
+          "popularity_note": "warm out of the oven"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "third-wave coffee",
+        "laptop-friendly",
+        "warm wood + ceramics"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "☕"
+    },
+    {
+      "id": "berlin-mitte-rotation-boutique-03047",
+      "display_name": "Rotation Boutique",
+      "category": "boutique",
+      "hours_typical": {
+        "mon-sat": "11:00-19:00",
+        "sun": "closed"
+      },
+      "signature_items": [
+        {
+          "name": "Capsule-collection raincoat",
+          "price_eur": null,
+          "popularity_note": "rainy-day pickup"
+        },
+        {
+          "name": "Independent label tee",
+          "price_eur": null,
+          "popularity_note": "limited drops"
+        },
+        {
+          "name": "Leather tote",
+          "price_eur": null,
+          "popularity_note": "everyday staple"
+        }
+      ],
+      "price_tier": "€€€",
+      "vibe_descriptors": [
+        "independent label",
+        "curated rack",
+        "soft minimal interior"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "👗"
+    },
+    {
+      "id": "berlin-mitte-the-eatery-berlin-03070",
+      "display_name": "The Eatery Berlin",
+      "category": "restaurant",
+      "hours_typical": {
+        "mon-sat": "12:00-23:00",
+        "sun": "12:00-22:00"
+      },
+      "signature_items": [
+        {
+          "name": "Daily lunch special",
+          "price_eur": null,
+          "popularity_note": "12-15 EUR midday deal"
+        },
+        {
+          "name": "House dinner plate",
+          "price_eur": null,
+          "popularity_note": "shareable mains"
+        },
+        {
+          "name": "Local craft beer",
+          "price_eur": null,
+          "popularity_note": "rotating tap"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "neighbourhood dining",
+        "casual sit-down",
+        "lively dinner crowd"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🍴"
+    },
+    {
+      "id": "berlin-mitte-mod-coffee-03063",
+      "display_name": "Mod Coffee",
+      "category": "cafe",
+      "hours_typical": {
+        "mon-fri": "08:00-18:00",
+        "sat-sun": "09:00-18:00"
+      },
+      "signature_items": [
+        {
+          "name": "Flat white",
+          "price_eur": null,
+          "popularity_note": "go-to morning order"
+        },
+        {
+          "name": "Filter coffee",
+          "price_eur": null,
+          "popularity_note": "house brew, refilled often"
+        },
+        {
+          "name": "Cinnamon roll",
+          "price_eur": null,
+          "popularity_note": "warm out of the oven"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "third-wave coffee",
+        "laptop-friendly",
+        "warm wood + ceramics"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "☕"
+    },
+    {
+      "id": "berlin-mitte-supercoff-03078",
+      "display_name": "Supercoff",
+      "category": "cafe",
+      "hours_typical": {
+        "mon-fri": "08:00-18:00",
+        "sat-sun": "09:00-18:00"
+      },
+      "signature_items": [
+        {
+          "name": "Flat white",
+          "price_eur": null,
+          "popularity_note": "go-to morning order"
+        },
+        {
+          "name": "Filter coffee",
+          "price_eur": null,
+          "popularity_note": "house brew, refilled often"
+        },
+        {
+          "name": "Cinnamon roll",
+          "price_eur": null,
+          "popularity_note": "warm out of the oven"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "third-wave coffee",
+        "laptop-friendly",
+        "warm wood + ceramics"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "☕"
+    },
+    {
+      "id": "berlin-mitte-aera-02940",
+      "display_name": "AERA",
+      "category": "bakery",
+      "hours_typical": {
+        "mon-fri": "06:30-18:00",
+        "sat": "07:00-16:00",
+        "sun": "07:30-14:00"
+      },
+      "signature_items": [
+        {
+          "name": "Sourdough loaf",
+          "price_eur": null,
+          "popularity_note": "sells out by midday"
+        },
+        {
+          "name": "Butter pretzel",
+          "price_eur": null,
+          "popularity_note": "afternoon snack staple"
+        },
+        {
+          "name": "Cinnamon snail",
+          "price_eur": null,
+          "popularity_note": "weekend favourite"
+        }
+      ],
+      "price_tier": "€",
+      "vibe_descriptors": [
+        "traditional German bakery",
+        "early-morning crowd",
+        "warm bread smell"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🥨"
+    },
+    {
+      "id": "berlin-mitte-croissant-couture-03062",
+      "display_name": "Croissant Couture",
+      "category": "cafe",
+      "hours_typical": {
+        "mon-fri": "08:00-18:00",
+        "sat-sun": "09:00-18:00"
+      },
+      "signature_items": [
+        {
+          "name": "Flat white",
+          "price_eur": null,
+          "popularity_note": "go-to morning order"
+        },
+        {
+          "name": "Filter coffee",
+          "price_eur": null,
+          "popularity_note": "house brew, refilled often"
+        },
+        {
+          "name": "Cinnamon roll",
+          "price_eur": null,
+          "popularity_note": "warm out of the oven"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "third-wave coffee",
+        "laptop-friendly",
+        "warm wood + ceramics"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "☕"
+    },
+    {
+      "id": "berlin-mitte-flat-white-03084",
+      "display_name": "flat white",
+      "category": "cafe",
+      "hours_typical": {
+        "mon-fri": "08:00-18:00",
+        "sat-sun": "09:00-18:00"
+      },
+      "signature_items": [
+        {
+          "name": "Flat white",
+          "price_eur": null,
+          "popularity_note": "go-to morning order"
+        },
+        {
+          "name": "Filter coffee",
+          "price_eur": null,
+          "popularity_note": "house brew, refilled often"
+        },
+        {
+          "name": "Cinnamon roll",
+          "price_eur": null,
+          "popularity_note": "warm out of the oven"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "third-wave coffee",
+        "laptop-friendly",
+        "warm wood + ceramics"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "☕"
+    },
+    {
+      "id": "berlin-mitte-blumen-vanessa-02995",
+      "display_name": "Blumen Vanessa",
+      "category": "florist",
+      "hours_typical": {
+        "mon-fri": "09:00-19:00",
+        "sat": "09:00-17:00",
+        "sun": "closed"
+      },
+      "signature_items": [
+        {
+          "name": "Tulip bouquet",
+          "price_eur": 10.0,
+          "popularity_note": "weekly classic"
+        },
+        {
+          "name": "Seasonal hand-tied bunch",
+          "price_eur": null,
+          "popularity_note": "florist's pick"
+        },
+        {
+          "name": "Single-stem rose",
+          "price_eur": 3.5,
+          "popularity_note": "last-minute gift"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "seasonal stems",
+        "gift-friendly",
+        "neighbourhood florist"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "💐"
+    },
+    {
+      "id": "berlin-mitte-vertere-03094",
+      "display_name": "Vertere",
+      "category": "boutique",
+      "hours_typical": {
+        "mon-sat": "11:00-19:00",
+        "sun": "closed"
+      },
+      "signature_items": [
+        {
+          "name": "Capsule-collection raincoat",
+          "price_eur": null,
+          "popularity_note": "rainy-day pickup"
+        },
+        {
+          "name": "Independent label tee",
+          "price_eur": null,
+          "popularity_note": "limited drops"
+        },
+        {
+          "name": "Leather tote",
+          "price_eur": null,
+          "popularity_note": "everyday staple"
+        }
+      ],
+      "price_tier": "€€€",
+      "vibe_descriptors": [
+        "independent label",
+        "curated rack",
+        "soft minimal interior"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "👗"
+    },
+    {
+      "id": "berlin-mitte-linerie-02903",
+      "display_name": "Linerie",
+      "category": "boutique",
+      "hours_typical": {
+        "mon-sat": "11:00-19:00",
+        "sun": "closed"
+      },
+      "signature_items": [
+        {
+          "name": "Capsule-collection raincoat",
+          "price_eur": null,
+          "popularity_note": "rainy-day pickup"
+        },
+        {
+          "name": "Independent label tee",
+          "price_eur": null,
+          "popularity_note": "limited drops"
+        },
+        {
+          "name": "Leather tote",
+          "price_eur": null,
+          "popularity_note": "everyday staple"
+        }
+      ],
+      "price_tier": "€€€",
+      "vibe_descriptors": [
+        "independent label",
+        "curated rack",
+        "soft minimal interior"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "👗"
+    },
+    {
+      "id": "berlin-mitte-asthetik-movement-03105",
+      "display_name": "ästhetik movement",
+      "category": "boutique",
+      "hours_typical": {
+        "mon-sat": "11:00-19:00",
+        "sun": "closed"
+      },
+      "signature_items": [
+        {
+          "name": "Capsule-collection raincoat",
+          "price_eur": null,
+          "popularity_note": "rainy-day pickup"
+        },
+        {
+          "name": "Independent label tee",
+          "price_eur": null,
+          "popularity_note": "limited drops"
+        },
+        {
+          "name": "Leather tote",
+          "price_eur": null,
+          "popularity_note": "everyday staple"
+        }
+      ],
+      "price_tier": "€€€",
+      "vibe_descriptors": [
+        "independent label",
+        "curated rack",
+        "soft minimal interior"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "👗"
+    },
+    {
+      "id": "berlin-mitte-suesse-suende-03109",
+      "display_name": "Süße Sünde",
+      "category": "ice_cream",
+      "hours_typical": {
+        "mon-sun": "12:00-22:00"
+      },
+      "signature_items": [
+        {
+          "name": "Pistachio scoop",
+          "price_eur": 2.0,
+          "popularity_note": "house favourite"
+        },
+        {
+          "name": "Stracciatella",
+          "price_eur": 2.0,
+          "popularity_note": "classic order"
+        },
+        {
+          "name": "Sorbet of the day",
+          "price_eur": 2.0,
+          "popularity_note": "rotating fruit"
+        }
+      ],
+      "price_tier": "€",
+      "vibe_descriptors": [
+        "artisan gelato",
+        "queue out the door on warm days",
+        "kid-friendly"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🍦"
+    },
+    {
+      "id": "berlin-mitte-the-market-02965",
+      "display_name": "The Market",
+      "category": "kiosk",
+      "hours_typical": {
+        "daily": "07:00-23:00"
+      },
+      "signature_items": [
+        {
+          "name": "Club-Mate",
+          "price_eur": 2.5,
+          "popularity_note": "Berlin staple"
+        },
+        {
+          "name": "Berliner Pilsner",
+          "price_eur": 1.8,
+          "popularity_note": "evening grab-and-go"
+        },
+        {
+          "name": "Newspaper + lottery ticket",
+          "price_eur": null,
+          "popularity_note": "morning regulars"
+        }
+      ],
+      "price_tier": "€",
+      "vibe_descriptors": [
+        "late-night Späti",
+        "cash-friendly",
+        "neighbourhood corner stop"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "📰"
+    },
+    {
+      "id": "berlin-mitte-hokey-pokey-02964",
+      "display_name": "Hokey Pokey",
+      "category": "ice_cream",
+      "hours_typical": {
+        "mon-sun": "12:00-22:00"
+      },
+      "signature_items": [
+        {
+          "name": "Pistachio scoop",
+          "price_eur": 2.0,
+          "popularity_note": "house favourite"
+        },
+        {
+          "name": "Stracciatella",
+          "price_eur": 2.0,
+          "popularity_note": "classic order"
+        },
+        {
+          "name": "Sorbet of the day",
+          "price_eur": 2.0,
+          "popularity_note": "rotating fruit"
+        }
+      ],
+      "price_tier": "€",
+      "vibe_descriptors": [
+        "artisan gelato",
+        "queue out the door on warm days",
+        "kid-friendly"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🍦"
+    },
+    {
+      "id": "berlin-mitte-ocelot-03172",
+      "display_name": "ocelot",
+      "category": "bookstore",
+      "hours_typical": {
+        "mon-sat": "10:00-19:00",
+        "sun": "closed"
+      },
+      "signature_items": [
+        {
+          "name": "Hand-picked staff recommendation",
+          "price_eur": null,
+          "popularity_note": "rotated weekly"
+        },
+        {
+          "name": "Berlin/Zurich photo book",
+          "price_eur": null,
+          "popularity_note": "tourist-friendly gift"
+        },
+        {
+          "name": "German contemporary fiction",
+          "price_eur": null,
+          "popularity_note": "front-table feature"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "independent bookstore",
+        "curated shelves",
+        "neighbourhood institution"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "📚"
+    },
+    {
+      "id": "berlin-mitte-getraenkekiosk-03185",
+      "display_name": "Getränkekiosk",
+      "category": "kiosk",
+      "hours_typical": {
+        "daily": "07:00-23:00"
+      },
+      "signature_items": [
+        {
+          "name": "Club-Mate",
+          "price_eur": 2.5,
+          "popularity_note": "Berlin staple"
+        },
+        {
+          "name": "Berliner Pilsner",
+          "price_eur": 1.8,
+          "popularity_note": "evening grab-and-go"
+        },
+        {
+          "name": "Newspaper + lottery ticket",
+          "price_eur": null,
+          "popularity_note": "morning regulars"
+        }
+      ],
+      "price_tier": "€",
+      "vibe_descriptors": [
+        "late-night Späti",
+        "cash-friendly",
+        "neighbourhood corner stop"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "📰"
+    },
+    {
+      "id": "berlin-mitte-acid-mitte-02798",
+      "display_name": "Acid Mitte",
+      "category": "bakery",
+      "hours_typical": {
+        "mon-fri": "06:30-18:00",
+        "sat": "07:00-16:00",
+        "sun": "07:30-14:00"
+      },
+      "signature_items": [
+        {
+          "name": "Sourdough loaf",
+          "price_eur": null,
+          "popularity_note": "sells out by midday"
+        },
+        {
+          "name": "Butter pretzel",
+          "price_eur": null,
+          "popularity_note": "afternoon snack staple"
+        },
+        {
+          "name": "Cinnamon snail",
+          "price_eur": null,
+          "popularity_note": "weekend favourite"
+        }
+      ],
+      "price_tier": "€",
+      "vibe_descriptors": [
+        "traditional German bakery",
+        "early-morning crowd",
+        "warm bread smell"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🥨"
+    },
+    {
+      "id": "berlin-mitte-rosa-canina-02890",
+      "display_name": "Rosa Canina",
+      "category": "ice_cream",
+      "hours_typical": {
+        "mon-sun": "12:00-22:00"
+      },
+      "signature_items": [
+        {
+          "name": "Pistachio scoop",
+          "price_eur": 2.0,
+          "popularity_note": "house favourite"
+        },
+        {
+          "name": "Stracciatella",
+          "price_eur": 2.0,
+          "popularity_note": "classic order"
+        },
+        {
+          "name": "Sorbet of the day",
+          "price_eur": 2.0,
+          "popularity_note": "rotating fruit"
+        }
+      ],
+      "price_tier": "€",
+      "vibe_descriptors": [
+        "artisan gelato",
+        "queue out the door on warm days",
+        "kid-friendly"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🍦"
+    },
+    {
+      "id": "berlin-mitte-buchhandlung-a-livraria-02933",
+      "display_name": "Buchhandlung a Livraria",
+      "category": "bookstore",
+      "hours_typical": {
+        "mon-sat": "10:00-19:00",
+        "sun": "closed"
+      },
+      "signature_items": [
+        {
+          "name": "Hand-picked staff recommendation",
+          "price_eur": null,
+          "popularity_note": "rotated weekly"
+        },
+        {
+          "name": "Berlin/Zurich photo book",
+          "price_eur": null,
+          "popularity_note": "tourist-friendly gift"
+        },
+        {
+          "name": "German contemporary fiction",
+          "price_eur": null,
+          "popularity_note": "front-table feature"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "independent bookstore",
+        "curated shelves",
+        "neighbourhood institution"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "📚"
+    },
+    {
+      "id": "berlin-mitte-antiquariat-wiederhold-03139",
+      "display_name": "Antiquariat Wiederhold",
+      "category": "bookstore",
+      "hours_typical": {
+        "mon-sat": "10:00-19:00",
+        "sun": "closed"
+      },
+      "signature_items": [
+        {
+          "name": "Hand-picked staff recommendation",
+          "price_eur": null,
+          "popularity_note": "rotated weekly"
+        },
+        {
+          "name": "Berlin/Zurich photo book",
+          "price_eur": null,
+          "popularity_note": "tourist-friendly gift"
+        },
+        {
+          "name": "German contemporary fiction",
+          "price_eur": null,
+          "popularity_note": "front-table feature"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "independent bookstore",
+        "curated shelves",
+        "neighbourhood institution"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "📚"
+    },
+    {
+      "id": "berlin-mitte-bio-konditorei-tillmann-02729",
+      "display_name": "Bio-Konditorei Tillmann",
+      "category": "bakery",
+      "hours_typical": {
+        "mon-fri": "06:30-18:00",
+        "sat": "07:00-16:00",
+        "sun": "07:30-14:00"
+      },
+      "signature_items": [
+        {
+          "name": "Sourdough loaf",
+          "price_eur": null,
+          "popularity_note": "sells out by midday"
+        },
+        {
+          "name": "Butter pretzel",
+          "price_eur": null,
+          "popularity_note": "afternoon snack staple"
+        },
+        {
+          "name": "Cinnamon snail",
+          "price_eur": null,
+          "popularity_note": "weekend favourite"
+        }
+      ],
+      "price_tier": "€",
+      "vibe_descriptors": [
+        "traditional German bakery",
+        "early-morning crowd",
+        "warm bread smell"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🥨"
+    },
+    {
+      "id": "berlin-mitte-floristik-live-03346",
+      "display_name": "Floristik live",
+      "category": "florist",
+      "hours_typical": {
+        "mon-fri": "09:00-19:00",
+        "sat": "09:00-17:00",
+        "sun": "closed"
+      },
+      "signature_items": [
+        {
+          "name": "Tulip bouquet",
+          "price_eur": 10.0,
+          "popularity_note": "weekly classic"
+        },
+        {
+          "name": "Seasonal hand-tied bunch",
+          "price_eur": null,
+          "popularity_note": "florist's pick"
+        },
+        {
+          "name": "Single-stem rose",
+          "price_eur": 3.5,
+          "popularity_note": "last-minute gift"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "seasonal stems",
+        "gift-friendly",
+        "neighbourhood florist"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "💐"
+    },
+    {
+      "id": "berlin-mitte-blumen-jaeger-03399",
+      "display_name": "Blumen Jäger",
+      "category": "florist",
+      "hours_typical": {
+        "mon-fri": "09:00-19:00",
+        "sat": "09:00-17:00",
+        "sun": "closed"
+      },
+      "signature_items": [
+        {
+          "name": "Tulip bouquet",
+          "price_eur": 10.0,
+          "popularity_note": "weekly classic"
+        },
+        {
+          "name": "Seasonal hand-tied bunch",
+          "price_eur": null,
+          "popularity_note": "florist's pick"
+        },
+        {
+          "name": "Single-stem rose",
+          "price_eur": 3.5,
+          "popularity_note": "last-minute gift"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "seasonal stems",
+        "gift-friendly",
+        "neighbourhood florist"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:24+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "💐"
+    }
+  ]
+}

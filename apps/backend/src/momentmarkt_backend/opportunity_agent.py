@@ -4,6 +4,7 @@ from typing import Any
 
 from .genui import coerce_widget_node
 from .llm_agents import default_use_llm, run_opportunity_agent
+from .merchant_enrichment import get_enrichment
 from .signals import SignalContext
 
 
@@ -57,7 +58,8 @@ async def generate_offer(
 
     if use_llm:
         try:
-            generated = _normalize_draft(await run_opportunity_agent(context))
+            llm_context = _attach_merchant_enrichment(context)
+            generated = _normalize_draft(await run_opportunity_agent(llm_context))
             widget_spec, widget_valid = coerce_widget_node(generated.get("widget_spec"))
             generated["widget_spec"] = widget_spec
             generation_log.append("pydantic_ai_generation_succeeded")
@@ -130,6 +132,28 @@ def _persisted_offer_preview(context: SignalContext, draft: dict[str, Any]) -> d
         "budget_total": merchant.get("offer_budget", {}).get("total_budget_eur", 0),
         "cashback_eur": merchant.get("offer_budget", {}).get("max_cashback_eur", 0),
     }
+
+
+def _attach_merchant_enrichment(context: SignalContext) -> SignalContext:
+    """Return a shallow copy of ``context`` with ``merchant_enrichment`` if known.
+
+    Looks up the merchant by id in the cached
+    ``data/merchants/enriched/{city}.json`` file. If no entry exists we
+    return the original context unchanged so the prompt size stays the
+    same and the LLM falls back to category-level copy.
+    """
+
+    merchant = context.get("merchant", {})
+    merchant_id = merchant.get("id")
+    city = context.get("city_id")
+    if not merchant_id or not city:
+        return context
+    enrichment = get_enrichment(city, merchant_id)
+    if enrichment is None:
+        return context
+    enriched = dict(context)
+    enriched["merchant_enrichment"] = enrichment
+    return enriched
 
 
 def _surface_hint(merchant: dict[str, Any]) -> str:

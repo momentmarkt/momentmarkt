@@ -79,7 +79,19 @@ async def run_opportunity_agent(context: dict[str, Any]) -> dict[str, Any]:
         "- Image.accessibilityLabel is REQUIRED on every Image node (short human description).\n"
         "- Pressable.action MUST be the literal lowercase string 'redeem' (case-sensitive). "
         "Never 'Redeem', 'submit', 'buy', or any other value.\n"
-        "- No extra fields beyond those listed. Max nesting depth: 12 levels."
+        "- No extra fields beyond those listed. Max nesting depth: 12 levels.\n"
+        "\n"
+        "MERCHANT GROUNDING:\n"
+        "- If `merchant_enrichment` is present in the signal_context, treat its "
+        "`signature_items`, `vibe_descriptors`, `hours_typical`, and "
+        "`top_review_quotes` as ground truth. Ground both German + English "
+        "headline_de/headline_en and body_de/body_en (and the visible widget "
+        "Text nodes) in those real signature items and vibe descriptors. Pick "
+        "ONE specific signature item to anchor the body copy when it fits.\n"
+        "- Never invent a menu item, hour, price, or quote that isn't in the "
+        "enrichment. If the enrichment is silent on a detail, leave it out.\n"
+        "- If `merchant_enrichment` is absent, fall back to category-level copy "
+        "as before — do not invent specifics."
     )
     prompt = {
         "task": "Draft one Opportunity Agent output for a merchant inbox.",

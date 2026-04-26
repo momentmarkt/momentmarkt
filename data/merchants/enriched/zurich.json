@@ -1,0 +1,1091 @@
+{
+  "city": "zurich",
+  "generated_at": "2026-04-26T07:16:25+00:00",
+  "source": "offline_heuristic",
+  "merchant_count": 30,
+  "failures": 0,
+  "entries": [
+    {
+      "id": "zurich-hb-collectif-mon-amour-94360",
+      "display_name": "Collectif mon Amour",
+      "category": "boutique",
+      "hours_typical": {
+        "mon-sat": "11:00-19:00",
+        "sun": "closed"
+      },
+      "signature_items": [
+        {
+          "name": "Capsule-collection raincoat",
+          "price_eur": null,
+          "popularity_note": "rainy-day pickup"
+        },
+        {
+          "name": "Independent label tee",
+          "price_eur": null,
+          "popularity_note": "limited drops"
+        },
+        {
+          "name": "Leather tote",
+          "price_eur": null,
+          "popularity_note": "everyday staple"
+        }
+      ],
+      "price_tier": "€€€",
+      "vibe_descriptors": [
+        "independent label",
+        "curated rack",
+        "soft minimal interior"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "👗"
+    },
+    {
+      "id": "zurich-hb-backerei-conditorei-stocker-61535",
+      "display_name": "Bäckerei Conditorei Stocker",
+      "category": "bakery",
+      "hours_typical": {
+        "mon-fri": "06:30-18:00",
+        "sat": "07:00-16:00",
+        "sun": "07:30-14:00"
+      },
+      "signature_items": [
+        {
+          "name": "Sourdough loaf",
+          "price_eur": null,
+          "popularity_note": "sells out by midday"
+        },
+        {
+          "name": "Butter pretzel",
+          "price_eur": null,
+          "popularity_note": "afternoon snack staple"
+        },
+        {
+          "name": "Cinnamon snail",
+          "price_eur": null,
+          "popularity_note": "weekend favourite"
+        }
+      ],
+      "price_tier": "€",
+      "vibe_descriptors": [
+        "traditional German bakery",
+        "early-morning crowd",
+        "warm bread smell"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🥨"
+    },
+    {
+      "id": "zurich-hb-le-cafe-61594",
+      "display_name": "Le Café",
+      "category": "cafe",
+      "hours_typical": {
+        "mon-fri": "08:00-18:00",
+        "sat-sun": "09:00-18:00"
+      },
+      "signature_items": [
+        {
+          "name": "Flat white",
+          "price_eur": null,
+          "popularity_note": "go-to morning order"
+        },
+        {
+          "name": "Filter coffee",
+          "price_eur": null,
+          "popularity_note": "house brew, refilled often"
+        },
+        {
+          "name": "Cinnamon roll",
+          "price_eur": null,
+          "popularity_note": "warm out of the oven"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "third-wave coffee",
+        "laptop-friendly",
+        "warm wood + ceramics"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "☕"
+    },
+    {
+      "id": "zurich-hb-brasserie-federal-00898",
+      "display_name": "Brasserie Federal",
+      "category": "restaurant",
+      "hours_typical": {
+        "mon-sat": "12:00-23:00",
+        "sun": "12:00-22:00"
+      },
+      "signature_items": [
+        {
+          "name": "Daily lunch special",
+          "price_eur": null,
+          "popularity_note": "12-15 EUR midday deal"
+        },
+        {
+          "name": "House dinner plate",
+          "price_eur": null,
+          "popularity_note": "shareable mains"
+        },
+        {
+          "name": "Local craft beer",
+          "price_eur": null,
+          "popularity_note": "rotating tap"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "neighbourhood dining",
+        "casual sit-down",
+        "lively dinner crowd"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🍴"
+    },
+    {
+      "id": "zurich-hb-il-baretto-61526",
+      "display_name": "Il Baretto",
+      "category": "cafe",
+      "hours_typical": {
+        "mon-fri": "08:00-18:00",
+        "sat-sun": "09:00-18:00"
+      },
+      "signature_items": [
+        {
+          "name": "Flat white",
+          "price_eur": null,
+          "popularity_note": "go-to morning order"
+        },
+        {
+          "name": "Filter coffee",
+          "price_eur": null,
+          "popularity_note": "house brew, refilled often"
+        },
+        {
+          "name": "Cinnamon roll",
+          "price_eur": null,
+          "popularity_note": "warm out of the oven"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "third-wave coffee",
+        "laptop-friendly",
+        "warm wood + ceramics"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "☕"
+    },
+    {
+      "id": "zurich-hb-san-gennaro-00893",
+      "display_name": "San Gennaro",
+      "category": "restaurant",
+      "hours_typical": {
+        "mon-sat": "12:00-23:00",
+        "sun": "12:00-22:00"
+      },
+      "signature_items": [
+        {
+          "name": "Daily lunch special",
+          "price_eur": null,
+          "popularity_note": "12-15 EUR midday deal"
+        },
+        {
+          "name": "House dinner plate",
+          "price_eur": null,
+          "popularity_note": "shareable mains"
+        },
+        {
+          "name": "Local craft beer",
+          "price_eur": null,
+          "popularity_note": "rotating tap"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "neighbourhood dining",
+        "casual sit-down",
+        "lively dinner crowd"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🍴"
+    },
+    {
+      "id": "zurich-hb-chicoree-61542",
+      "display_name": "Chicorée",
+      "category": "boutique",
+      "hours_typical": {
+        "mon-sat": "11:00-19:00",
+        "sun": "closed"
+      },
+      "signature_items": [
+        {
+          "name": "Capsule-collection raincoat",
+          "price_eur": null,
+          "popularity_note": "rainy-day pickup"
+        },
+        {
+          "name": "Independent label tee",
+          "price_eur": null,
+          "popularity_note": "limited drops"
+        },
+        {
+          "name": "Leather tote",
+          "price_eur": null,
+          "popularity_note": "everyday staple"
+        }
+      ],
+      "price_tier": "€€€",
+      "vibe_descriptors": [
+        "independent label",
+        "curated rack",
+        "soft minimal interior"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "👗"
+    },
+    {
+      "id": "zurich-hb-amari-94359",
+      "display_name": "Amari",
+      "category": "boutique",
+      "hours_typical": {
+        "mon-sat": "11:00-19:00",
+        "sun": "closed"
+      },
+      "signature_items": [
+        {
+          "name": "Capsule-collection raincoat",
+          "price_eur": null,
+          "popularity_note": "rainy-day pickup"
+        },
+        {
+          "name": "Independent label tee",
+          "price_eur": null,
+          "popularity_note": "limited drops"
+        },
+        {
+          "name": "Leather tote",
+          "price_eur": null,
+          "popularity_note": "everyday staple"
+        }
+      ],
+      "price_tier": "€€€",
+      "vibe_descriptors": [
+        "independent label",
+        "curated rack",
+        "soft minimal interior"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "👗"
+    },
+    {
+      "id": "zurich-hb-cafe-oscar-00900",
+      "display_name": "Cafe Oscar",
+      "category": "cafe",
+      "hours_typical": {
+        "mon-fri": "08:00-18:00",
+        "sat-sun": "09:00-18:00"
+      },
+      "signature_items": [
+        {
+          "name": "Flat white",
+          "price_eur": null,
+          "popularity_note": "go-to morning order"
+        },
+        {
+          "name": "Filter coffee",
+          "price_eur": null,
+          "popularity_note": "house brew, refilled often"
+        },
+        {
+          "name": "Cinnamon roll",
+          "price_eur": null,
+          "popularity_note": "warm out of the oven"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "third-wave coffee",
+        "laptop-friendly",
+        "warm wood + ceramics"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "☕"
+    },
+    {
+      "id": "zurich-hb-restaurant-oase-33439",
+      "display_name": "Restaurant Oase",
+      "category": "restaurant",
+      "hours_typical": {
+        "mon-sat": "12:00-23:00",
+        "sun": "12:00-22:00"
+      },
+      "signature_items": [
+        {
+          "name": "Daily lunch special",
+          "price_eur": null,
+          "popularity_note": "12-15 EUR midday deal"
+        },
+        {
+          "name": "House dinner plate",
+          "price_eur": null,
+          "popularity_note": "shareable mains"
+        },
+        {
+          "name": "Local craft beer",
+          "price_eur": null,
+          "popularity_note": "rotating tap"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "neighbourhood dining",
+        "casual sit-down",
+        "lively dinner crowd"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🍴"
+    },
+    {
+      "id": "zurich-hb-miro-06421",
+      "display_name": "Miró",
+      "category": "cafe",
+      "hours_typical": {
+        "mon-fri": "08:00-18:00",
+        "sat-sun": "09:00-18:00"
+      },
+      "signature_items": [
+        {
+          "name": "Flat white",
+          "price_eur": null,
+          "popularity_note": "go-to morning order"
+        },
+        {
+          "name": "Filter coffee",
+          "price_eur": null,
+          "popularity_note": "house brew, refilled often"
+        },
+        {
+          "name": "Cinnamon roll",
+          "price_eur": null,
+          "popularity_note": "warm out of the oven"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "third-wave coffee",
+        "laptop-friendly",
+        "warm wood + ceramics"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "☕"
+    },
+    {
+      "id": "zurich-hb-sud-00904",
+      "display_name": "Süd",
+      "category": "restaurant",
+      "hours_typical": {
+        "mon-sat": "12:00-23:00",
+        "sun": "12:00-22:00"
+      },
+      "signature_items": [
+        {
+          "name": "Daily lunch special",
+          "price_eur": null,
+          "popularity_note": "12-15 EUR midday deal"
+        },
+        {
+          "name": "House dinner plate",
+          "price_eur": null,
+          "popularity_note": "shareable mains"
+        },
+        {
+          "name": "Local craft beer",
+          "price_eur": null,
+          "popularity_note": "rotating tap"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "neighbourhood dining",
+        "casual sit-down",
+        "lively dinner crowd"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🍴"
+    },
+    {
+      "id": "zurich-hb-time-lounge-61595",
+      "display_name": "Time... Lounge",
+      "category": "restaurant",
+      "hours_typical": {
+        "mon-sat": "12:00-23:00",
+        "sun": "12:00-22:00"
+      },
+      "signature_items": [
+        {
+          "name": "Daily lunch special",
+          "price_eur": null,
+          "popularity_note": "12-15 EUR midday deal"
+        },
+        {
+          "name": "House dinner plate",
+          "price_eur": null,
+          "popularity_note": "shareable mains"
+        },
+        {
+          "name": "Local craft beer",
+          "price_eur": null,
+          "popularity_note": "rotating tap"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "neighbourhood dining",
+        "casual sit-down",
+        "lively dinner crowd"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🍴"
+    },
+    {
+      "id": "zurich-hb-sora-sushi-00919",
+      "display_name": "Sora Sushi",
+      "category": "restaurant",
+      "hours_typical": {
+        "mon-sat": "12:00-23:00",
+        "sun": "12:00-22:00"
+      },
+      "signature_items": [
+        {
+          "name": "Daily lunch special",
+          "price_eur": null,
+          "popularity_note": "12-15 EUR midday deal"
+        },
+        {
+          "name": "House dinner plate",
+          "price_eur": null,
+          "popularity_note": "shareable mains"
+        },
+        {
+          "name": "Local craft beer",
+          "price_eur": null,
+          "popularity_note": "rotating tap"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "neighbourhood dining",
+        "casual sit-down",
+        "lively dinner crowd"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🍴"
+    },
+    {
+      "id": "zurich-hb-bayard-co-ltd-61562",
+      "display_name": "Bayard Co Ltd",
+      "category": "boutique",
+      "hours_typical": {
+        "mon-sat": "11:00-19:00",
+        "sun": "closed"
+      },
+      "signature_items": [
+        {
+          "name": "Capsule-collection raincoat",
+          "price_eur": null,
+          "popularity_note": "rainy-day pickup"
+        },
+        {
+          "name": "Independent label tee",
+          "price_eur": null,
+          "popularity_note": "limited drops"
+        },
+        {
+          "name": "Leather tote",
+          "price_eur": null,
+          "popularity_note": "everyday staple"
+        }
+      ],
+      "price_tier": "€€€",
+      "vibe_descriptors": [
+        "independent label",
+        "curated rack",
+        "soft minimal interior"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "👗"
+    },
+    {
+      "id": "zurich-hb-the-counter-00897",
+      "display_name": "The Counter",
+      "category": "restaurant",
+      "hours_typical": {
+        "mon-sat": "12:00-23:00",
+        "sun": "12:00-22:00"
+      },
+      "signature_items": [
+        {
+          "name": "Daily lunch special",
+          "price_eur": null,
+          "popularity_note": "12-15 EUR midday deal"
+        },
+        {
+          "name": "House dinner plate",
+          "price_eur": null,
+          "popularity_note": "shareable mains"
+        },
+        {
+          "name": "Local craft beer",
+          "price_eur": null,
+          "popularity_note": "rotating tap"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "neighbourhood dining",
+        "casual sit-down",
+        "lively dinner crowd"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🍴"
+    },
+    {
+      "id": "zurich-hb-calida-94364",
+      "display_name": "Calida",
+      "category": "boutique",
+      "hours_typical": {
+        "mon-sat": "11:00-19:00",
+        "sun": "closed"
+      },
+      "signature_items": [
+        {
+          "name": "Capsule-collection raincoat",
+          "price_eur": null,
+          "popularity_note": "rainy-day pickup"
+        },
+        {
+          "name": "Independent label tee",
+          "price_eur": null,
+          "popularity_note": "limited drops"
+        },
+        {
+          "name": "Leather tote",
+          "price_eur": null,
+          "popularity_note": "everyday staple"
+        }
+      ],
+      "price_tier": "€€€",
+      "vibe_descriptors": [
+        "independent label",
+        "curated rack",
+        "soft minimal interior"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "👗"
+    },
+    {
+      "id": "zurich-hb-starbucks-61544",
+      "display_name": "Starbucks",
+      "category": "cafe",
+      "hours_typical": {
+        "mon-fri": "08:00-18:00",
+        "sat-sun": "09:00-18:00"
+      },
+      "signature_items": [
+        {
+          "name": "Flat white",
+          "price_eur": null,
+          "popularity_note": "go-to morning order"
+        },
+        {
+          "name": "Filter coffee",
+          "price_eur": null,
+          "popularity_note": "house brew, refilled often"
+        },
+        {
+          "name": "Cinnamon roll",
+          "price_eur": null,
+          "popularity_note": "warm out of the oven"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "third-wave coffee",
+        "laptop-friendly",
+        "warm wood + ceramics"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "☕"
+    },
+    {
+      "id": "zurich-hb-da-capo-bar-00903",
+      "display_name": "Da Capo Bar",
+      "category": "cafe",
+      "hours_typical": {
+        "mon-fri": "08:00-18:00",
+        "sat-sun": "09:00-18:00"
+      },
+      "signature_items": [
+        {
+          "name": "Flat white",
+          "price_eur": null,
+          "popularity_note": "go-to morning order"
+        },
+        {
+          "name": "Filter coffee",
+          "price_eur": null,
+          "popularity_note": "house brew, refilled often"
+        },
+        {
+          "name": "Cinnamon roll",
+          "price_eur": null,
+          "popularity_note": "warm out of the oven"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "third-wave coffee",
+        "laptop-friendly",
+        "warm wood + ceramics"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "☕"
+    },
+    {
+      "id": "zurich-hb-brezelkonig-61545",
+      "display_name": "Brezelkönig",
+      "category": "bakery",
+      "hours_typical": {
+        "mon-fri": "06:30-18:00",
+        "sat": "07:00-16:00",
+        "sun": "07:30-14:00"
+      },
+      "signature_items": [
+        {
+          "name": "Sourdough loaf",
+          "price_eur": null,
+          "popularity_note": "sells out by midday"
+        },
+        {
+          "name": "Butter pretzel",
+          "price_eur": null,
+          "popularity_note": "afternoon snack staple"
+        },
+        {
+          "name": "Cinnamon snail",
+          "price_eur": null,
+          "popularity_note": "weekend favourite"
+        }
+      ],
+      "price_tier": "€",
+      "vibe_descriptors": [
+        "traditional German bakery",
+        "early-morning crowd",
+        "warm bread smell"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🥨"
+    },
+    {
+      "id": "zurich-hb-orell-fussli-54364",
+      "display_name": "Orell Füssli",
+      "category": "bookstore",
+      "hours_typical": {
+        "mon-sat": "10:00-19:00",
+        "sun": "closed"
+      },
+      "signature_items": [
+        {
+          "name": "Hand-picked staff recommendation",
+          "price_eur": null,
+          "popularity_note": "rotated weekly"
+        },
+        {
+          "name": "Berlin/Zurich photo book",
+          "price_eur": null,
+          "popularity_note": "tourist-friendly gift"
+        },
+        {
+          "name": "German contemporary fiction",
+          "price_eur": null,
+          "popularity_note": "front-table feature"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "independent bookstore",
+        "curated shelves",
+        "neighbourhood institution"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "📚"
+    },
+    {
+      "id": "zurich-hb-blume-3000-54348",
+      "display_name": "Blume 3000",
+      "category": "florist",
+      "hours_typical": {
+        "mon-fri": "09:00-19:00",
+        "sat": "09:00-17:00",
+        "sun": "closed"
+      },
+      "signature_items": [
+        {
+          "name": "Tulip bouquet",
+          "price_eur": 10.0,
+          "popularity_note": "weekly classic"
+        },
+        {
+          "name": "Seasonal hand-tied bunch",
+          "price_eur": null,
+          "popularity_note": "florist's pick"
+        },
+        {
+          "name": "Single-stem rose",
+          "price_eur": 3.5,
+          "popularity_note": "last-minute gift"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "seasonal stems",
+        "gift-friendly",
+        "neighbourhood florist"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "💐"
+    },
+    {
+      "id": "zurich-hb-barth-bucher-61553",
+      "display_name": "Barth Bücher",
+      "category": "bookstore",
+      "hours_typical": {
+        "mon-sat": "10:00-19:00",
+        "sun": "closed"
+      },
+      "signature_items": [
+        {
+          "name": "Hand-picked staff recommendation",
+          "price_eur": null,
+          "popularity_note": "rotated weekly"
+        },
+        {
+          "name": "Berlin/Zurich photo book",
+          "price_eur": null,
+          "popularity_note": "tourist-friendly gift"
+        },
+        {
+          "name": "German contemporary fiction",
+          "price_eur": null,
+          "popularity_note": "front-table feature"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "independent bookstore",
+        "curated shelves",
+        "neighbourhood institution"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "📚"
+    },
+    {
+      "id": "zurich-hb-movenpick-ice-cream-79505",
+      "display_name": "Mövenpick Ice Cream",
+      "category": "ice_cream",
+      "hours_typical": {
+        "mon-sun": "12:00-22:00"
+      },
+      "signature_items": [
+        {
+          "name": "Pistachio scoop",
+          "price_eur": 2.0,
+          "popularity_note": "house favourite"
+        },
+        {
+          "name": "Stracciatella",
+          "price_eur": 2.0,
+          "popularity_note": "classic order"
+        },
+        {
+          "name": "Sorbet of the day",
+          "price_eur": 2.0,
+          "popularity_note": "rotating fruit"
+        }
+      ],
+      "price_tier": "€",
+      "vibe_descriptors": [
+        "artisan gelato",
+        "queue out the door on warm days",
+        "kid-friendly"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🍦"
+    },
+    {
+      "id": "zurich-hb-blumen-kramer-61554",
+      "display_name": "Blumen Krämer",
+      "category": "florist",
+      "hours_typical": {
+        "mon-fri": "09:00-19:00",
+        "sat": "09:00-17:00",
+        "sun": "closed"
+      },
+      "signature_items": [
+        {
+          "name": "Tulip bouquet",
+          "price_eur": 10.0,
+          "popularity_note": "weekly classic"
+        },
+        {
+          "name": "Seasonal hand-tied bunch",
+          "price_eur": null,
+          "popularity_note": "florist's pick"
+        },
+        {
+          "name": "Single-stem rose",
+          "price_eur": 3.5,
+          "popularity_note": "last-minute gift"
+        }
+      ],
+      "price_tier": "€€",
+      "vibe_descriptors": [
+        "seasonal stems",
+        "gift-friendly",
+        "neighbourhood florist"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "💐"
+    },
+    {
+      "id": "zurich-hb-kiosk-zhb-39139",
+      "display_name": "Kiosk ZHB",
+      "category": "kiosk",
+      "hours_typical": {
+        "daily": "07:00-23:00"
+      },
+      "signature_items": [
+        {
+          "name": "Club-Mate",
+          "price_eur": 2.5,
+          "popularity_note": "Berlin staple"
+        },
+        {
+          "name": "Berliner Pilsner",
+          "price_eur": 1.8,
+          "popularity_note": "evening grab-and-go"
+        },
+        {
+          "name": "Newspaper + lottery ticket",
+          "price_eur": null,
+          "popularity_note": "morning regulars"
+        }
+      ],
+      "price_tier": "€",
+      "vibe_descriptors": [
+        "late-night Späti",
+        "cash-friendly",
+        "neighbourhood corner stop"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "📰"
+    },
+    {
+      "id": "zurich-hb-konrad-kaffee-cocktailbar-ex-0815-79187",
+      "display_name": "Konrad Kaffee- & Cocktailbar (ex 0815)",
+      "category": "bar",
+      "hours_typical": {
+        "mon-thu": "18:00-01:00",
+        "fri-sat": "18:00-03:00",
+        "sun": "18:00-00:00"
+      },
+      "signature_items": [
+        {
+          "name": "Aperol spritz",
+          "price_eur": 7.5,
+          "popularity_note": "happy-hour staple"
+        },
+        {
+          "name": "Natural wine pour",
+          "price_eur": null,
+          "popularity_note": "rotating list"
+        },
+        {
+          "name": "Negroni",
+          "price_eur": null,
+          "popularity_note": "house classic"
+        }
+      ],
+      "price_tier": "€€€",
+      "vibe_descriptors": [
+        "late-night spritz",
+        "low lighting",
+        "after-work locals"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🍷"
+    },
+    {
+      "id": "zurich-hb-d-vino-18631",
+      "display_name": "D-Vino",
+      "category": "bar",
+      "hours_typical": {
+        "mon-thu": "18:00-01:00",
+        "fri-sat": "18:00-03:00",
+        "sun": "18:00-00:00"
+      },
+      "signature_items": [
+        {
+          "name": "Aperol spritz",
+          "price_eur": 7.5,
+          "popularity_note": "happy-hour staple"
+        },
+        {
+          "name": "Natural wine pour",
+          "price_eur": null,
+          "popularity_note": "rotating list"
+        },
+        {
+          "name": "Negroni",
+          "price_eur": null,
+          "popularity_note": "house classic"
+        }
+      ],
+      "price_tier": "€€€",
+      "vibe_descriptors": [
+        "late-night spritz",
+        "low lighting",
+        "after-work locals"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🍷"
+    },
+    {
+      "id": "zurich-hb-leonardo-62389",
+      "display_name": "Leonardo",
+      "category": "ice_cream",
+      "hours_typical": {
+        "mon-sun": "12:00-22:00"
+      },
+      "signature_items": [
+        {
+          "name": "Pistachio scoop",
+          "price_eur": 2.0,
+          "popularity_note": "house favourite"
+        },
+        {
+          "name": "Stracciatella",
+          "price_eur": 2.0,
+          "popularity_note": "classic order"
+        },
+        {
+          "name": "Sorbet of the day",
+          "price_eur": 2.0,
+          "popularity_note": "rotating fruit"
+        }
+      ],
+      "price_tier": "€",
+      "vibe_descriptors": [
+        "artisan gelato",
+        "queue out the door on warm days",
+        "kid-friendly"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "🍦"
+    },
+    {
+      "id": "zurich-hb-k-snack-central-22313",
+      "display_name": "k snack Central",
+      "category": "kiosk",
+      "hours_typical": {
+        "daily": "07:00-23:00"
+      },
+      "signature_items": [
+        {
+          "name": "Club-Mate",
+          "price_eur": 2.5,
+          "popularity_note": "Berlin staple"
+        },
+        {
+          "name": "Berliner Pilsner",
+          "price_eur": 1.8,
+          "popularity_note": "evening grab-and-go"
+        },
+        {
+          "name": "Newspaper + lottery ticket",
+          "price_eur": null,
+          "popularity_note": "morning regulars"
+        }
+      ],
+      "price_tier": "€",
+      "vibe_descriptors": [
+        "late-night Späti",
+        "cash-friendly",
+        "neighbourhood corner stop"
+      ],
+      "top_review_quotes": [],
+      "updated_at": "2026-04-26T07:16:25+00:00",
+      "source": "offline_heuristic",
+      "category_emoji": "📰"
+    }
+  ]
+}
