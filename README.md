@@ -25,7 +25,9 @@ Generative city wallet prototype for the DSV-Gruppe CITY WALLET challenge.
 Current implementation direction is tracked in `work/SPEC.md`: Expo React
 Native consumer app, small merchant web surface, FastAPI/fixtures as needed.
 Four-surface UX framing (map / drawer / list / swipe stack) and the v1 → v2
-roadmap are captured in `context/UX_STRATEGY.md`.
+roadmap are captured in `context/UX_STRATEGY.md`. End-goal architecture
+(five-agent topology, merchant portal, generative-offers-within-bounds wedge)
+is captured in `context/END_GOAL_ARCHITECTURE.md`.
 
 ## Run The Mobile App
 
