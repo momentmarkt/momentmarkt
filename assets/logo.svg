@@ -1,50 +1,9 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!--
-  MomentMarkt — primary horizontal wordmark + small mark.
-  Self-contained SVG, no external font load.
-  Palette pulled from apps/mobile/src/styles.ts:
-    cream #fff8ee · ink #17120f · cocoa #6f3f2c · spark #f2542d · rain #356f95
-  Layout: 50×50 mark on the left, "MomentMarkt" wordmark on the right.
-  - Mark: outline 'M' in ink stroke, awning-rounded bottom (storefront hint),
-    spark-red dot inside the V-notch (the "moment").
-  - Wordmark: Georgia serif. "Moment" in regular ink, "Markt" in italic cocoa.
--->
-<svg xmlns="http://www.w3.org/2000/svg"
-     viewBox="0 0 200 60"
-     width="200" height="60"
-     role="img"
-     aria-label="MomentMarkt">
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MomentMarkt logo">
   <title>MomentMarkt</title>
-
-  <!-- ── ICON MARK (left, ~50×50, padded to 5..55 in x, 5..55 in y) ── -->
-  <g transform="translate(5 5)">
-    <!-- Storefront awning base: rounded-bottom rectangular plate behind the M -->
-    <rect x="0" y="0" width="50" height="50"
-          rx="10" ry="10"
-          fill="#fff8ee"
-          stroke="#17120f"
-          stroke-width="2.4" />
-
-    <!-- Stylized capital 'M' as an open ink stroke.
-         Path traces: bottom-left foot → up to top-left peak →
-         down to center V-notch → up to top-right peak → bottom-right foot. -->
-    <path d="M 11 39 L 11 13 L 25 30 L 39 13 L 39 39"
-          fill="none"
-          stroke="#17120f"
-          stroke-width="3.6"
-          stroke-linecap="round"
-          stroke-linejoin="round" />
-
-    <!-- The "moment": spark-red dot tucked inside the V-notch of the M. -->
-    <circle cx="25" cy="33" r="2.6" fill="#f2542d" />
-  </g>
-
-  <!-- ── WORDMARK (right) ── -->
-  <!-- "Moment" — regular Georgia, ink. -->
-  <text x="65" y="38"
-        font-family="Georgia, 'Times New Roman', serif"
-        font-size="26"
-        font-weight="400"
-        fill="#17120f"
-        letter-spacing="-0.5">Moment<tspan font-style="italic" font-weight="400" fill="#6f3f2c">Markt</tspan></text>
+  <rect width="1024" height="1024" fill="#F5F5F5"/>
+  <rect width="1024" height="1024" rx="120" fill="#FFF8EE"/>
+  <path d="M235.483 256.909H368.225L508.424 598.955H514.39L654.589 256.909H787.33V766H682.927V434.643H678.701L546.954 763.514H475.86L344.113 433.401H339.887V766H235.483V256.909Z" fill="#17120F"/>
+  <rect x="634" y="667" width="160" height="112" fill="#FFF8EE"/>
+  <path d="M810 714C810 755.421 776.421 789 735 789C693.579 789 660 755.421 660 714C660 672.579 693.579 639 735 639C776.421 639 810 672.579 810 714Z" fill="#FFF8EE"/>
+  <circle cx="735.15" cy="713.85" r="52.15" fill="#F2542D"/>
 </svg>
