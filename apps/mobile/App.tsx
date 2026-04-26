@@ -339,6 +339,15 @@ export default function App() {
     setStep("silent");
   }, []);
 
+  const handleRemoveFocusedPass = useCallback(() => {
+    if (!redeemingPassId) return;
+    lightTap();
+    setSavedPasses((prev) => prev.filter((p) => p.id !== redeemingPassId));
+    setRedeemingPassId(null);
+    setSettledVariant(null);
+    setStep("silent");
+  }, [redeemingPassId]);
+
   // Issue #182 — saved-pass lifecycle. Save fires from Discover swipe-right,
   // expires automatically after 3 days, and redeem still removes the pass.
   const handleSavePass = useCallback((variant: AlternativeOffer) => {
@@ -964,15 +973,34 @@ export default function App() {
         >
           {step === "offer" || step === "surfacing" ? (
             settledVariant ? (
-              <View style={[...s("flex-1 px-5 py-6")]}>
-                <View style={[...s("mb-3 rounded-2xl bg-spark px-4 py-3")]}>
-                  <Text
-                    style={s(
-                      "text-xs font-bold uppercase tracking-[2px] text-white",
-                    )}
-                  >
-                    Your pick
-                  </Text>
+              <View style={[...s("flex-1 px-5 py-6")]}> 
+                <View style={[...s("mb-3 rounded-2xl bg-spark px-4 py-3")]}> 
+                  <View style={s("flex-row items-center justify-between")}>
+                    <Text
+                      style={s(
+                        "text-xs font-bold uppercase tracking-[2px] text-white",
+                      )}
+                    >
+                      Your pick
+                    </Text>
+                    {redeemingPassId ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Remove saved offer"
+                        hitSlop={8}
+                        onPress={handleRemoveFocusedPass}
+                        style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+                      >
+                        <Text
+                          style={s(
+                            "text-xs font-black uppercase tracking-[2px] text-white",
+                          )}
+                        >
+                          Remove
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
                   <Text
                     style={s(
                       "mt-1 text-base font-black leading-6 text-white",
@@ -982,7 +1010,10 @@ export default function App() {
                   </Text>
                 </View>
                 <WidgetRenderer
-                  node={settledVariant.widget_spec}
+                  node={withoutDuplicateDiscountBadge(
+                    settledVariant.widget_spec,
+                    settledVariant.discount_label,
+                  )}
                   onRedeem={handleAdvanceFromOffer}
                 />
               </View>
@@ -1421,6 +1452,44 @@ function DevPanelOverlay({
       </Animated.View>
     </View>
   );
+}
+
+function withoutDuplicateDiscountBadge(node: unknown, discountLabel: string): unknown {
+  if (!discountLabel || !isWidgetObject(node)) return node;
+  if (Array.isArray(node.children)) {
+    return {
+      ...node,
+      children: node.children
+        .filter((child) => !isDiscountBadgeNode(child, discountLabel))
+        .map((child) => withoutDuplicateDiscountBadge(child, discountLabel)),
+    };
+  }
+  return node;
+}
+
+function isDiscountBadgeNode(node: unknown, discountLabel: string): boolean {
+  return (
+    isWidgetObject(node) &&
+    node.type === "View" &&
+    Array.isArray(node.children) &&
+    node.children.some((child) => hasExactText(child, discountLabel))
+  );
+}
+
+function hasExactText(node: unknown, text: string): boolean {
+  if (!isWidgetObject(node)) return false;
+  if (node.type === "Text" && node.text === text) return true;
+  return Array.isArray(node.children)
+    ? node.children.some((child) => hasExactText(child, text))
+    : false;
+}
+
+function isWidgetObject(value: unknown): value is Record<string, unknown> & {
+  children?: unknown[];
+  type?: unknown;
+  text?: unknown;
+} {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function buildBreakdown(
