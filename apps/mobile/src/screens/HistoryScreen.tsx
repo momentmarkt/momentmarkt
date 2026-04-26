@@ -486,7 +486,7 @@ export function HistoryScreen({
           >
             <Text
               style={[
-                ...s("text-ink"),
+                ...s("text-savings"),
                 { fontSize: 40, fontWeight: "200", letterSpacing: -1 },
               ]}
             >
@@ -534,8 +534,11 @@ export function HistoryScreen({
                       marginRight: 5,
                       height,
                       borderRadius: 4,
+                      // Active bars represent realised cashback per day —
+                      // savings green so the chart reads as "money in"
+                      // (issue #134, Apple Wallet pattern).
                       backgroundColor: isActive
-                        ? "#f2542d"
+                        ? "#1f8a3f"
                         : "rgba(23, 18, 15, 0.1)",
                     }}
                   />
@@ -661,7 +664,7 @@ function RedemptionRow({ redemption }: { redemption: Redemption }) {
       </View>
 
       <View style={{ alignItems: "flex-end" }}>
-        <Text style={[...s("text-spark"), { fontSize: 16, fontWeight: "700" }]}>
+        <Text style={[...s("text-savings"), { fontSize: 16, fontWeight: "700" }]}>
           +€{formatEuro(redemption.cashback)}
         </Text>
         <Text

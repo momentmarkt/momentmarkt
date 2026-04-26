@@ -321,10 +321,11 @@ export function CheckoutSuccessScreen({ cashbackEur, budgetRemaining, onDone }: 
           <SymbolView name="checkmark" size={48} tintColor="#fff8ee" weight="medium" />
         </Animated.View>
 
-        {/* 3. Big amount — 64px ultralight, spark-red, German comma decimals. */}
+        {/* 3. Big amount — 64px ultralight, savings-green (Apple Wallet "money
+            saved" pattern, issue #134), German comma decimals. */}
         <Text
           style={[
-            ...s("text-center text-spark"),
+            ...s("text-center text-savings"),
             {
               marginTop: 16,
               fontSize: 64,
@@ -455,7 +456,9 @@ function ReceiptRow({
         style={{
           fontFamily: "Menlo",
           fontSize: 12,
-          color: highlight ? "#f2542d" : "#17120f",
+          // Highlighted cashback row reads as realised "money saved" — green
+          // matches the hero amount above (Apple Wallet pattern, issue #134).
+          color: highlight ? "#1f8a3f" : "#17120f",
           fontWeight: highlight ? "700" : "400",
         }}
       >

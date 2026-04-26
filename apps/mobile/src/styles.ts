@@ -20,6 +20,10 @@ const colors = {
   ghWarn: "#f0883e",
   ghBtn: "#238636",
   ghBtnAlt: "#2ea043",
+  // "Money saved" green for user-facing realised cashback figures (issue #134).
+  // Slightly deeper than ghGood so it reads cleanly against cream + white card
+  // surfaces instead of vibrating like the dev-panel chip green does.
+  savings: "#1f8a3f",
 };
 
 const base: Record<string, Style> = {
@@ -173,6 +177,10 @@ const base: Record<string, Style> = {
   "text-gh-low": { color: colors.ghLow },
   "text-gh-good": { color: colors.ghGood },
   "text-gh-warn": { color: colors.ghWarn },
+  // "Money saved" tokens (issue #134) — used by realised cashback amounts on
+  // CheckoutSuccessScreen + HistoryScreen rows / hero / mini bar chart.
+  "text-savings": { color: colors.savings },
+  "bg-savings": { backgroundColor: colors.savings },
   mono: { fontFamily: "Menlo" },
   "text-[10px]": { fontSize: 10 },
   "text-[13px]": { fontSize: 13 },
