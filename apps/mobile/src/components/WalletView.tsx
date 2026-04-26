@@ -52,48 +52,23 @@ export function WalletView({
           tab surfaces share the same upper-header rhythm.
 
           Composition: bold "Wallet" title (matches Settings/History/
-          Discover), subtitle line ("{N} saved offers"), and the
-          Discover-more shortcut link to keep the existing affordance.
-          The title row uses Settings' text-3xl font-black + -0.5
-          letter-spacing so the four titles read as one type system. */}
+          Discover) plus subtitle line ("{N} saved offers"). The title
+          row uses Settings' text-3xl font-black + -0.5 letter-spacing
+          so the four titles read as one type system. */}
       <View
         style={[
           ...s("px-5"),
           { paddingTop: 8, paddingBottom: 12 },
         ]}
       >
-        <View style={s("flex-row items-end justify-between")}>
-          <Text
-            style={[
-              ...s("text-3xl font-black text-ink"),
-              { letterSpacing: -0.5 },
-            ]}
-          >
-            Wallet
-          </Text>
-          <Pressable
-            accessibilityRole="link"
-            accessibilityLabel="Discover more offers"
-            onPress={() => {
-              lightTap();
-              onGoToDiscover();
-            }}
-            hitSlop={8}
-            style={({ pressed }) => ({
-              opacity: pressed ? 0.55 : 1,
-              paddingBottom: 6,
-            })}
-          >
-            <Text
-              style={[
-                ...s("text-xs font-bold uppercase tracking-[2px]"),
-                { color: "#f2542d" },
-              ]}
-            >
-              Discover more →
-            </Text>
-          </Pressable>
-        </View>
+        <Text
+          style={[
+            ...s("text-3xl font-black text-ink"),
+            { letterSpacing: -0.5 },
+          ]}
+        >
+          Wallet
+        </Text>
         <Text
           style={[
             ...s("text-sm text-neutral-600"),
