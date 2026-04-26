@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from .alternatives import build_alternatives, maybe_rewrite_with_llm, _lookup_merchant
 from .fixtures import available_cities, load_city_config, load_density
 from .merchants import emoji_for, search_merchants
 from .opportunity_agent import generate_offer
@@ -550,3 +551,71 @@ async def _draft_and_maybe_persist(
     result["suppressed"] = False
     result["persisted_offer"] = store.upsert_offer(result["persisted_offer"])
     return result
+
+
+# ---------------------------------------------------------------------------
+# /offers/alternatives — swipe-to-pick on-device price discovery (issue #132)
+# ---------------------------------------------------------------------------
+#
+# Section is additive: nothing above touches these models or the endpoint.
+# Mechanic: the wallet drawer renders a 3-card swipeable stack of LLM-generated
+# offer variants escalating cheapest → most generous. Swipe right settles on a
+# variant; swipe left advances to the next. Dwell-time + swipe direction stay
+# on-device — backend just generates the ladder.
+
+
+class AlternativesRequest(BaseModel):
+    """Body for `POST /offers/alternatives`.
+
+    Defaults match the canonical demo: 5%-25% range over 3 variants, fixtures
+    (no LLM call) for demo safety. Setting ``use_llm=True`` routes through the
+    existing Pydantic AI ``run_headline_rewrite_agent`` to rewrite each
+    variant headline by tone (conservative / balanced / aggressive); failures
+    fall back to the fixture headline silently.
+    """
+
+    merchant_id: str = Field(examples=["berlin-mitte-cafe-bondi"])
+    base_discount_pct: float = 5.0
+    max_discount_pct: float = 25.0
+    n: int = 3
+    use_llm: bool = False
+
+
+class AlternativeOffer(BaseModel):
+    variant_id: str
+    headline: str
+    discount_pct: float
+    discount_label: str
+    widget_spec: dict[str, Any]
+
+
+class AlternativesResponse(BaseModel):
+    merchant_id: str
+    variants: list[AlternativeOffer]
+
+
+@app.post("/offers/alternatives", response_model=AlternativesResponse)
+async def post_offers_alternatives(req: AlternativesRequest) -> AlternativesResponse:
+    """Generate the swipe-stack variant ladder for one merchant.
+
+    Returns 404 when ``merchant_id`` isn't in any city catalog. Variants are
+    ordered cheapest → most generous so the mobile ``SwipeOfferStack`` can
+    display them top-of-stack-first and let the user swipe upward in price.
+    """
+    variants = build_alternatives(
+        merchant_id=req.merchant_id,
+        base_discount_pct=req.base_discount_pct,
+        max_discount_pct=req.max_discount_pct,
+        n=req.n,
+    )
+    if variants is None:
+        raise HTTPException(status_code=404, detail=f"Unknown merchant_id: {req.merchant_id}")
+
+    if req.use_llm:
+        merchant = _lookup_merchant(req.merchant_id) or {"display_name": req.merchant_id}
+        variants = await maybe_rewrite_with_llm(variants, merchant=merchant)
+
+    return AlternativesResponse(
+        merchant_id=req.merchant_id,
+        variants=[AlternativeOffer(**v) for v in variants],
+    )
