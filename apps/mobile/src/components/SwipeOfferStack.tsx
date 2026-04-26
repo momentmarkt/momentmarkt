@@ -219,14 +219,17 @@ export function SwipeOfferStack({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stackKey]);
 
-  // Promote the stack one slot. Bump stackPosition to +1 (so the next
+  // Promote the stack one slot. Bump stackPosition to −1 (so the next
   // card is visually still in its old depth=1 slot for one frame), then
-  // spring it back to 0. Peek cards read slot - stackPosition.value, so
-  // as the SV travels 1 → 0, the depth=1 card slides into depth=0
+  // spring it back to 0. Peek cards read slot − stackPosition.value, so
+  // as the SV travels −1 → 0, the depth=1 card slides into depth=0
   // (matching the just-departed top card's geometry) on the SPRING_SETTLE
-  // curve. The depth=2 card simultaneously slides into depth=1.
+  // curve. The depth=2 card simultaneously slides into depth=1. The new
+  // top SwipeCard reads `0 − stackPosition.value` for its own
+  // effectiveDepth so it ALSO grows from the peek1 geometry into the top
+  // slot on the same curve — no static pop-in (#170 fix 1).
   const promoteStack = useCallback(() => {
-    stackPosition.value = 1;
+    stackPosition.value = -1;
     stackPosition.value = withSpring(0, SPRING_SETTLE);
   }, [stackPosition]);
 
@@ -361,6 +364,7 @@ export function SwipeOfferStack({
             handleRef={swipeHandleRef}
             simplified={useSimplified}
             ghostProgress={ghostProgress}
+            stackPosition={stackPosition}
             onSwipeRight={() => handleRight(top)}
             onSwipeLeft={() => handleLeft(top)}
           />
@@ -596,6 +600,7 @@ function SwipeCard({
   handleRef,
   simplified,
   ghostProgress,
+  stackPosition,
   onSwipeRight,
   onSwipeLeft,
 }: {
@@ -607,6 +612,11 @@ function SwipeCard({
   simplified?: boolean;
   /** Stack-level entrance progress (0 → 1 over ~320ms on mount/swap). */
   ghostProgress: SharedValue<number>;
+  /** Same SV peek cards consume. promoteStack jumps it to −1 then springs
+   *  back to 0; top card's effectiveDepth is `0 − stackPosition.value`,
+   *  so the just-promoted card travels from peek1 geometry → top geometry
+   *  on the SPRING_SETTLE curve — no static pop-in (#170 fix 1). */
+  stackPosition: SharedValue<number>;
   onSwipeRight: () => void;
   onSwipeLeft: () => void;
 }) {
@@ -738,14 +748,25 @@ function SwipeCard({
     );
     const ghostScale = interpolate(ghost, [0, 1], [0.95, 1], Extrapolation.CLAMP);
     const ghostOpacity = ghost;
-    // Final scale = press × idle × ghost. Three SVs all multiplied so
-    // each can run independently without one stomping the other.
-    const finalScale = pressScale.value * idleScale.value * ghostScale;
+    // Promotion travel (#170 fix 1). When the parent's promoteStack()
+    // jumps stackPosition → −1 then springs to 0, this card's
+    // effectiveDepth slides from 1 → 0 on the SPRING_SETTLE curve. We
+    // interpolate to the SAME peek1 geometry the PeekCard at slot=1
+    // used (scale 0.93 + translateY 14 + translateX 6) so the visual
+    // hand-off lands exactly where the peek was — no static pop-in.
+    const effectiveDepth = 0 - stackPosition.value;
+    const promotionScale = interpolate(effectiveDepth, [0, 1], [1, 0.93], Extrapolation.CLAMP);
+    const promotionY = interpolate(effectiveDepth, [0, 1], [0, 14], Extrapolation.CLAMP);
+    const promotionX = interpolate(effectiveDepth, [0, 1], [0, 6], Extrapolation.CLAMP);
+    // Final scale = press × idle × ghost × promotion. Four SVs all
+    // multiplied so each can run independently without one stomping the
+    // other.
+    const finalScale = pressScale.value * idleScale.value * ghostScale * promotionScale;
     return {
       opacity: ghostOpacity,
       transform: [
-        { translateX: translateX.value },
-        { translateY: translateY.value },
+        { translateX: translateX.value + promotionX },
+        { translateY: translateY.value + promotionY },
         { rotateZ: `${rotation}deg` },
         { scale: finalScale },
       ],
