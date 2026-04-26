@@ -12,27 +12,21 @@ import {
   StyleSheet,
   Switch,
   Text,
-  useWindowDimensions,
   View,
 } from "react-native";
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { DevPanel } from "../components/DevPanel";
 import { s } from "../styles";
 
 /**
- * SettingsScreen — overlay surface for the wallet (issue #62).
+ * SettingsScreen — Settings tab scene (issue #62, refactored post-#103).
  *
- * Reachable via the gear icon in the WalletSheetContent header (top-right).
- * Renders as a full-screen slide-in overlay (translateX 100% → 0 over 300ms,
- * Easing.out(Easing.exp)). Closing returns to whatever demo step was active —
- * Settings is purely visual and never mutates the underlying state machine.
+ * Originally a slide-in overlay reached from a gear icon. Now mounted as
+ * a real tab scene under the NativeTabBar (UITabBarController), so the
+ * tab bar itself is the navigation — no slide-in animation or X close
+ * button is needed (and both felt out of place once the tab swap was the
+ * canonical transition).
  *
  * Aesthetic: native iOS Settings — light cream bg, grouped lists, thin row
  * separators, chevron-right on actionable rows. Toggles use the standard RN
@@ -64,8 +58,6 @@ type DevPanelPassthroughProps = Omit<
 >;
 
 type Props = {
-  visible: boolean;
-  onClose: () => void;
   /** Real toggle: hides the privacy envelope chip in DevPanel when false. */
   showPrivacyEnvelope?: boolean;
   onTogglePrivacyEnvelope?: () => void;
@@ -80,10 +72,8 @@ type Props = {
   devPanelProps?: DevPanelPassthroughProps;
 };
 
-export function SettingsScreen(props: Props): ReactElement | null {
+export function SettingsScreen(props: Props): ReactElement {
   const {
-    visible,
-    onClose,
     showPrivacyEnvelope = true,
     onTogglePrivacyEnvelope,
     language = "de",
@@ -93,77 +83,25 @@ export function SettingsScreen(props: Props): ReactElement | null {
   } = props;
 
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
-
-  // translateX: width (offscreen right) → 0 (covering screen).
-  const translateX = useSharedValue(width);
-
-  useEffect(() => {
-    translateX.value = withTiming(visible ? 0 : width, {
-      duration: 300,
-      easing: Easing.out(Easing.exp),
-    });
-  }, [visible, width, translateX]);
-
-  const overlayStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
-  }));
-
-  // Cosmetic toggles own their local state via small inline components
-  // (LocalToggleRow). The issue allows in-memory only — no persistence.
-  //
-  // Render strategy: when `visible` flips to false the parent unmounts us via
-  // state. We accept the trade-off of skipping a slide-out animation in
-  // exchange for a clean unmount and zero off-screen render cost. The
-  // slide-in is the marquee moment for the demo cut.
-  if (!visible) return null;
 
   return (
-    <Animated.View
+    <View
       style={[
-        StyleSheet.absoluteFill,
-        ...s("bg-cream"),
-        overlayStyle,
-        // Issue #100: bumped to insets.top + 10 so the header clears the
-        // iOS status bar / Dynamic Island (matches BottomSheet topInset and
-        // the History overlay paddingTop in App.tsx).
+        ...s("flex-1 bg-cream"),
         { paddingTop: insets.top + 10 },
       ]}
-      pointerEvents="auto"
     >
-      {/* Header: large title + dismiss X */}
+      {/* Header: large title only — the native tab bar is the navigation,
+          so the legacy slide-in close X has been removed. */}
       <View
         style={[
-          ...s("flex-row items-center justify-between px-5"),
+          ...s("px-5"),
           { paddingTop: 8, paddingBottom: 12 },
         ]}
       >
         <Text style={[...s("text-3xl font-black text-ink"), { letterSpacing: -0.5 }]}>
           Settings
         </Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Close settings"
-          onPress={onClose}
-          hitSlop={10}
-          style={[
-            ...s("rounded-full bg-white items-center justify-center"),
-            {
-              width: 32,
-              height: 32,
-              borderWidth: 1,
-              borderColor: "rgba(23, 18, 15, 0.08)",
-            },
-          ]}
-        >
-          <SymbolView
-            name="xmark"
-            tintColor="#17120f"
-            size={14}
-            weight="medium"
-            style={{ width: 14, height: 14 }}
-          />
-        </Pressable>
       </View>
 
       <ScrollView
@@ -457,7 +395,10 @@ export function SettingsScreen(props: Props): ReactElement | null {
               <Pressable
                 accessibilityRole="button"
                 onPress={() => {
-                  onClose();
+                  // Parent (App.tsx) wraps onRunSurfacing so this also
+                  // switches the active tab back to Home — without that,
+                  // the wallet sheet snaps to its 80% offer state on a
+                  // scene the user can't see.
                   devPanelProps.onRunSurfacing();
                 }}
                 style={({ pressed }) => [
@@ -553,7 +494,7 @@ export function SettingsScreen(props: Props): ReactElement | null {
           MomentMarkt · Demo build
         </Text>
       </ScrollView>
-    </Animated.View>
+    </View>
   );
 }
 

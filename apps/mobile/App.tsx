@@ -114,11 +114,9 @@ export default function App() {
   // Wide mode keeps its sidecar layout — this state is ignored there.
   const [devPanelOpen, setDevPanelOpen] = useState(false);
   const [sheetIndex, setSheetIndex] = useState(0);
-  // Settings overlay state (issue #62). `settingsOpen` drives the slide-in
-  // overlay; the two settings below are the *real* toggles wired through to
-  // DevPanel + (cosmetically) WalletSheetContent. Cosmetic toggles inside
-  // SettingsScreen own their own local state — no need to lift them up.
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  // Real toggles wired through to DevPanel + (cosmetically) WalletSheetContent.
+  // Cosmetic toggles inside SettingsScreen own their own local state — no
+  // need to lift them up.
   const [showPrivacyEnvelope, setShowPrivacyEnvelope] = useState(true);
   const [language, setLanguage] = useState<"de" | "en">("de");
 
@@ -223,7 +221,6 @@ export default function App() {
     }
     if (tab === "settings") {
       setView("settings");
-      setSettingsOpen(true);
       return;
     }
     if (tab === "qr") {
@@ -256,15 +253,6 @@ export default function App() {
     setSheetIndex(index);
   }, []);
 
-  const handleCloseSettings = useCallback(() => {
-    // Issue #87 + #103: closing Settings (X in the header) returns to the
-    // Home tab. With NativeTabBar driving the bottom UI, switching `view`
-    // back to "demo" (and the demo step to silent) is what re-renders the
-    // home scene as the active tab — `activeTab` is derived from `view`.
-    setSettingsOpen(false);
-    setView("demo");
-    setStep("silent");
-  }, []);
   const handleOpenDevPanel = useCallback(() => {
     setDevPanelOpen(true);
   }, []);
@@ -280,7 +268,6 @@ export default function App() {
   const handleResetDemoFromSettings = useCallback(() => {
     setStep("silent");
     setView("demo");
-    setSettingsOpen(false);
   }, []);
 
   const devPanelProps: ComponentProps<typeof DevPanel> = {
@@ -472,22 +459,27 @@ export default function App() {
       <HistoryScreen />
     </View>
   );
+  // DevPanel passthrough used inside the Settings tab. We wrap
+  // `onRunSurfacing` so triggering surfacing from the Demo & Debug
+  // section also switches the active tab back to Home — otherwise the
+  // sheet snaps to its 80% offer state on a scene the user can't see.
+  const settingsDevPanelProps: ComponentProps<typeof DevPanel> = {
+    ...devPanelProps,
+    onRunSurfacing: () => {
+      setView("demo");
+      setStep("silent");
+      handleRunSurfacing();
+    },
+  };
   const settingsScene = (
-    <View style={s("flex-1 bg-cream")}>
-      {/* SettingsScreen owns its own slide-in animation via `visible`. As a
-          tab scene we keep it always visible — the tab swap itself is the
-          transition. Closing (X icon) routes back to the Home tab. */}
-      <SettingsScreen
-        visible
-        onClose={handleCloseSettings}
-        showPrivacyEnvelope={showPrivacyEnvelope}
-        onTogglePrivacyEnvelope={handleTogglePrivacyEnvelope}
-        language={language}
-        onSetLanguage={handleSetLanguage}
-        onResetDemo={handleResetDemoFromSettings}
-        devPanelProps={devPanelProps}
-      />
-    </View>
+    <SettingsScreen
+      showPrivacyEnvelope={showPrivacyEnvelope}
+      onTogglePrivacyEnvelope={handleTogglePrivacyEnvelope}
+      language={language}
+      onSetLanguage={handleSetLanguage}
+      onResetDemo={handleResetDemoFromSettings}
+      devPanelProps={settingsDevPanelProps}
+    />
   );
   const tabScenes: Record<NativeTabKey, ReactNode> = {
     home: walletArea,
