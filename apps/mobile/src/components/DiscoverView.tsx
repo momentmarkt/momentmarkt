@@ -176,6 +176,10 @@ export function DiscoverView({
   useEffect(() => {
     seenVariantIdsRef.current = seenVariantIds ?? [];
   }, [seenVariantIds]);
+  const localSeenVariantIdsRef = useRef<Set<string>>(new Set(seenVariantIds ?? []));
+  useEffect(() => {
+    localSeenVariantIdsRef.current = new Set(seenVariantIds ?? []);
+  }, [seenVariantIds]);
   // Issue #177 — manual fetch trigger. Bumped after every round
   // completion + when the user taps the Refresh CTA on the exhausted
   // end state. Listed in the fetch effect's dep array so a Refresh
@@ -189,7 +193,9 @@ export function DiscoverView({
     setLoading(true);
 
     const history = swipeHistoryRef.current;
-    const seenIds = seenVariantIdsRef.current;
+    const seenIds = Array.from(
+      new Set([...seenVariantIdsRef.current, ...localSeenVariantIdsRef.current]),
+    );
     fetchOfferAlternatives({
       lens: "for_you",
       city: citySlug,
@@ -262,7 +268,11 @@ export function DiscoverView({
       // every preceding left-swiped pass. The next /offers/alternatives
       // fetch forwards this set so the backend rotates the pool.
       const seenIds = Object.keys(dwellByVariant);
-      if (seenIds.length > 0) onConsumeVariants?.(seenIds);
+      const consumedIds = seenIds.includes(variant.variant_id)
+        ? seenIds
+        : [...seenIds, variant.variant_id];
+      markLocalSeen(localSeenVariantIdsRef, consumedIds);
+      if (consumedIds.length > 0) onConsumeVariants?.(consumedIds);
       // Issue #154 — right-swipe is now BOTH a preference signal AND
       // a save-to-wallet commit. The pass lands in the Wallet tab; the
       // user picks WHEN to redeem by tapping it there. This decouples
@@ -288,6 +298,7 @@ export function DiscoverView({
       // Issue #177 — same consumption signal as handleSettle, minus the
       // save-to-wallet commit (the user passed on every card).
       const seenIds = Object.keys(dwellByVariant);
+      markLocalSeen(localSeenVariantIdsRef, seenIds);
       if (seenIds.length > 0) onConsumeVariants?.(seenIds);
       setStackKey((k) => k + 1);
       // Issue #177 — re-fetch the next round so the swipe surface keeps
@@ -303,6 +314,7 @@ export function DiscoverView({
   // so the effect re-fires with `seen_variant_ids=[]` and the backend
   // returns the top of the pool again.
   const handleRefresh = useCallback(() => {
+    localSeenVariantIdsRef.current = new Set();
     onResetSeenVariants?.();
     setFetchToken((t) => t + 1);
   }, [onResetSeenVariants]);
@@ -717,4 +729,13 @@ function filterVariantsByDistance(
 
 function formatRadius(radius: DistanceRadius): string {
   return radius >= 1000 ? `${radius / 1000} km` : `${radius} m`;
+}
+
+function markLocalSeen(
+  ref: { current: Set<string> },
+  variantIds: string[],
+): void {
+  for (const id of variantIds) {
+    if (id) ref.current.add(id);
+  }
 }
