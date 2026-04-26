@@ -339,6 +339,11 @@ export default function App() {
         animatedIndex={animatedIndex}
         onChange={handleSheetChange}
         bottomInset={TAB_BAR_HEIGHT + Math.max(insets.bottom, 8)}
+        // Issue #100: respect the safe-area top so the 80% snap doesn't
+        // collide with the iOS status bar / Dynamic Island. gorhom's
+        // `topInset` is the floor distance the sheet keeps from the top
+        // edge; +10 leaves a tiny breathing strip below the island.
+        topInset={insets.top + 10}
         backgroundStyle={{
           backgroundColor: "#17120f",
           borderTopLeftRadius: 34,
@@ -374,12 +379,20 @@ export default function App() {
 
       {/* Verlauf / History overlay (issue #39). Renders above the map+sheet
           when the user taps the Verlauf tab. The demo state machine + sheet
-          remain mounted underneath — tapping any other tab returns to it. */}
+          remain mounted underneath — tapping any other tab returns to it.
+          Issue #100: paddingTop respects the safe-area so the title doesn't
+          collide with the status bar / Dynamic Island; bg-cream so the
+          History surface does not show map peek-through behind its scroll
+          bottom-edge. */}
       {view === "history" ? (
         <View
           style={[
             StyleSheet.absoluteFill,
-            { paddingBottom: TAB_BAR_HEIGHT + Math.max(insets.bottom, 8) },
+            ...s("bg-cream"),
+            {
+              paddingTop: insets.top + 10,
+              paddingBottom: TAB_BAR_HEIGHT + Math.max(insets.bottom, 8),
+            },
           ]}
         >
           <HistoryScreen />
