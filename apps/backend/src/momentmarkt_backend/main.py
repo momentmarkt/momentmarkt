@@ -21,6 +21,7 @@ from .alternatives import (
 )
 from .fixtures import available_cities, load_city_config, load_density
 from .merchants import emoji_for, search_merchants
+from .onboarding import router as onboarding_router
 from .opportunity_agent import generate_offer
 from .preference_agent import (
     PriorSwipe,
@@ -65,6 +66,8 @@ app.add_middleware(
 )
 
 store = DemoStore()
+
+app.include_router(onboarding_router)
 
 
 class OpportunityRequest(BaseModel):

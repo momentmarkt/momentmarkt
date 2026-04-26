@@ -1,0 +1,33 @@
+{
+  "merchant_id": "berlin-mitte-eisgarten-weinmeister",
+  "display_name": "Eisgarten Weinmeister",
+  "currency": "EUR",
+  "categories": [
+    {
+      "id": "scoops",
+      "label": "Ice Cream Scoops",
+      "items": [
+        { "id": "scoop_classic", "name": "Classic Scoop", "price_eur": 1.8, "description": "Vanilla, chocolate, strawberry." },
+        { "id": "scoop_seasonal", "name": "Seasonal Scoop", "price_eur": 2.2, "description": "Rotating: pistachio, hazelnut, fig." },
+        { "id": "scoop_sorbet", "name": "Sorbet Scoop", "price_eur": 2.0, "description": "Lemon, raspberry, mango." }
+      ]
+    },
+    {
+      "id": "specials",
+      "label": "Specials",
+      "items": [
+        { "id": "affogato", "name": "Affogato", "price_eur": 4.8, "description": "Espresso poured over vanilla gelato." },
+        { "id": "spaghetti_eis", "name": "Spaghetti-Eis", "price_eur": 6.4, "description": "Vanilla strands, strawberry sauce, white chocolate." },
+        { "id": "becher_grande", "name": "Becher Grande", "price_eur": 8.6, "description": "Five scoops, fresh fruit, cream." }
+      ]
+    },
+    {
+      "id": "cold_drinks",
+      "label": "Cold Drinks",
+      "items": [
+        { "id": "limonata", "name": "House Limonata", "price_eur": 3.2, "description": "Lemon, basil, sparkling." },
+        { "id": "iced_coffee", "name": "Iced Coffee", "price_eur": 3.4, "description": "Espresso, milk, ice." }
+      ]
+    }
+  ]
+}

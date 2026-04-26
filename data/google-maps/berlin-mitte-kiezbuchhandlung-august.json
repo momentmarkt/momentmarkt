@@ -1,0 +1,27 @@
+{
+  "merchant_id": "berlin-mitte-kiezbuchhandlung-august",
+  "place_id": "ChIJKiezAugust-Berlin-Mitte-3",
+  "name": "Kiezbuchhandlung August",
+  "address": "Auguststrasse 67, 10117 Berlin, Germany",
+  "lat": 52.5256,
+  "lon": 13.3951,
+  "phone": "+49 30 4477 8800",
+  "website": "https://kiezbuchhandlung-august.de",
+  "rating": 4.8,
+  "user_ratings_total": 96,
+  "price_level": 2,
+  "categories": ["Bookstore", "Café"],
+  "opening_hours": {
+    "mon": [{ "open": "10:00", "close": "19:00" }],
+    "tue": [{ "open": "10:00", "close": "19:00" }],
+    "wed": [{ "open": "10:00", "close": "19:00" }],
+    "thu": [{ "open": "10:00", "close": "20:00" }],
+    "fri": [{ "open": "10:00", "close": "20:00" }],
+    "sat": [{ "open": "11:00", "close": "18:00" }],
+    "sun": []
+  },
+  "photos": [
+    "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&h=600&fit=crop",
+    "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=800&h=600&fit=crop"
+  ]
+}

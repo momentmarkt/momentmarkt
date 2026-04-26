@@ -1,0 +1,28 @@
+{
+  "merchant_id": "berlin-mitte-baeckerei-rosenthal",
+  "place_id": "ChIJRosenthal-Berlin-Mitte-2",
+  "name": "Bäckerei Rosenthal",
+  "address": "Brunnenstrasse 34, 10119 Berlin, Germany",
+  "lat": 52.5294,
+  "lon": 13.4042,
+  "phone": "+49 30 1234 0011",
+  "website": "https://baeckerei-rosenthal.de",
+  "rating": 4.4,
+  "user_ratings_total": 287,
+  "price_level": 1,
+  "categories": ["Bakery", "Café"],
+  "opening_hours": {
+    "mon": [{ "open": "06:30", "close": "18:00" }],
+    "tue": [{ "open": "06:30", "close": "18:00" }],
+    "wed": [{ "open": "06:30", "close": "18:00" }],
+    "thu": [{ "open": "06:30", "close": "18:00" }],
+    "fri": [{ "open": "06:30", "close": "18:00" }],
+    "sat": [{ "open": "07:00", "close": "16:00" }],
+    "sun": [{ "open": "08:00", "close": "13:00" }]
+  },
+  "photos": [
+    "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=800&h=600&fit=crop",
+    "https://images.unsplash.com/photo-1549931319-a545dcf3bc73?w=800&h=600&fit=crop",
+    "https://images.unsplash.com/photo-1568254183919-78a4f43a2877?w=800&h=600&fit=crop"
+  ]
+}

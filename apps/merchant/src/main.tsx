@@ -9,6 +9,8 @@ import { type ReactNode, StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { ApiStatus } from "./ApiStatus";
 import { merchantFixture } from "./data/merchantStats";
+import { OnboardingShell } from "./onboarding/OnboardingShell";
+import { isOnboarded, ONBOARDED_FLAG } from "./onboarding/state/onboardingMachine";
 import {
   AuditIcon,
   BoundsIcon,
@@ -46,6 +48,18 @@ const SECTIONS: SectionDef[] = [
 
 function App() {
   const [active, setActive] = useState<SectionId>("today");
+  const [onboarded, setOnboardedState] = useState<boolean>(() => isOnboarded());
+
+  if (!onboarded) {
+    return (
+      <OnboardingShell
+        onComplete={() => {
+          setOnboardedState(true);
+          setActive("today");
+        }}
+      />
+    );
+  }
 
   return (
     <main className="dashboard">
@@ -95,6 +109,20 @@ function App() {
               <small>Berlin Mitte · City Pilot</small>
             </div>
           </div>
+          <button
+            type="button"
+            className="ob-link ob-reset"
+            onClick={() => {
+              try {
+                localStorage.removeItem(ONBOARDED_FLAG);
+              } catch {
+                /* ignore */
+              }
+              setOnboardedState(false);
+            }}
+          >
+            Re-run onboarding
+          </button>
         </div>
       </aside>
 

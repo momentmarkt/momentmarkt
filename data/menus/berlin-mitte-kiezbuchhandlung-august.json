@@ -1,0 +1,40 @@
+{
+  "merchant_id": "berlin-mitte-kiezbuchhandlung-august",
+  "display_name": "Kiezbuchhandlung August",
+  "currency": "EUR",
+  "categories": [
+    {
+      "id": "fiction",
+      "label": "Fiction",
+      "items": [
+        { "id": "new_releases", "name": "New Releases (any title)", "price_eur": 22.0, "description": "Hardback fiction released in last 90 days." },
+        { "id": "berlin_writers", "name": "Berlin Writers Shelf", "price_eur": 18.0, "description": "Curated paperback fiction from Berlin authors." }
+      ]
+    },
+    {
+      "id": "non_fiction",
+      "label": "Non-fiction",
+      "items": [
+        { "id": "essays_politics", "name": "Essays & Politics", "price_eur": 24.0, "description": "Recent non-fiction, mostly DE/EN." },
+        { "id": "biography", "name": "Biography", "price_eur": 26.0, "description": "Hardback biographies." }
+      ]
+    },
+    {
+      "id": "kids",
+      "label": "Kids & YA",
+      "items": [
+        { "id": "picture_books", "name": "Picture Books", "price_eur": 14.0, "description": "Ages 3-7." },
+        { "id": "ya_paperback", "name": "YA Paperback", "price_eur": 12.0, "description": "Ages 12+." }
+      ]
+    },
+    {
+      "id": "cafe_corner",
+      "label": "Café Corner",
+      "items": [
+        { "id": "filter_coffee", "name": "Filter Coffee", "price_eur": 2.4, "description": "Drink while you browse." },
+        { "id": "tea", "name": "Pot of Tea", "price_eur": 3.6, "description": "Loose-leaf, several blends." },
+        { "id": "almond_cake", "name": "Almond Cake Slice", "price_eur": 3.8, "description": "Gluten-free, baked Tuesdays." }
+      ]
+    }
+  ]
+}

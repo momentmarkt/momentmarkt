@@ -1,0 +1,45 @@
+{
+  "merchant_id": "berlin-mitte-cafe-bondi",
+  "display_name": "Cafe Bondi",
+  "currency": "EUR",
+  "categories": [
+    {
+      "id": "hot_drinks",
+      "label": "Hot Drinks",
+      "items": [
+        { "id": "espresso", "name": "Espresso", "price_eur": 2.4, "description": "Single shot, locally roasted." },
+        { "id": "cappuccino", "name": "Cappuccino", "price_eur": 3.2, "description": "Double shot with steamed milk." },
+        { "id": "flat_white", "name": "Flat White", "price_eur": 3.6, "description": "Velvety microfoam over a double shot." },
+        { "id": "hot_cocoa", "name": "Hot Cocoa", "price_eur": 3.8, "description": "Dark cocoa with whole milk and a marshmallow." },
+        { "id": "chai_latte", "name": "Chai Latte", "price_eur": 3.6, "description": "House-spiced chai with oat milk option." }
+      ]
+    },
+    {
+      "id": "cold_drinks",
+      "label": "Cold Drinks",
+      "items": [
+        { "id": "iced_latte", "name": "Iced Latte", "price_eur": 3.8, "description": "Double shot over ice with milk." },
+        { "id": "cold_brew", "name": "Cold Brew", "price_eur": 4.2, "description": "12-hour steeped, smooth." },
+        { "id": "lemonade", "name": "Lemonade", "price_eur": 3.4, "description": "Fresh lemon, mint, soda." }
+      ]
+    },
+    {
+      "id": "pastries",
+      "label": "Pastries",
+      "items": [
+        { "id": "croissant", "name": "Butter Croissant", "price_eur": 2.8, "description": "Hand-laminated, baked daily." },
+        { "id": "almond_croissant", "name": "Almond Croissant", "price_eur": 3.6, "description": "Filled with frangipane, dusted with sugar." },
+        { "id": "banana_bread", "name": "Banana Bread", "price_eur": 4.2, "description": "Walnut, brown butter, sea salt." },
+        { "id": "cinnamon_roll", "name": "Cinnamon Roll", "price_eur": 4.4, "description": "Cardamom, brown sugar, cream cheese drizzle." }
+      ]
+    },
+    {
+      "id": "sandwiches",
+      "label": "Sandwiches",
+      "items": [
+        { "id": "ham_cheese", "name": "Ham & Cheese Toastie", "price_eur": 6.8, "description": "Black Forest ham, gruyère, sourdough." },
+        { "id": "veggie_panini", "name": "Veggie Panini", "price_eur": 7.2, "description": "Roasted peppers, mozzarella, pesto." }
+      ]
+    }
+  ]
+}

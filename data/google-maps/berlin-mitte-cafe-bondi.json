@@ -1,0 +1,28 @@
+{
+  "merchant_id": "berlin-mitte-cafe-bondi",
+  "place_id": "ChIJBondi-Berlin-Mitte-1",
+  "name": "Cafe Bondi",
+  "address": "Torstrasse 122, 10119 Berlin, Germany",
+  "lat": 52.5306,
+  "lon": 13.4021,
+  "phone": "+49 30 9876 5432",
+  "website": "https://cafebondi.de",
+  "rating": 4.6,
+  "user_ratings_total": 412,
+  "price_level": 2,
+  "categories": ["Café", "Coffee shop", "Breakfast restaurant"],
+  "opening_hours": {
+    "mon": [{ "open": "08:00", "close": "18:00" }],
+    "tue": [{ "open": "08:00", "close": "18:00" }],
+    "wed": [{ "open": "08:00", "close": "18:00" }],
+    "thu": [{ "open": "08:00", "close": "18:00" }],
+    "fri": [{ "open": "08:00", "close": "19:00" }],
+    "sat": [{ "open": "09:00", "close": "19:00" }],
+    "sun": [{ "open": "09:00", "close": "17:00" }]
+  },
+  "photos": [
+    "https://images.unsplash.com/photo-1453614512568-c4024d13c247?w=800&h=600&fit=crop",
+    "https://images.unsplash.com/photo-1459755486867-b55449bb39ff?w=800&h=600&fit=crop",
+    "https://images.unsplash.com/photo-1521017432531-fbd92d768814?w=800&h=600&fit=crop"
+  ]
+}

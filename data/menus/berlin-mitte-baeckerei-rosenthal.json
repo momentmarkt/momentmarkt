@@ -1,0 +1,43 @@
+{
+  "merchant_id": "berlin-mitte-baeckerei-rosenthal",
+  "display_name": "Bäckerei Rosenthal",
+  "currency": "EUR",
+  "categories": [
+    {
+      "id": "breads",
+      "label": "Breads",
+      "items": [
+        { "id": "sourdough_loaf", "name": "Sourdough Loaf", "price_eur": 6.2, "description": "72-hour cold ferment, Berlin grain." },
+        { "id": "rye_dark", "name": "Roggenbrot", "price_eur": 5.4, "description": "Classic dark rye, sliced on request." },
+        { "id": "kornspitz", "name": "Kornspitz", "price_eur": 1.6, "description": "Multigrain bread roll." }
+      ]
+    },
+    {
+      "id": "pastries",
+      "label": "Pastries",
+      "items": [
+        { "id": "berliner", "name": "Berliner", "price_eur": 2.4, "description": "Plum jam, powdered sugar." },
+        { "id": "franzbrötchen", "name": "Franzbrötchen", "price_eur": 2.6, "description": "Cinnamon laminate, Hamburg style." },
+        { "id": "apfeltasche", "name": "Apfeltasche", "price_eur": 2.8, "description": "Apple turnover, lattice top." },
+        { "id": "butterbrezel", "name": "Butterbrezel", "price_eur": 2.2, "description": "Pretzel split with butter." }
+      ]
+    },
+    {
+      "id": "hot_drinks",
+      "label": "Hot Drinks",
+      "items": [
+        { "id": "filter_coffee", "name": "Filter Coffee", "price_eur": 2.2, "description": "House blend, refillable." },
+        { "id": "cappuccino", "name": "Cappuccino", "price_eur": 3.2, "description": "Double shot with milk." }
+      ]
+    },
+    {
+      "id": "sandwiches",
+      "label": "Belegte Brötchen",
+      "items": [
+        { "id": "salami_butter", "name": "Salami & Butter", "price_eur": 3.8, "description": "Salami, butter, gherkin." },
+        { "id": "egg_chive", "name": "Ei & Schnittlauch", "price_eur": 3.6, "description": "Egg salad with chives." },
+        { "id": "leberkäse", "name": "Leberkäse Roll", "price_eur": 4.2, "description": "Bavarian style on a Kaiser roll." }
+      ]
+    }
+  ]
+}
