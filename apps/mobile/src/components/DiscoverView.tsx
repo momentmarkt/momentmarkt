@@ -36,7 +36,13 @@
 
 import { SymbolView } from "expo-symbols";
 import { type ReactElement, useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
@@ -47,6 +53,7 @@ import {
 import { s } from "../styles";
 import { LensChips, type LensKey } from "./LensChips";
 import { SwipeOfferStack, type DwellByVariant } from "./SwipeOfferStack";
+import { SwipeStackSkeleton } from "./SwipeStackSkeleton";
 
 type Props = {
   /** Backend city slug (e.g. "berlin", "zurich"). Drives the
@@ -204,48 +211,112 @@ export function DiscoverView({
 
       {/* Swipe stack body. Fills remaining vertical space; the heart/X
           buttons live INSIDE SwipeOfferStack so the spacing between
-          them and the card stays consistent. */}
+          them and the card stays consistent.
+
+          Issue #156 — the skeleton + real-cards branches are wrapped
+          in a cross-fade so the resolve doesn't pop. While loading we
+          render the SwipeStackSkeleton (mirrors stack dimensions); when
+          variants land, the skeleton fades OUT and the real stack fades
+          IN over ~150ms. The empty-state branch keeps the same fade
+          envelope so an actual no-results outcome doesn't snap either. */}
       <View
         style={[
           ...s("flex-1 px-5"),
           { paddingTop: 8, paddingBottom: 12 },
         ]}
       >
-        {loading && !variants ? (
-          <DiscoverPlaceholder lens={lens} />
-        ) : variants && variants.length > 0 ? (
-          <SwipeOfferStack
-            key={`discover-${lens}-${stackKey}`}
-            variants={variants}
-            onSettle={handleSettle}
-            onAllPassed={handleAllPassed}
-            cardScale="discover"
-          />
-        ) : (
-          <DiscoverEmptyState lens={lens} loading={loading} />
-        )}
+        <DiscoverBody
+          loading={loading}
+          variants={variants}
+          stackKey={stackKey}
+          lens={lens}
+          onSettle={handleSettle}
+          onAllPassed={handleAllPassed}
+        />
       </View>
     </View>
   );
 }
 
-function DiscoverPlaceholder({ lens }: { lens: LensKey }): ReactElement {
+/**
+ * Wraps the loading skeleton and the resolved swipe stack in a 150ms
+ * cross-fade so the user perceives a smooth handoff instead of a hard
+ * swap from "shimmering rectangles" to "real cards." Both layers are
+ * absolute-positioned within the same container so the layout never
+ * shifts during the transition — the skeleton occupies the same minHeight
+ * the SwipeOfferStack will occupy on resolve (#156).
+ */
+function DiscoverBody({
+  loading,
+  variants,
+  stackKey,
+  lens,
+  onSettle,
+  onAllPassed,
+}: {
+  loading: boolean;
+  variants: AlternativeOffer[] | null;
+  stackKey: number;
+  lens: LensKey;
+  onSettle: (variant: AlternativeOffer, dwellByVariant: DwellByVariant) => void;
+  onAllPassed: (dwellByVariant: DwellByVariant) => void;
+}): ReactElement {
+  // showSkeleton drives the cross-fade. We pin it true while loading
+  // and the variants haven't landed yet — once the first variant arrives,
+  // we flip to false and the skeleton fades out underneath the
+  // appearing real stack.
+  const showSkeleton = loading && (!variants || variants.length === 0);
+  const fade = useSharedValue(showSkeleton ? 1 : 0);
+  useEffect(() => {
+    fade.value = withTiming(showSkeleton ? 1 : 0, {
+      duration: 150,
+      easing: Easing.out(Easing.quad),
+    });
+  }, [showSkeleton, fade]);
+
+  const skeletonStyle = useAnimatedStyle(() => ({ opacity: fade.value }));
+  const realStyle = useAnimatedStyle(() => ({ opacity: 1 - fade.value }));
+
+  const hasVariants = variants && variants.length > 0;
+
   return (
-    <View
-      style={[
-        ...s("flex-1 items-center justify-center"),
-        { paddingHorizontal: 24 },
-      ]}
-    >
-      <ActivityIndicator color="#6f3f2c" />
-      <Text
-        style={[
-          ...s("mt-3 text-[11px] font-semibold uppercase tracking-[2px] text-cocoa"),
-          { opacity: 0.6 },
-        ]}
-      >
-        {`Loading ${lensLabel(lens)}…`}
-      </Text>
+    <View style={s("flex-1")}>
+      {/* Skeleton layer — only mounted while loading + when no variants
+          are available yet. Unmounting once cards land means we're not
+          burning Reanimated cycles on an offscreen shimmer. */}
+      {showSkeleton ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, skeletonStyle]}
+        >
+          <SwipeStackSkeleton />
+        </Animated.View>
+      ) : null}
+      {/* Real cards / empty state — fades in as the skeleton fades out.
+          We mount this branch as soon as we're not in the
+          loading-with-no-variants state so the cross-fade has a target
+          to tween toward. */}
+      {!showSkeleton ? (
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFill,
+            realStyle,
+            { pointerEvents: "auto" },
+          ]}
+        >
+          {hasVariants ? (
+            <SwipeOfferStack
+              key={`discover-${lens}-${stackKey}`}
+              variants={variants ?? []}
+              onSettle={onSettle}
+              onAllPassed={onAllPassed}
+              cardScale="discover"
+            />
+          ) : (
+            <DiscoverEmptyState lens={lens} loading={loading} />
+          )}
+        </Animated.View>
+      ) : null}
     </View>
   );
 }

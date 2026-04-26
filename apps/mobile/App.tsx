@@ -37,6 +37,7 @@ import { DiscoverView } from "./src/components/DiscoverView";
 import { DEFAULT_LENS, type LensKey } from "./src/components/LensChips";
 import { RedeemFlow } from "./src/components/RedeemFlow";
 import { SwipeOfferStack } from "./src/components/SwipeOfferStack";
+import { SwipeStackSkeleton } from "./src/components/SwipeStackSkeleton";
 import { WalletSheetContent } from "./src/components/WalletSheetContent";
 import { WalletView } from "./src/components/WalletView";
 import { WidgetRenderer } from "./src/components/WidgetRenderer";
@@ -131,6 +132,13 @@ export default function App() {
   // widget once the user swipes right (or left through every card → silent).
   const [alternatives, setAlternatives] = useState<AlternativeOffer[] | null>(null);
   const [settledVariant, setSettledVariant] = useState<AlternativeOffer | null>(null);
+  // Issue #156 — `loadingAlternatives` drives the SwipeStackSkeleton
+  // shimmer in the SheetBody while the merchant-tap fetch is in flight.
+  // Pre-#156 the user got ~500ms-2s of dead air between the tap and the
+  // swipe stack popping in (felt broken). True from the moment we kick
+  // off the fetch; false when we either land variants or fall back to
+  // the focused offer view.
+  const [loadingAlternatives, setLoadingAlternatives] = useState(false);
   // Issue #136 — preference history persisted across swipe rounds in this
   // session. Each round's PriorSwipe entries get appended; we send the
   // accumulated history with the NEXT /offers/alternatives call so the
@@ -340,6 +348,16 @@ export default function App() {
       // Reset any prior settled variant so the offer step renders the focused
       // demo widget while we wait for alternatives.
       setSettledVariant(null);
+      // Issue #156 — flip into the "alternatives" step BEFORE the fetch
+      // resolves so the BottomSheet snaps open and the SheetBody can
+      // render the SwipeStackSkeleton shimmer. Without this the user
+      // taps a merchant and sees ~500ms-2s of nothing (the previous
+      // behaviour, which Doruk flagged as "felt broken"). The skeleton
+      // occupies the same min-height the real swipe stack will occupy,
+      // so the cross-fade on resolve doesn't cause a layout shift.
+      setAlternatives(null);
+      setLoadingAlternatives(true);
+      setStep("alternatives");
       // Send the accumulated swipe history so the backend preference agent
       // re-ranks the next round by inferred preference. Empty history on
       // first tap of the session → backend uses deterministic distance sort.
@@ -352,6 +370,7 @@ export default function App() {
         preferenceContext:
           swipeHistory.length > 0 ? swipeHistory : undefined,
       });
+      setLoadingAlternatives(false);
       if (!res || res.variants.length === 0) {
         // Demo-safety fallback: skip the swipe stack and route straight to
         // the focused offer view. Matches the pre-#132 behaviour exactly.
@@ -360,7 +379,9 @@ export default function App() {
         return;
       }
       setAlternatives(res.variants);
-      setStep("alternatives");
+      // Step is already "alternatives" — no need to re-set it; the sheet
+      // is already snapped open and the SheetBody will switch from the
+      // skeleton to the real SwipeOfferStack via the cross-fade below.
     },
     [swipeHistory],
   );
@@ -524,6 +545,31 @@ export default function App() {
     return { opacity, transform: [{ translateX }] };
   });
 
+  // Issue #159 — top-CENTER variant of the overlay fade. Post-#154 the
+  // gear + clock moved into the BottomNavBar, leaving the top-right of
+  // Browse empty — the weather pill in the top-left was visually
+  // unbalanced. Repositioning it dead-center is the cleanest fix.
+  // A horizontal slide from center looks weird (drifts past the Dynamic
+  // Island), so this variant rises slightly (translateY: -8) as the
+  // sheet expands so the pill ducks toward the status bar while fading
+  // out — mirrors Apple Maps' "place card opens, the top chip lifts
+  // away" choreography while staying horizontally anchored.
+  const topOverlayCenterStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      animatedIndex.value,
+      [0, 0.6, 1],
+      [1, 0.5, 0],
+      Extrapolation.CLAMP,
+    );
+    const translateY = interpolate(
+      animatedIndex.value,
+      [0, 1],
+      [0, -8],
+      Extrapolation.CLAMP,
+    );
+    return { opacity, transform: [{ translateY }] };
+  });
+
   // Issue #152 — cross-fade between Discover + Browse views. 250ms
   // is enough to feel like a deliberate switch without dragging on
   // the user; no slide so the navbar tap reads as instant. Both
@@ -657,6 +703,7 @@ export default function App() {
           weatherLabel={citySignals.weatherLabel}
           pulseLabel={citySignals.pulseLabel}
           alternatives={alternatives}
+          loadingAlternatives={loadingAlternatives}
           settledVariant={settledVariant}
           onWidgetVariantChange={setWidgetVariant}
           onWidgetCta={handleAdvanceFromOffer}
@@ -1013,6 +1060,10 @@ type SheetBodyProps = {
    *  the alternatives fetch is in flight or when the merchant didn't
    *  produce alternatives (gracefully falls through to legacy offer view). */
   alternatives: AlternativeOffer[] | null;
+  /** Issue #156 — true while the merchant-tap fetch is in flight. Drives
+   *  the SwipeStackSkeleton shimmer that occupies the swipe stack's
+   *  position before the real cards arrive. */
+  loadingAlternatives: boolean;
   /** Issue #132 — once the user swipes right on a stack card, the chosen
    *  variant lives here and the focused offer view renders its widget_spec
    *  instead of the demo `widgetVariant` switch. */
@@ -1049,6 +1100,7 @@ function SheetBody({
   weatherLabel,
   pulseLabel,
   alternatives,
+  loadingAlternatives,
   settledVariant,
   onWidgetVariantChange,
   onWidgetCta,
@@ -1090,7 +1142,14 @@ function SheetBody({
   // swipe through; right-swipe routes to step="offer" with the chosen
   // variant, left-through-all returns to step="silent". Mirrors the
   // offer view's chevron-back affordance for consistency.
-  if (step === "alternatives" && alternatives && alternatives.length > 0) {
+  //
+  // Issue #156 — also renders the SwipeStackSkeleton while
+  // `loadingAlternatives` is true and we don't have variants yet, so
+  // the merchant-tap → fetch round-trip never shows a blank sheet.
+  // The skeleton fades out as the real stack fades in (cross-fade
+  // owned by AlternativesBody).
+  const hasAlternatives = !!(alternatives && alternatives.length > 0);
+  if (step === "alternatives" && (loadingAlternatives || hasAlternatives)) {
     return (
       <BottomSheetScrollView
         style={[...s("flex-1 bg-cream")]}
@@ -1135,8 +1194,9 @@ function SheetBody({
         >
           Swipe right to keep, left to skip. The merchant set a range; you pick the spot.
         </Text>
-        <SwipeOfferStack
-          variants={alternatives}
+        <AlternativesBody
+          loading={loadingAlternatives}
+          alternatives={alternatives}
           onSettle={onAlternativesSettle}
           onAllPassed={onAlternativesAllPassed}
         />
@@ -1241,6 +1301,65 @@ function SheetBody({
       onMerchantTap={onMerchantTap}
       onSearchFocus={onSearchFocus}
     />
+  );
+}
+
+/**
+ * Issue #156 — wraps the in-sheet alternatives loading skeleton and the
+ * resolved swipe stack in a 150ms cross-fade so the merchant-tap fetch
+ * never shows a blank sheet. While `loading` is true and we don't have
+ * cards yet, we paint `SwipeStackSkeleton`. Once variants land, the
+ * skeleton fades OUT and the real `SwipeOfferStack` fades IN. Both
+ * layers are absolute-positioned in the same min-height container so
+ * the cross-fade never causes a layout shift inside the BottomSheet.
+ */
+function AlternativesBody({
+  loading,
+  alternatives,
+  onSettle,
+  onAllPassed,
+}: {
+  loading: boolean;
+  alternatives: AlternativeOffer[] | null;
+  onSettle: (
+    variant: AlternativeOffer,
+    dwellByVariant: Record<string, number>,
+  ) => void;
+  onAllPassed: (dwellByVariant: Record<string, number>) => void;
+}) {
+  const hasAlternatives = !!(alternatives && alternatives.length > 0);
+  const showSkeleton = loading && !hasAlternatives;
+  const fade = useSharedValue(showSkeleton ? 1 : 0);
+  useEffect(() => {
+    fade.value = withTiming(showSkeleton ? 1 : 0, {
+      duration: 150,
+      easing: Easing.out(Easing.quad),
+    });
+  }, [showSkeleton, fade]);
+
+  const skeletonStyle = useAnimatedStyle(() => ({ opacity: fade.value }));
+  const realStyle = useAnimatedStyle(() => ({ opacity: 1 - fade.value }));
+
+  return (
+    <View style={{ width: "100%", minHeight: 460 }}>
+      {showSkeleton ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, skeletonStyle]}
+        >
+          <SwipeStackSkeleton />
+        </Animated.View>
+      ) : null}
+      {!showSkeleton && hasAlternatives ? (
+        <Animated.View style={realStyle}>
+          <SwipeOfferStack
+            variants={alternatives ?? []}
+            onSettle={onSettle}
+            onAllPassed={onAllPassed}
+          />
+        </Animated.View>
+      ) : null}
+    </View>
   );
 }
 
