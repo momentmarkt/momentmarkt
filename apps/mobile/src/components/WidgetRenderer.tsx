@@ -9,6 +9,7 @@ import Animated, {
 
 import { coerceWidgetNode } from "../genui/widgetSchema";
 import type { WidgetNode } from "../genui/widgetSchema";
+import { mediumTap } from "../lib/haptics";
 import { s } from "../styles";
 
 type Props = {
@@ -87,7 +88,15 @@ function ValidatedWidgetRenderer({ node, onRedeem }: { node: WidgetNode; onRedee
       );
     case "Pressable":
       return (
-        <Pressable style={s(node.className)} onPress={onRedeem}>
+        <Pressable
+          style={s(node.className)}
+          onPress={() => {
+            // Primary CTA in the GenUI widget (e.g. "Jetzt sichern") — medium
+            // bump fires BEFORE the redeem callback so the tap feels native (#104).
+            mediumTap();
+            onRedeem();
+          }}
+        >
           <Text style={s("text-center text-base font-black text-cocoa")}>{node.text}</Text>
         </Pressable>
       );

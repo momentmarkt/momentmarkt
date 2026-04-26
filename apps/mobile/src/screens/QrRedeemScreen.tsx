@@ -10,6 +10,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 import type { DemoOffer } from "../demo/miaOffer";
+import { heavyTap, lightTap } from "../lib/haptics";
 import { generateRedeemToken } from "../lib/redeem";
 import { s } from "../styles";
 
@@ -118,7 +119,11 @@ export function QrRedeemScreen({
         <Pressable
           accessibilityRole="button"
           style={s("rounded-full bg-cream/10 px-4 py-2")}
-          onPress={onCancel}
+          onPress={() => {
+            // Light bump on cancel — secondary action (#104).
+            lightTap();
+            onCancel();
+          }}
         >
           <Text style={s("text-xs font-black uppercase tracking-[2px] text-cream")}>
             Cancel
@@ -181,7 +186,12 @@ export function QrRedeemScreen({
           accessibilityRole="button"
           disabled={expired}
           style={s("rounded-2xl px-5 py-4", expired ? "bg-cream/20" : "bg-spark")}
-          onPress={() => onTap(token)}
+          onPress={() => {
+            // Heavy thump BEFORE the simulated NFC tap so it feels like a
+            // real card-on-reader on the user's iPhone (#104).
+            heavyTap();
+            onTap(token);
+          }}
         >
           <Text style={s("text-center text-base font-black text-white")}>
             {expired ? "Token expired" : "Simulate girocard tap"}

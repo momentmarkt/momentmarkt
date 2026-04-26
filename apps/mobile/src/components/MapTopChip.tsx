@@ -3,6 +3,7 @@ import { type ReactElement } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { lightTap } from "../lib/haptics";
 import { s } from "../styles";
 
 /**
@@ -60,7 +61,11 @@ export function MapTopChip({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${city} ${area}, ${Math.round(tempC)}°, ${weatherSummary}`}
-        onPress={onPress}
+        onPress={() => {
+          // Fire haptic BEFORE the action so the tap feels responsive (#104).
+          lightTap();
+          onPress?.();
+        }}
         hitSlop={6}
         style={({ pressed }) => [
           {

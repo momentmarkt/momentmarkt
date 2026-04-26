@@ -9,6 +9,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
+import { mediumTap } from "../lib/haptics";
 import { s } from "../styles";
 
 type Props = {
@@ -127,7 +128,12 @@ export function SurfaceNotification({
     >
       <Pressable
         accessibilityRole="button"
-        onPress={onTap}
+        onPress={() => {
+          // Surfacing-banner tap — medium bump fires BEFORE the parent
+          // handler so the notification feels like a native push (#104).
+          mediumTap();
+          onTap();
+        }}
         style={[...s("flex-row items-center px-3 py-3"), { gap: 12 }]}
       >
         <View
