@@ -108,12 +108,33 @@ export function SettingsScreen(props: Props): ReactElement | null {
   const translateX = useSharedValue(width);
   const translateY = useSharedValue(0);
 
+  // Mount-gating so the slide-OUT animation actually gets to play. If we
+  // unmount the moment `visible` flips false, the `withTiming` exit kicks
+  // off in the useEffect but the component dies before any frame renders.
+  // Pattern: keep `mounted` separate from `visible` — flip `mounted` true
+  // immediately on enter, but only flip false from the timing callback
+  // once the exit animation has finished playing.
+  const [mounted, setMounted] = useState(visible);
+
   useEffect(() => {
-    translateX.value = withTiming(visible ? 0 : width, {
-      duration: 300,
-      easing: Easing.out(Easing.exp),
-    });
-    if (visible) translateY.value = 0;
+    if (visible) {
+      setMounted(true);
+      translateX.value = withTiming(0, {
+        duration: 300,
+        easing: Easing.out(Easing.exp),
+      });
+      translateY.value = 0;
+    } else {
+      translateX.value = withTiming(
+        width,
+        { duration: 280, easing: Easing.in(Easing.exp) },
+        (finished) => {
+          if (finished) {
+            runOnJS(setMounted)(false);
+          }
+        },
+      );
+    }
   }, [visible, width, translateX, translateY]);
 
   const overlayStyle = useAnimatedStyle(() => ({
@@ -191,7 +212,7 @@ export function SettingsScreen(props: Props): ReactElement | null {
     [swipeRight, swipeDown],
   );
 
-  if (!visible) return null;
+  if (!mounted) return null;
 
   return (
     <GestureDetector gesture={dismissGesture}>

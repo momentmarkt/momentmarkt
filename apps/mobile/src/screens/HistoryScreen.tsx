@@ -293,13 +293,35 @@ export function HistoryScreen({
   const translateX = useSharedValue(isOverlay ? width : 0);
   const translateY = useSharedValue(0);
 
+  // Mount-gating for the slide-OUT animation (overlay mode only). Without
+  // this, when the parent flips `visible=false` the component returns null
+  // before the exit animation can render any frames. We keep `mounted`
+  // separate from `visible` and only flip `mounted` false from the timing
+  // callback after the exit animation finishes.
+  // For inline mode (no onClose, isOverlay=false), default to mounted=true
+  // unconditionally so embedded use renders without animation gating.
+  const [mounted, setMounted] = useState(isOverlay ? visible : true);
+
   useEffect(() => {
     if (!isOverlay) return;
-    translateX.value = withTiming(visible ? 0 : width, {
-      duration: 300,
-      easing: Easing.out(Easing.exp),
-    });
-    if (visible) translateY.value = 0;
+    if (visible) {
+      setMounted(true);
+      translateX.value = withTiming(0, {
+        duration: 300,
+        easing: Easing.out(Easing.exp),
+      });
+      translateY.value = 0;
+    } else {
+      translateX.value = withTiming(
+        width,
+        { duration: 280, easing: Easing.in(Easing.exp) },
+        (finished) => {
+          if (finished) {
+            runOnJS(setMounted)(false);
+          }
+        },
+      );
+    }
   }, [isOverlay, visible, width, translateX, translateY]);
 
   const overlayStyle = useAnimatedStyle(() => ({
@@ -373,7 +395,7 @@ export function HistoryScreen({
     [swipeRight, swipeDown],
   );
 
-  if (!visible) return null;
+  if (!mounted) return null;
 
   const overlayWrapperStyle = isOverlay
     ? [
