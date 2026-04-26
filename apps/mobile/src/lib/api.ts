@@ -585,6 +585,16 @@ export type AlternativeOffer = {
   discount_label: string;
   /** Validated downstream by widgetSchema.ts (unknown shape on the wire). */
   widget_spec: unknown;
+  /**
+   * Issue #156 — true on the first variant of every fresh fetch (anchor on
+   * the merchant-tap path, top-of-pool on the lens paths). Drives:
+   *   • the "⚡ JUST FOR YOU" pill in the top-LEFT of the top swipe card
+   *   • the red notification dot on the Discover tab in BottomNavBar
+   *     (when the user isn't already on Discover when the fetch lands).
+   * Optional on the wire — defaults to false so old backends that don't
+   * emit the field still parse cleanly.
+   */
+  is_special_surface?: boolean;
 };
 
 export type AlternativesResponse = {
@@ -726,6 +736,13 @@ export async function fetchOfferAlternatives(
         discount_pct: v.discount_pct,
         discount_label: v.discount_label,
         widget_spec: v.widget_spec,
+        // Issue #156 — optional flag; absent on old backends, present on
+        // post-#156 backends. Default to false so consumers can read it
+        // unconditionally without an `?? false` at every call site.
+        is_special_surface:
+          typeof v.is_special_surface === "boolean"
+            ? v.is_special_surface
+            : false,
       }));
     if (variants.length === 0) return null;
     return {
