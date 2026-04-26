@@ -23,6 +23,7 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { SymbolView } from "expo-symbols";
+import type { SFSymbol } from "sf-symbols-typescript";
 
 import { CityMap } from "./src/components/CityMap";
 import { DevPanel, type DevPanelSignal } from "./src/components/DevPanel";
@@ -484,7 +485,7 @@ export default function App() {
                     <MapWeatherPill
                       tempC={city === "berlin" ? 11 : 14}
                       neighborhood={city === "berlin" ? "Mitte" : "HB"}
-                      weatherEmoji={city === "berlin" ? "☔" : "☀"}
+                      sfSymbol={city === "berlin" ? "cloud.heavyrain.fill" : "sun.max.fill"}
                     />
                   </Animated.View>
                   <Animated.View style={[topOverlayRightStyle, ...s("flex-row gap-2")]}>
@@ -575,15 +576,19 @@ function MapIconButton({
 /** Static info-only weather pill for the map's top-LEFT corner (issue #119).
  *  Matches MapIconButton's frosted-glass look so the LEFT pill + RIGHT icon
  *  cluster read as one visual family. No onPress — DevPanel is reachable
- *  only through Settings → Demo & Debug now. */
+ *  only through Settings → Demo & Debug now.
+ *  Issue #120: emoji glyph replaced by a typed SF Symbol via expo-symbols
+ *  so the pill renders a crisp vector icon instead of an OS-dependent emoji. */
 function MapWeatherPill({
   tempC,
   neighborhood,
-  weatherEmoji,
+  sfSymbol,
+  tintColor = "#356f95",
 }: {
   tempC: number;
   neighborhood: string;
-  weatherEmoji: string;
+  sfSymbol: SFSymbol;
+  tintColor?: string;
 }) {
   return (
     <View
@@ -601,7 +606,13 @@ function MapWeatherPill({
         },
       ]}
     >
-      <Text style={s("text-base")}>{weatherEmoji}</Text>
+      <SymbolView
+        name={sfSymbol}
+        tintColor={tintColor}
+        size={18}
+        weight="semibold"
+        style={{ width: 18, height: 18 }}
+      />
       <Text style={[...s("text-sm font-bold text-ink"), { letterSpacing: -0.2 }]}>
         {Math.round(tempC)}°C · {neighborhood}
       </Text>

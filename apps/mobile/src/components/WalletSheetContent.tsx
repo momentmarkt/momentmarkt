@@ -1,4 +1,5 @@
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
+import { SymbolView } from "expo-symbols";
 import { type ReactElement, type ReactNode, useEffect } from "react";
 import { Text, View } from "react-native";
 import Animated, {
@@ -180,7 +181,13 @@ export function WalletSheetContent({
             >
               {Math.round(tempC)}°
             </Text>
-            <Text style={s("text-2xl text-cocoa")}>☁</Text>
+            <SymbolView
+              name="cloud.fill"
+              tintColor="#6f3f2c"
+              size={28}
+              weight="medium"
+              style={{ width: 28, height: 28 }}
+            />
           </View>
 
           <Text style={s("mt-2 text-sm font-semibold text-cocoa")}>
