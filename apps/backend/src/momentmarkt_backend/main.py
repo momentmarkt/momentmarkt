@@ -107,7 +107,11 @@ class OfferStatusRequest(BaseModel):
 class DemoSeedRequest(BaseModel):
     city: str = Field(default="berlin", examples=["berlin"])
     reset: bool = True
-    use_llm: bool = False
+    # Default ON so the demo seed boots with real LLM-drafted offers (one per
+    # eligible merchant) instead of the deterministic `_rain_widget` template.
+    # Per-merchant LLM failures fall through to the fixture inside
+    # `generate_offer` so a flaky provider can't tank the whole seed (#161).
+    use_llm: bool = True
 
 
 class ActiveOffer(BaseModel):
@@ -235,12 +239,34 @@ async def opportunity_batch(request: OpportunityBatchRequest) -> dict[str, Any]:
                     }
                 )
                 continue
-            result = await _draft_and_maybe_persist(
-                context=context,
-                high_intent=False,
-                use_llm=request.use_llm,
-                suppress_rejected=request.suppress_rejected,
-            )
+            # Per-merchant try/except so a single broken draft (provider hiccup,
+            # widget coercion edge case, transient storage error, …) cannot tank
+            # the whole seed. The LLM-call path inside `generate_offer` already
+            # falls through to the fixture on its own; this outer guard catches
+            # anything that escapes that net (#161).
+            try:
+                result = await _draft_and_maybe_persist(
+                    context=context,
+                    high_intent=False,
+                    use_llm=request.use_llm,
+                    suppress_rejected=request.suppress_rejected,
+                )
+            except Exception as exc:  # pragma: no cover - defensive
+                logfire.warn(
+                    "opportunity_batch merchant draft failed",
+                    merchant_id=merchant_id,
+                    error_type=type(exc).__name__,
+                    error=str(exc),
+                )
+                skipped.append(
+                    {
+                        "merchant_id": merchant_id,
+                        "reason": "draft_failed",
+                        "error": f"{type(exc).__name__}: {exc}",
+                        "trigger_evaluation": trigger_evaluation,
+                    }
+                )
+                continue
             if result.get("suppressed"):
                 skipped.append(
                     {
