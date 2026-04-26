@@ -39,6 +39,7 @@ import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } 
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, {
   Easing,
+  withRepeat,
   useAnimatedStyle,
   useSharedValue,
   withSequence,
@@ -120,6 +121,10 @@ const DISTANCE_SELECTOR_SPRING = {
   stiffness: 260,
   mass: 0.75,
 } as const;
+
+const DISCOVER_LOTTIE_SOURCE =
+  "https://assets-v2.lottiefiles.com/a/e88e947e-117e-11ee-b32b-1f49352a17f5/h9q2N827xF.lottie";
+const DISCOVER_LOADING_FADE_MS = 260;
 
 export function DiscoverView({
   citySlug,
@@ -512,18 +517,27 @@ function DiscoverBody({
   /** Issue #177 — Refresh CTA on the exhausted end state. */
   onRefresh: () => void;
 }): ReactElement {
-  // showSkeleton drives the cross-fade. We pin it true while loading
-  // and the variants haven't landed yet — once the first variant arrives,
-  // we flip to false and the skeleton fades out underneath the
-  // appearing real stack.
+  // showSkeleton drives the cross-fade. We keep the skeleton mounted for
+  // the fade-out window after cards arrive, otherwise the loading layer
+  // disappears before its opacity animation can finish.
   const showSkeleton = loading && (!variants || variants.length === 0);
+  const [renderSkeleton, setRenderSkeleton] = useState(showSkeleton);
   const fade = useSharedValue(showSkeleton ? 1 : 0);
   useEffect(() => {
     fade.value = withTiming(showSkeleton ? 1 : 0, {
-      duration: 150,
+      duration: DISCOVER_LOADING_FADE_MS,
       easing: Easing.out(Easing.quad),
     });
   }, [showSkeleton, fade]);
+
+  useEffect(() => {
+    if (showSkeleton) {
+      setRenderSkeleton(true);
+      return undefined;
+    }
+    const t = setTimeout(() => setRenderSkeleton(false), DISCOVER_LOADING_FADE_MS);
+    return () => clearTimeout(t);
+  }, [showSkeleton]);
 
   const skeletonStyle = useAnimatedStyle(() => ({ opacity: fade.value }));
   const realStyle = useAnimatedStyle(() => ({ opacity: 1 - fade.value }));
@@ -532,15 +546,16 @@ function DiscoverBody({
 
   return (
     <View style={s("flex-1")}>
-      {/* Skeleton layer — only mounted while loading + when no variants
-          are available yet. Unmounting once cards land means we're not
-          burning Reanimated cycles on an offscreen shimmer. */}
-      {showSkeleton ? (
+      {/* Skeleton layer stays mounted through fade-out so the transition
+          into real cards feels like one continuous surface. */}
+      {renderSkeleton ? (
         <Animated.View
           pointerEvents="none"
           style={[StyleSheet.absoluteFill, skeletonStyle]}
         >
-          <SwipeStackSkeleton />
+          <SwipeStackSkeleton>
+            <DiscoverLoadingAccent />
+          </SwipeStackSkeleton>
         </Animated.View>
       ) : null}
       {/* Real cards / empty state — fades in as the skeleton fades out.
@@ -578,6 +593,112 @@ function DiscoverBody({
           )}
         </Animated.View>
       ) : null}
+    </View>
+  );
+}
+
+function DiscoverLoadingAccent(): ReactElement {
+  const pulse = useSharedValue(0);
+
+  useEffect(() => {
+    pulse.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 760, easing: Easing.inOut(Easing.sin) }),
+        withTiming(0, { duration: 760, easing: Easing.inOut(Easing.sin) }),
+      ),
+      -1,
+      false,
+    );
+  }, [pulse]);
+
+  const haloStyle = useAnimatedStyle(() => ({
+    opacity: 0.24 - pulse.value * 0.18,
+    transform: [{ scale: 1 + pulse.value * 1.35 }],
+  }));
+  const cardStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: -4 + pulse.value * 8 },
+      { scale: 0.98 + pulse.value * 0.04 },
+    ],
+  }));
+  const dotStyle = useAnimatedStyle(() => ({
+    opacity: 0.45 + pulse.value * 0.45,
+    transform: [{ scale: 0.85 + pulse.value * 0.3 }],
+  }));
+
+  return (
+    <View
+      accessibilityRole="progressbar"
+      accessibilityLabel="Loading Discover offers"
+      accessibilityHint={DISCOVER_LOTTIE_SOURCE}
+      style={[
+        ...s("items-center"),
+        {
+          position: "absolute",
+          left: 24,
+          right: 24,
+          top: 150,
+        },
+      ]}
+    >
+      <View style={{ width: 116, height: 116, alignItems: "center", justifyContent: "center" }}>
+        <Animated.View
+          style={[
+            {
+              position: "absolute",
+              width: 76,
+              height: 76,
+              borderRadius: 38,
+              backgroundColor: "#f2542d",
+            },
+            haloStyle,
+          ]}
+        />
+        <Animated.View
+          style={[
+            ...s("items-center justify-center bg-white"),
+            {
+              width: 74,
+              height: 74,
+              borderRadius: 26,
+              borderWidth: 1,
+              borderColor: "rgba(242, 84, 45, 0.18)",
+              shadowColor: "#17120f",
+              shadowOpacity: 0.14,
+              shadowRadius: 14,
+              shadowOffset: { width: 0, height: 6 },
+            },
+            cardStyle,
+          ]}
+        >
+          <SymbolView
+            name="sparkles"
+            tintColor="#f2542d"
+            size={27}
+            weight="semibold"
+            style={{ width: 30, height: 30 }}
+          />
+          <View style={[...s("mt-2 flex-row"), { gap: 4 }]}> 
+            {[0, 1, 2].map((dot) => (
+              <Animated.View
+                key={dot}
+                style={[
+                  {
+                    width: 5,
+                    height: 5,
+                    borderRadius: 2.5,
+                    backgroundColor: dot === 1 ? "#f2542d" : "#6f3f2c",
+                  },
+                  dotStyle,
+                ]}
+              />
+            ))}
+          </View>
+        </Animated.View>
+      </View>
+      <Text style={s("mt-3 text-xs font-black uppercase tracking-[2px] text-cocoa")}> 
+        Finding nearby moments
+      </Text>
     </View>
   );
 }

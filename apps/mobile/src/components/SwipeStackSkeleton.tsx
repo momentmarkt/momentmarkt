@@ -31,7 +31,7 @@
  * compete with the chevron's own enter animation.
  */
 
-import { type ReactElement, useEffect } from "react";
+import { type ReactElement, type ReactNode, useEffect } from "react";
 import { View } from "react-native";
 import Animated, {
   Easing,
@@ -81,7 +81,7 @@ const CARD_BACKGROUND = "rgba(255, 248, 238, 0.95)";
 const PLACEHOLDER_MIN = 0.06;
 const PLACEHOLDER_MAX = 0.12;
 
-export function SwipeStackSkeleton(): ReactElement {
+export function SwipeStackSkeleton({ children }: { children?: ReactNode }): ReactElement {
   // Single driver SV for the unison pulse — every placeholder rectangle
   // across all 3 stacked cards interpolates from this. Single SV keeps
   // the pulse perfectly synchronized so the surface reads as one
@@ -111,6 +111,21 @@ export function SwipeStackSkeleton(): ReactElement {
       <SkeletonCard depth={2} pulse={pulse} />
       <SkeletonCard depth={1} pulse={pulse} />
       <SkeletonCard depth={0} pulse={pulse} />
+      {children ? (
+        <View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
+            zIndex: 4,
+          }}
+        >
+          {children}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -240,4 +255,3 @@ function SkeletonCard({
     </View>
   );
 }
-
