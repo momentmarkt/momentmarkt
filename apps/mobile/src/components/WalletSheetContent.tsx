@@ -98,17 +98,6 @@ export function WalletSheetContent({
     opacity: 0.25 + dot.value * 0.55,
   }));
 
-  const mediumLayerStyle = useAnimatedStyle(() => {
-    if (!animatedIndex) return { opacity: 1 };
-    const opacity = interpolate(
-      animatedIndex.value,
-      [0, 0.4, 1],
-      [0, 0.25, 1],
-      Extrapolation.CLAMP,
-    );
-    return { opacity };
-  });
-
   const expandedLayerStyle = useAnimatedStyle(() => {
     if (!animatedIndex) return { opacity: 1 };
     const opacity = interpolate(
@@ -144,12 +133,15 @@ export function WalletSheetContent({
         </Text>
       </View>
 
-      <Animated.View style={[mediumLayerStyle, ...s("mt-4")]}>
+      <View style={s("mt-4")}>
         {/* Issue #116: search bar + "Offers for you" list. Lives above the
             existing city pill / weather card so it's the first thing the user
             sees once the sheet is dragged past the collapsed snap. Falls back
             to a hardcoded canonical Berlin list when /merchants/{city} is
-            unreachable so the demo recording stays deterministic. */}
+            unreachable so the demo recording stays deterministic.
+            Issue #118: dropped the medium-layer fade wrapper so this content
+            is visible at the 25% snap — BottomSheetScrollView handles overflow
+            so the user only sees the top portion until they drag up. */}
         <MerchantSearchList city={citySlug} onMerchantTap={onMerchantTap} />
 
         <View
@@ -226,7 +218,7 @@ export function WalletSheetContent({
             </Text>
           </Animated.View>
         </View>
-      </Animated.View>
+      </View>
 
       <Animated.View style={[expandedLayerStyle, ...s("flex-1 mt-4")]}>
         {expandedSlot ?? (
