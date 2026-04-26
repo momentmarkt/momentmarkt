@@ -441,7 +441,8 @@ h3 {
 
 .offer-box > div,
 .evidence-card,
-.rule-detail {
+.rule-detail,
+.timeline-card {
   border-radius: 22px;
   background: #eef3eb;
   padding: 18px;
@@ -467,6 +468,88 @@ h3 {
   margin-bottom: 0;
   font-size: 1rem;
   line-height: 1.6;
+}
+
+.timeline-card {
+  margin-top: 18px;
+  background: #17211f;
+  color: #f7f4eb;
+}
+
+.timeline-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.timeline-heading .label {
+  color: rgba(247, 244, 235, 0.54);
+}
+
+.timeline-heading strong {
+  max-width: 360px;
+  text-align: right;
+  font-size: 1.1rem;
+  line-height: 1.15;
+}
+
+.timeline-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timeline-list li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 18px 54px 1fr;
+  gap: 12px;
+  padding: 0 0 16px;
+}
+
+.timeline-list li:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 18px;
+  bottom: -2px;
+  width: 2px;
+  border-radius: 999px;
+  background: rgba(247, 244, 235, 0.14);
+}
+
+.timeline-dot {
+  position: relative;
+  z-index: 1;
+  width: 18px;
+  height: 18px;
+  border: 4px solid #17211f;
+  border-radius: 999px;
+  background: #f2542d;
+  box-shadow: 0 0 0 4px rgba(242, 84, 45, 0.2);
+}
+
+.timeline-list time {
+  color: #a8ffca;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.timeline-list strong {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 0.98rem;
+}
+
+.timeline-list p {
+  margin-bottom: 0;
+  color: rgba(247, 244, 235, 0.66);
+  line-height: 1.4;
 }
 
 .rules-panel {

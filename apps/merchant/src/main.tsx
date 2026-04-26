@@ -224,6 +224,7 @@ function App() {
             {" "}{latestSample?.observed_transactions ?? "9"} transactions,
             so the rule cleared the approval threshold without merchant review.
           </p>
+          <Timeline />
         </article>
 
         <aside className="rules-panel">
@@ -345,6 +346,57 @@ function LiveStatus({ poll }: { poll: MerchantPollState }) {
         {poll.error ? <small>{poll.error}</small> : null}
       </div>
     </aside>
+  );
+}
+
+function Timeline() {
+  const steps = [
+    {
+      time: "13:30",
+      title: "Signals crossed",
+      detail: "Rain incoming + live density 54% below baseline.",
+    },
+    {
+      time: "+4s",
+      title: "AI draft created",
+      detail: "Cocoa + banana bread offer and GenUI widget spec generated.",
+    },
+    {
+      time: "+6s",
+      title: "Rule auto-approved",
+      detail: "bondi-rain-gap-lunch matched without merchant review.",
+    },
+    {
+      time: "+9s",
+      title: "Surfaced to Mia",
+      detail: "Same offer appears in the wallet drawer 82 m away.",
+    },
+    {
+      time: "+31s",
+      title: "Redeemed",
+      detail: "Simulated girocard checkout increments merchant counter.",
+    },
+  ];
+
+  return (
+    <div className="timeline-card" aria-label="Signal to redemption timeline">
+      <div className="timeline-heading">
+        <span className="label">Same mobile moment</span>
+        <strong>Signal → draft → rule → wallet → redeem</strong>
+      </div>
+      <ol className="timeline-list">
+        {steps.map((step) => (
+          <li key={step.title}>
+            <span className="timeline-dot" />
+            <time>{step.time}</time>
+            <div>
+              <strong>{step.title}</strong>
+              <p>{step.detail}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
 
