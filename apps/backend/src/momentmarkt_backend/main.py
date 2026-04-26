@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from .alternatives import (
     LensKey,
+    apply_negotiation,
     build_alternatives,
     build_alternatives_for_lens,
     build_alternatives_for_lens_with_meta,
@@ -586,6 +587,25 @@ class AlternativesRequest(BaseModel):
     )
 
 
+class NegotiationMeta(BaseModel):
+    """Per-variant negotiation transparency block (issue #164).
+
+    The Negotiation Agent operates within merchant-set bounds and emits
+    an applied discount + reasoning. We surface the bounds + applied
+    value + reason on the wire so the merchant audit log (production)
+    and the demo dev panel can inspect every decision per
+    DESIGN_PRINCIPLES.md #5 (reasoning is inspectable). The ranges are
+    inclusive on both ends and ``applied_pct`` is **always** within
+    ``[floor_pct, ceiling_pct]`` — see
+    ``alternatives.apply_negotiation`` for the durable clamp.
+    """
+
+    floor_pct: float
+    ceiling_pct: float
+    applied_pct: float
+    reason: str
+
+
 class AlternativeOffer(BaseModel):
     """One merchant card in the swipe stack.
 
@@ -601,6 +621,13 @@ class AlternativeOffer(BaseModel):
     (anchor on the merchant-tap path, top-of-pool on the lens paths)
     and ``False`` on the rest. Optional on the wire — defaults to
     ``False`` so older clients that don't read it still parse cleanly.
+
+    Issue #164: ``nominal_discount_pct`` carries the merchant's
+    catalog-published number; ``discount_pct`` is the bounds-honouring
+    negotiated value. ``negotiation_meta`` exposes the floor/ceiling
+    the agent operated within plus a one-line reasoning so production
+    (merchant audit) and demo (dev panel) surfaces can inspect every
+    negotiation decision.
     """
 
     variant_id: str
@@ -614,6 +641,8 @@ class AlternativeOffer(BaseModel):
     discount_label: str
     widget_spec: dict[str, Any]
     is_special_surface: bool = False
+    nominal_discount_pct: float | None = None
+    negotiation_meta: NegotiationMeta | None = None
 
 
 class AlternativesResponse(BaseModel):
@@ -701,6 +730,21 @@ async def post_offers_alternatives(req: AlternativesRequest) -> AlternativesResp
         # never drop a card we already built).
         reordered.extend(by_id.values())
         variants = reordered
+
+    # Negotiation pass (issue #164): adjust each variant's discount
+    # within the merchant's bounds based on the round's swipe history.
+    # Runs AFTER preference re-rank (so order is final) and BEFORE the
+    # subhead/headline LLM rewrites (they only touch widget_spec text,
+    # not discount values). `apply_negotiation` is non-async + never
+    # raises — it preserves variant order and falls back to nominal on
+    # any agent failure, so this call is safe even when the negotiation
+    # subtree is offline.
+    if variants:
+        variants = apply_negotiation(
+            variants,
+            preference_context=req.preference_context,
+            use_llm=False,  # negotiation stays deterministic on the demo path
+        )
 
     # Subhead pass: always rewrite per-card body copy with the
     # contextual subhead (issue #151). Deterministic per-category fallback

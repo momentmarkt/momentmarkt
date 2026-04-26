@@ -46,6 +46,12 @@ from typing import Any, Literal
 
 from .genui import validate_widget_node
 from .merchants import get_merchants
+from .negotiation_agent import (
+    MerchantBounds,
+    NegotiationContext,
+    SwipeReaction,
+    negotiate_offer,
+)
 
 # Public lens enum — kept here so Pydantic in `main.py` can `Literal[...]`
 # off the same constant set without a circular import. Order matches the
@@ -936,6 +942,189 @@ async def maybe_rewrite_subheads(
                 pass
         rewritten.append(patched)
     return rewritten
+
+
+# ---------------------------------------------------------------------------
+# Negotiation wiring (issue #164)
+# ---------------------------------------------------------------------------
+#
+# `negotiation_agent.py` ships fully implemented + tested but, prior to
+# #164, was not wired into the live offer flow — variants surfaced at
+# the merchant's nominal discount with no per-user adjustment. The
+# helper below is the seam: each variant gains a ``negotiation_meta``
+# block + a ``nominal_discount_pct`` field carrying the merchant's
+# original number, while ``discount_pct`` becomes the negotiated value.
+#
+# Bounds derivation (until the v2 merchant portal lands per #138):
+# floor = the merchant's own advertised pct (the number they already
+# committed to publicly), ceiling = floor + 20pp capped at 50%.
+# Defaults to (5, 25) when the catalog discount string can't be
+# parsed — keeps the band non-degenerate so the negotiation has room
+# to move on noisy inputs.
+
+# Conservative ceiling extension above the merchant's nominal discount.
+# Floor pad: how far BELOW the merchant's nominal we let the agent
+# retreat. The wedge per #138 is "find the smallest discount the user
+# will accept" — the floor should sit below the published number so the
+# cold-start can open below nominal and right-swipes can retreat
+# further toward the merchant's preferred minimum.
+_BOUNDS_FLOOR_PAD_PCT = 10.0
+# Hard cap on the ceiling regardless of merchant nominal — prevents a
+# weirdly-formatted catalog string ("90% off" parsed literally) from
+# letting the agent escalate to absurd numbers AND prevents the served
+# discount from ever exceeding the merchant's published number on the
+# demo path (ceiling = nominal in our derivation).
+_BOUNDS_CEILING_HARD_CAP_PCT = 50.0
+# Default floor / ceiling when the catalog discount string yields 0pct
+# (e.g. free-form "Bundle €5" labels). Matches the negotiation tests'
+# "_bounds" defaults so behaviour is uniform across the suite.
+_DEFAULT_FLOOR_PCT = 5.0
+_DEFAULT_CEILING_PCT = 25.0
+
+
+def _merchant_bounds_from_variant(variant: dict[str, Any]) -> MerchantBounds:
+    """Derive ``MerchantBounds`` from the variant's parsed discount.
+
+    Stand-in for the v2 merchant portal that will eventually persist
+    floor/ceiling/allowed_categories/brand_tone per merchant. For the
+    hackathon demo we treat the catalog's published ``discount_pct``
+    as the **ceiling** (the merchant has already publicly committed to
+    that number — they will not exceed it) and pad the floor downward
+    by ``_BOUNDS_FLOOR_PAD_PCT`` so the agent has room to retreat
+    toward the merchant's wedge ("smallest discount the user will
+    accept"). Free-form labels (no parseable %) collapse to the
+    default band so the negotiation still has room to move.
+    """
+    nominal = float(variant.get("discount_pct") or 0.0)
+    if nominal <= 0.0:
+        floor = _DEFAULT_FLOOR_PCT
+        ceiling = _DEFAULT_CEILING_PCT
+    else:
+        ceiling = min(_BOUNDS_CEILING_HARD_CAP_PCT, max(0.0, nominal))
+        floor = max(0.0, ceiling - _BOUNDS_FLOOR_PAD_PCT)
+        if ceiling < floor:
+            ceiling = floor
+    category = variant.get("merchant_category", "")
+    return MerchantBounds(
+        merchant_id=variant.get("merchant_id", "unknown"),
+        discount_floor_pct=floor,
+        discount_ceiling_pct=ceiling,
+        allowed_categories=[category] if category else [],
+        brand_tone=None,
+    )
+
+
+def _swipe_history_for_merchant(
+    *,
+    merchant_id: str,
+    nominal_pct: float,
+    preference_context: list[Any] | None,
+) -> list[SwipeReaction]:
+    """Translate the round's PriorSwipe log into per-variant
+    ``SwipeReaction`` entries the negotiation agent understands.
+
+    The PriorSwipe shape (merchant_id, dwell_ms, swiped_right) is the
+    cross-merchant preference signal carried through the API; the
+    negotiation agent's SwipeReaction expects the per-card discount the
+    user reacted to. We feed back the *nominal* discount the variant
+    would have shown so the agent's heuristic reasons against the
+    merchant's own published number — the most defensible reference
+    point for the demo.
+    """
+    if not preference_context:
+        return []
+    history: list[SwipeReaction] = []
+    for entry in preference_context:
+        # PriorSwipe is a Pydantic model in the API request flow but we
+        # stay duck-typed here so callers can pass either the model or
+        # plain dicts (the integration test takes the dict path).
+        if hasattr(entry, "model_dump"):
+            data = entry.model_dump()
+        elif isinstance(entry, dict):
+            data = entry
+        else:
+            continue
+        if data.get("merchant_id") != merchant_id:
+            continue
+        try:
+            history.append(
+                SwipeReaction(
+                    discount_pct_offered=float(nominal_pct),
+                    dwell_ms=int(data.get("dwell_ms", 0)),
+                    swiped_right=bool(data.get("swiped_right", False)),
+                )
+            )
+        except (TypeError, ValueError):
+            continue
+    return history
+
+
+def apply_negotiation(
+    variants: list[dict[str, Any]],
+    *,
+    preference_context: list[Any] | None = None,
+    use_llm: bool = False,
+) -> list[dict[str, Any]]:
+    """Run the negotiation agent on each variant and patch the result.
+
+    For each variant:
+      * derive merchant bounds from the catalog's own discount label,
+      * build a per-merchant swipe history from the round's
+        ``preference_context`` (PriorSwipe entries that reference this
+        merchant),
+      * call ``negotiate_offer`` to get the bounds-honouring discount,
+      * preserve the original number in ``nominal_discount_pct``,
+      * attach a ``negotiation_meta`` block carrying the floor, ceiling,
+        applied pct, and one-line reasoning so downstream surfaces
+        (merchant audit log, demo dev panel) can inspect the decision.
+
+    Additive — never drops or reorders variants and never raises (any
+    negotiation failure falls back to the variant's nominal pct so the
+    swipe stack stays renderable).
+    """
+    patched: list[dict[str, Any]] = []
+    for variant in variants:
+        nominal = float(variant.get("discount_pct") or 0.0)
+        bounds = _merchant_bounds_from_variant(variant)
+        history = _swipe_history_for_merchant(
+            merchant_id=variant.get("merchant_id", ""),
+            nominal_pct=nominal,
+            preference_context=preference_context,
+        )
+        try:
+            offer = negotiate_offer(
+                NegotiationContext(
+                    bounds=bounds,
+                    history=history,
+                    current_round_count=len(history),
+                ),
+                use_llm=use_llm,
+            )
+            applied_pct = float(offer.discount_pct)
+            reason = offer.reasoning
+        except Exception:  # pragma: no cover - defensive: never break the stack
+            applied_pct = max(
+                bounds.discount_floor_pct,
+                min(bounds.discount_ceiling_pct, nominal),
+            )
+            reason = "Negotiation skipped — fell back to merchant nominal."
+        # Final clamp — belt-and-braces against any LLM hallucination
+        # bypassing the agent's own clamp.
+        applied_pct = max(
+            bounds.discount_floor_pct,
+            min(bounds.discount_ceiling_pct, applied_pct),
+        )
+        new_variant = dict(variant)
+        new_variant["nominal_discount_pct"] = nominal
+        new_variant["discount_pct"] = applied_pct
+        new_variant["negotiation_meta"] = {
+            "floor_pct": float(bounds.discount_floor_pct),
+            "ceiling_pct": float(bounds.discount_ceiling_pct),
+            "applied_pct": float(applied_pct),
+            "reason": reason,
+        }
+        patched.append(new_variant)
+    return patched
 
 
 async def maybe_rewrite_with_llm(
