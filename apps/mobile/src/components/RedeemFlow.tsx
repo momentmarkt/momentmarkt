@@ -91,12 +91,12 @@ export function RedeemFlow({
     child = <QrRedeemScreen offer={offer} onTap={handleTap} onCancel={handleCancel} />;
   } else if (state === "tapping") {
     child = (
-      <View style={s("flex-1 items-center justify-center bg-ink px-5")}>
-        <ActivityIndicator size="large" color="#fff8ee" />
-        <Text style={s("mt-4 text-xs font-bold uppercase tracking-[3px] text-cream/70")}>
+      <View style={s("flex-1 items-center justify-center bg-cream px-5")}>
+        <ActivityIndicator size="large" color="#17120f" />
+        <Text style={s("mt-4 text-xs font-bold uppercase tracking-[3px] text-cocoa")}>
           Routing girocard tap…
         </Text>
-        <Text style={s("mt-2 text-base font-semibold text-cream")}>
+        <Text style={s("mt-2 text-base font-semibold text-ink")}>
           Simulating checkout via Sparkasse rail
         </Text>
       </View>

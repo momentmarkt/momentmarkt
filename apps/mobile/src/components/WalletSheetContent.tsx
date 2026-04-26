@@ -1,5 +1,5 @@
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
-import { type ReactElement, type ReactNode, useEffect, useState } from "react";
+import { type ReactElement, type ReactNode, useEffect } from "react";
 import { Text, View } from "react-native";
 import Animated, {
   Easing,
@@ -24,9 +24,9 @@ type Props = {
   /** Short pulse-chip headline (e.g. "Rain in ~22 min"). */
   pulseLabel?: string;
   /**
-   * Bottom sheet animated index. Sheet snaps used by App.tsx are (post-#89):
-   *   0 → 25% (collapsed): only the clock + brand row visible
-   *   1 → 55% (medium): + weather widget, Berlin Mitte chip
+   * Bottom sheet animated index. Sheet snaps used by App.tsx:
+   *   0 → 25% (collapsed): brand chip + city pill
+   *   1 → 55% (medium): + weather card
    *   2 → 80% (expanded): + offer slot (children)
    * We fade the medium- and expanded-tier layers based on this value so
    * dragging the sheet up reveals more content with smooth opacity.
@@ -61,23 +61,6 @@ export function WalletSheetContent({
   animatedIndex,
   expandedSlot,
 }: Props): ReactElement {
-  const [now, setNow] = useState(() => new Date());
-
-  useEffect(() => {
-    const start = new Date();
-    const msUntilNextMinute =
-      (60 - start.getSeconds()) * 1000 - start.getMilliseconds();
-    let interval: ReturnType<typeof setInterval> | undefined;
-    const align = setTimeout(() => {
-      setNow(new Date());
-      interval = setInterval(() => setNow(new Date()), 60_000);
-    }, Math.max(250, msUntilNextMinute));
-    return () => {
-      clearTimeout(align);
-      if (interval) clearInterval(interval);
-    };
-  }, []);
-
   const pulse = useSharedValue(0);
   const dot = useSharedValue(0);
 
@@ -125,97 +108,93 @@ export function WalletSheetContent({
     return { opacity };
   });
 
-  const time = formatTimeDe(now);
-  const date = formatDateDe(now);
-
   return (
-    // Issue #88: wrap in BottomSheetScrollView so content scrolls when the
-    // sheet is at its top snap. Drag-down at scroll-top collapses the sheet
-    // (gorhom integrates the gestures); scrolling up scrolls content. The
-    // gear icon that previously lived top-right of the brand row is gone —
-    // Settings is now a 5th bottom-tab (issue #87), so the header is clean.
+    // Cream wallet drawer (matches the Settings + History page palette).
+    // The big lock-screen clock + date that lived at the top of the sheet
+    // were removed — they duplicated the iOS status-bar clock and crowded
+    // the wallet's actual content (city pill, weather, surfaced offer).
     <BottomSheetScrollView
       style={s("flex-1")}
       contentContainerStyle={[
         ...s("px-5"),
-        { paddingTop: 4, paddingBottom: 20 },
+        { paddingTop: 8, paddingBottom: 20 },
       ]}
       showsVerticalScrollIndicator={false}
     >
       <View style={s("items-center")}>
         <Text
-          style={s(
-            "text-[11px] font-semibold uppercase tracking-[3px] text-white/30",
-          )}
+          style={[
+            ...s("text-[11px] font-semibold uppercase tracking-[3px] text-cocoa"),
+            { opacity: 0.55 },
+          ]}
         >
           MomentMarkt
         </Text>
-        <Text
-          style={[
-            ...s("mt-2 text-[96px] font-extralight text-white text-center"),
-            { lineHeight: 96, letterSpacing: -2 },
-          ]}
-        >
-          {time}
-        </Text>
-        <Text
-          style={s(
-            "mt-1 text-base font-semibold text-cream/60 text-center",
-          )}
-        >
-          {date}
-        </Text>
       </View>
 
-      <Animated.View style={[mediumLayerStyle, ...s("mt-5")]}>
+      <Animated.View style={[mediumLayerStyle, ...s("mt-4")]}>
         <View
           style={[
-            ...s("rounded-full bg-white/15 px-3 py-2 flex-row items-center gap-2 mb-4"),
-            { alignSelf: "center" },
+            ...s("rounded-full bg-white px-3 py-2 flex-row items-center gap-2 mb-4"),
+            {
+              alignSelf: "center",
+              borderWidth: 1,
+              borderColor: "rgba(23, 18, 15, 0.08)",
+            },
           ]}
         >
-          <Text style={s("text-base text-white/70")}>◉</Text>
+          <Text style={s("text-base text-spark")}>◉</Text>
           <Text
             style={s(
-              "text-xs font-semibold uppercase tracking-[2px] text-white/70",
+              "text-xs font-semibold uppercase tracking-[2px] text-cocoa",
             )}
           >
             {cityLabel}
           </Text>
         </View>
 
-        <View style={s("rounded-[22px] bg-white/15 p-5")}>
+        <View
+          style={[
+            ...s("rounded-[22px] bg-white p-5"),
+            {
+              borderWidth: 1,
+              borderColor: "rgba(23, 18, 15, 0.06)",
+            },
+          ]}
+        >
           <View style={s("flex-row items-center justify-between")}>
             <Text
               style={s(
-                "text-xs font-semibold uppercase tracking-[2px] text-white/70",
+                "text-xs font-semibold uppercase tracking-[2px] text-cocoa",
               )}
             >
               {cityLabel}
             </Text>
-            <Text style={s("text-xs font-semibold text-white/50")}>Weather</Text>
+            <Text style={s("text-xs font-semibold text-neutral-600")}>
+              Weather
+            </Text>
           </View>
 
           <View style={s("mt-4 flex-row items-center justify-between")}>
             <Text
               style={[
-                ...s("text-[40px] font-light text-white"),
+                ...s("text-[40px] font-light text-ink"),
                 { lineHeight: 44 },
               ]}
             >
               {Math.round(tempC)}°
             </Text>
-            <Text style={s("text-2xl text-white/80")}>☁</Text>
+            <Text style={s("text-2xl text-cocoa")}>☁</Text>
           </View>
 
-          <Text style={s("mt-2 text-sm font-semibold text-white/70")}>
+          <Text style={s("mt-2 text-sm font-semibold text-cocoa")}>
             {weatherLabel}
           </Text>
 
           <Animated.View
             style={[
               chipStyle,
-              ...s("mt-4 rounded-full bg-white/20 px-3 py-2"),
+              ...s("mt-4 rounded-full bg-spark px-3 py-2"),
               { alignSelf: "flex-start" },
             ]}
           >
@@ -234,7 +213,11 @@ export function WalletSheetContent({
         {expandedSlot ?? (
           <View style={s("items-center mt-6")}>
             <Animated.View
-              style={[dotStyle, ...s("h-1 w-1 rounded-full bg-white/40")]}
+              style={[
+                dotStyle,
+                ...s("h-1 w-1 rounded-full"),
+                { backgroundColor: "rgba(23, 18, 15, 0.35)" },
+              ]}
             />
           </View>
         )}
@@ -242,41 +225,3 @@ export function WalletSheetContent({
     </BottomSheetScrollView>
   );
 }
-
-function formatTimeDe(d: Date): string {
-  const hh = d.getHours().toString().padStart(2, "0");
-  const mm = d.getMinutes().toString().padStart(2, "0");
-  return `${hh}:${mm}`;
-}
-
-function formatDateDe(d: Date): string {
-  const weekday = WEEKDAYS_DE[d.getDay()];
-  const day = d.getDate();
-  const month = MONTHS_DE[d.getMonth()];
-  return `${weekday}, ${day}. ${month}`;
-}
-
-const WEEKDAYS_DE = [
-  "Sonntag",
-  "Montag",
-  "Dienstag",
-  "Mittwoch",
-  "Donnerstag",
-  "Freitag",
-  "Samstag",
-] as const;
-
-const MONTHS_DE = [
-  "Januar",
-  "Februar",
-  "März",
-  "April",
-  "Mai",
-  "Juni",
-  "Juli",
-  "August",
-  "September",
-  "Oktober",
-  "November",
-  "Dezember",
-] as const;

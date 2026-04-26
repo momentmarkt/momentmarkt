@@ -39,12 +39,7 @@ import { s } from "../styles";
  * accepted icon shapes.)
  */
 
-export type NativeTabKey =
-  | "home"
-  | "offer"
-  | "qr"
-  | "history"
-  | "settings";
+export type NativeTabKey = "home" | "qr" | "history" | "settings";
 
 export type NativeTabBarProps = {
   activeTab: NativeTabKey;
@@ -62,9 +57,11 @@ type TabDef = {
   sfSymbol: SFSymbol;
 };
 
+// "Offer" intentionally omitted — surfacing fires inside the wallet drawer
+// on the Home tab, so a standalone Offer tab was redundant. The drawer's
+// expanded slot is the canonical surface for the active offer.
 const TABS: ReadonlyArray<TabDef> = [
   { key: "home", title: "Home", sfSymbol: "house" },
-  { key: "offer", title: "Offer", sfSymbol: "sparkles" },
   { key: "qr", title: "QR", sfSymbol: "qrcode" },
   { key: "history", title: "History", sfSymbol: "clock" },
   { key: "settings", title: "Settings", sfSymbol: "gearshape" },

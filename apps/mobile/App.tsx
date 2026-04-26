@@ -83,7 +83,7 @@ type WidgetVariant = keyof typeof demoWidgetSpecs;
  *  area. Issue #103 added "offer" + "qr" as their own top-level views (one
  *  per native UITabBarController scene) so each tab has a stable
  *  destination — see NativeTabBar wiring in App below. */
-type AppView = "demo" | "offer" | "qr" | "history" | "settings";
+type AppView = "demo" | "qr" | "history" | "settings";
 
 const SIDE_BY_SIDE_BREAKPOINT = 820;
 const FALLBACK_CASHBACK_EUR = 1.85;
@@ -226,10 +226,6 @@ export default function App() {
       setSettingsOpen(true);
       return;
     }
-    if (tab === "offer") {
-      setView("offer");
-      return;
-    }
     if (tab === "qr") {
       setView("qr");
       return;
@@ -252,11 +248,9 @@ export default function App() {
       ? "history"
       : view === "settings"
         ? "settings"
-        : view === "offer"
-          ? "offer"
-          : view === "qr"
-            ? "qr"
-            : "home";
+        : view === "qr"
+          ? "qr"
+          : "home";
 
   const handleSheetChange = useCallback((index: number) => {
     setSheetIndex(index);
@@ -386,12 +380,12 @@ export default function App() {
         // edge; +10 leaves a tiny breathing strip below the island.
         topInset={insets.top + 10}
         backgroundStyle={{
-          backgroundColor: "#17120f",
+          backgroundColor: "#fff8ee",
           borderTopLeftRadius: 34,
           borderTopRightRadius: 34,
         }}
         handleIndicatorStyle={{
-          backgroundColor: "rgba(255, 255, 255, 0.4)",
+          backgroundColor: "rgba(23, 18, 15, 0.25)",
           width: 44,
           height: 5,
         }}
@@ -445,47 +439,17 @@ export default function App() {
     </View>
   );
 
-  // Per-tab scenes for the new NativeTabBar (issue #103). Each tab is a
-  // separate native UIViewController scene; the lib mounts each scene
-  // lazily on first focus and keeps it alive afterwards. The Home tab
-  // owns the demo state machine; the other 4 are standalone surfaces.
-  const offerScene = (
-    <View
-      style={[
-        ...s("flex-1 bg-ink"),
-        {
-          paddingTop: insets.top + 10,
-          paddingBottom: Math.max(insets.bottom, 8),
-        },
-      ]}
-    >
-      <ScrollView
-        style={s("flex-1")}
-        contentContainerStyle={[
-          ...s("px-5"),
-          { paddingTop: 4, paddingBottom: 24, gap: 16 },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={[...s("text-3xl font-black text-white"), { letterSpacing: -0.5 }]}>
-          Offer
-        </Text>
-        <Text style={s("text-sm text-white/70")}>
-          Active surfaced offer for your area. Tap below to redeem.
-        </Text>
-        <View style={[...s("rounded-2xl bg-cocoa"), { padding: 12 }]}>
-          <WidgetRenderer
-            node={demoWidgetSpecs.rainHero}
-            onRedeem={handleAdvanceFromOffer}
-          />
-        </View>
-      </ScrollView>
-    </View>
-  );
+  // Per-tab scenes for the new NativeTabBar. Each tab is a separate
+  // native UIViewController scene; the lib mounts each scene lazily on
+  // first focus and keeps it alive afterwards. The Home tab owns the
+  // demo state machine and surfaces the offer inside its bottom-sheet
+  // drawer (so a standalone Offer tab would be redundant — the drawer's
+  // expanded slot IS the offer surface). The QR tab is a direct shortcut
+  // into the redeem flow for the live demo.
   const qrScene = (
     <View
       style={[
-        ...s("flex-1 bg-ink"),
+        ...s("flex-1 bg-cream"),
         {
           paddingTop: insets.top + 10,
           paddingBottom: Math.max(insets.bottom, 8),
@@ -527,7 +491,6 @@ export default function App() {
   );
   const tabScenes: Record<NativeTabKey, ReactNode> = {
     home: walletArea,
-    offer: offerScene,
     qr: qrScene,
     history: historyScene,
     settings: settingsScene,
@@ -592,7 +555,7 @@ function SheetBody({
   // child of <BottomSheet />.
   if (step === "redeeming") {
     return (
-      <BottomSheetView style={[...s("flex-1 bg-ink")]}>
+      <BottomSheetView style={[...s("flex-1 bg-cream")]}>
         <RedeemFlow offer={miaRainOffer} onComplete={onRedeemComplete} />
       </BottomSheetView>
     );
@@ -600,7 +563,7 @@ function SheetBody({
 
   if (step === "success") {
     return (
-      <BottomSheetView style={[...s("flex-1 bg-ink")]}>
+      <BottomSheetView style={[...s("flex-1 bg-cream")]}>
         <CheckoutSuccessScreen
           cashbackEur={FALLBACK_CASHBACK_EUR}
           onDone={onSuccessDone}

@@ -106,37 +106,50 @@ export function QrRedeemScreen({
   const expired = secondsLeft === 0;
 
   return (
-    <View style={s("flex-1 bg-ink px-5 py-6")}>
+    <View style={s("flex-1 bg-cream px-5 py-6")}>
       <View style={s("flex-row items-center justify-between")}>
         <View>
-          <Text style={s("text-xs font-bold uppercase tracking-[3px] text-cream/60")}>
+          <Text style={s("text-xs font-bold uppercase tracking-[3px] text-cocoa")}>
             Simulated checkout
           </Text>
-          <Text style={s("mt-1 text-2xl font-black text-cream")}>
+          <Text style={[...s("mt-1 text-2xl font-black text-ink"), { letterSpacing: -0.5 }]}>
             {offer.merchantName}
           </Text>
         </View>
         <Pressable
           accessibilityRole="button"
-          style={s("rounded-full bg-cream/10 px-4 py-2")}
+          style={[
+            ...s("rounded-full bg-white px-4 py-2"),
+            { borderWidth: 1, borderColor: "rgba(23, 18, 15, 0.08)" },
+          ]}
           onPress={() => {
-            // Light bump on cancel — secondary action (#104).
             lightTap();
             onCancel();
           }}
         >
-          <Text style={s("text-xs font-black uppercase tracking-[2px] text-cream")}>
+          <Text style={s("text-xs font-black uppercase tracking-[2px] text-ink")}>
             Cancel
           </Text>
         </Pressable>
       </View>
 
-      <Animated.View style={[...s("mt-6 items-center rounded-[34px] bg-cream p-6"), qrStyle]}>
+      <Animated.View
+        style={[
+          ...s("mt-6 items-center rounded-[34px] bg-white p-6"),
+          { borderWidth: 1, borderColor: "rgba(23, 18, 15, 0.08)" },
+          qrStyle,
+        ]}
+      >
         <Text style={s("text-xs font-semibold uppercase tracking-[3px] text-rain")}>
           Show this at the till
         </Text>
 
-        <View style={s("mt-4 rounded-2xl border-4 border-cocoa bg-white p-4")}>
+        <View
+          style={[
+            ...s("mt-4 rounded-2xl bg-white p-4"),
+            { borderWidth: 4, borderColor: "rgba(23, 18, 15, 0.1)" },
+          ]}
+        >
           <QRCode
             value={token}
             size={200}
@@ -167,14 +180,19 @@ export function QrRedeemScreen({
         </Animated.View>
       </Animated.View>
 
-      <View style={s("mt-5 rounded-3xl bg-cream/10 p-4")}>
-        <Text style={s("text-xs font-semibold uppercase tracking-[2px] text-cream/60")}>
+      <View
+        style={[
+          ...s("mt-5 rounded-3xl bg-white p-4"),
+          { borderWidth: 1, borderColor: "rgba(23, 18, 15, 0.06)" },
+        ]}
+      >
+        <Text style={s("text-xs font-semibold uppercase tracking-[2px] text-cocoa")}>
           Offer
         </Text>
-        <Text style={s("mt-2 text-base font-bold text-cream")}>
+        <Text style={s("mt-2 text-base font-bold text-ink")}>
           {offer.discount} · {offer.distanceM} m · expires {offer.expiresAt}
         </Text>
-        <Text style={s("mt-1 text-sm leading-5 text-cream/70")}>
+        <Text style={s("mt-1 text-sm leading-5 text-neutral-600")}>
           {offer.subhead}
         </Text>
       </View>
@@ -185,15 +203,23 @@ export function QrRedeemScreen({
         <Pressable
           accessibilityRole="button"
           disabled={expired}
-          style={s("rounded-2xl px-5 py-4", expired ? "bg-cream/20" : "bg-spark")}
+          style={[
+            ...s("rounded-2xl px-5 py-4"),
+            {
+              backgroundColor: expired ? "rgba(23, 18, 15, 0.08)" : "#f2542d",
+            },
+          ]}
           onPress={() => {
-            // Heavy thump BEFORE the simulated NFC tap so it feels like a
-            // real card-on-reader on the user's iPhone (#104).
             heavyTap();
             onTap(token);
           }}
         >
-          <Text style={s("text-center text-base font-black text-white")}>
+          <Text
+            style={[
+              ...s("text-center text-base font-black"),
+              { color: expired ? "#6f3f2c" : "#ffffff" },
+            ]}
+          >
             {expired ? "Token expired" : "Simulate girocard tap"}
           </Text>
         </Pressable>
