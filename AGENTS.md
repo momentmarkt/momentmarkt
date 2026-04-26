@@ -13,7 +13,7 @@ Read these before work:
 
 ## GitHub Issue Protocol
 
-- Use GitHub issues in `mmtftr/momentmarkt` as the work queue.
+- Use GitHub issues in `momentmarkt/momentmarkt` as the work queue.
 - Self-assign by commenting on the issue before editing: `Taking this on <machine/agent>`.
 - Also assign the issue to your GitHub user when permissions allow.
 - Keep changes scoped to the issue.

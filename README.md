@@ -26,7 +26,9 @@ Independent cafés, bakeries, and bookstores don't have a marketing department. 
 
 Two AI agents watch three live triggers — weather shifts, nearby events ending, demand gaps — and generate an offer for the right merchant at the right moment. The merchant approves it once and sets a rule; after that it runs itself. The wallet stays silent by default and only surfaces an offer when the conditions actually fit.
 
-**Live demo:** [`https://peaktwilight-momentmarkt-api.hf.space/`](https://peaktwilight-momentmarkt-api.hf.space/) — hit `/health`, `/signals/berlin`, or `/merchants/berlin?q=oberholz` directly.
+**Merchant demo:** [`https://momentmarkt.doruk.ch/`](https://momentmarkt.doruk.ch/) — the public merchant inbox.
+
+**Backend API:** [`https://peaktwilight-momentmarkt-api.hf.space/`](https://peaktwilight-momentmarkt-api.hf.space/) — hit `/health`, `/signals/berlin`, or `/merchants/berlin?q=oberholz` directly.
 
 Current implementation tracked in `work/SPEC.md`: Expo React Native consumer
 app, small merchant web surface, FastAPI/fixtures as needed. Four-surface UX
@@ -152,7 +154,7 @@ Tavily, no Foursquare, no CH GTFS bind on the Zürich swap.
   rain-trigger GenUI widget on iOS Simulator chrome over a Berlin Mitte map
   fragment, monospace dev-panel chip top-right, neutral palette, no
   Sparkassen branding)
-- **GitHub repo**: https://github.com/mmtftr/momentmarkt (this repo)
+- **GitHub repo**: https://github.com/momentmarkt/momentmarkt (this repo)
 
 ## Run The Backend
 

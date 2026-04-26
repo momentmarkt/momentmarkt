@@ -30,7 +30,7 @@ No Sparkassen-Rot, no S-logomark, no "Mit Sparkasse bezahlt" copy in the redempt
 
 ### LLM provider: Azure OpenAI
 
-All generative calls (offer drafting, widget spec emission, contextual headline rewrite, "why am I seeing this?" explainer) go through Azure OpenAI. LiteLLM stays in front for swap-ability, but the configured backend is Azure.
+All generative calls (offer drafting, widget spec emission, contextual headline rewrite, "why am I seeing this?" explainer) go through Azure OpenAI via the Pydantic AI provider dispatcher. The configured backend is Azure, with fixture fallbacks for demo safety.
 
 **Why:** team has credits and existing endpoint; avoids OpenAI direct / Anthropic billing setup during the hack.
 

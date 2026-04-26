@@ -32,7 +32,7 @@ type Props = {
 const DEFAULT_EXPIRES_IN_S = 90;
 
 /**
- * Standalone full-screen QR redeem view. Uses the same NativeWind
+ * Standalone full-screen QR redeem view. Uses the same local style-token
  * palette as the rest of the app (ink / cream / cocoa / spark / rain).
  * Designed to be dropped in by RedeemFlow once the user's #5 widget
  * renderer work lands.

@@ -53,7 +53,7 @@ jobs:
           # MomentMarkt API
 
           Demo backend for the MomentMarkt CITY WALLET prototype (Hack-Nation 2026,
-          DSV-Gruppe track). Source repo: https://github.com/mmtftr/momentmarkt
+          DSV-Gruppe track). Source repo: https://github.com/momentmarkt/momentmarkt
 
           Deployed automatically from `main` by `.github/workflows/deploy-hf.yml`.
           Edit the source — not this Space — and the next push to `main` rebuilds.

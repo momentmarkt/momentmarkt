@@ -10,7 +10,7 @@
 
 - Product name: **MomentMarkt** unless the team explicitly decides otherwise.
 - Track: DSV-Gruppe CITY WALLET.
-- Consumer app is **React Native + Expo + TypeScript** recorded on iOS Simulator or Expo Go.
+- Consumer app is **React Native + Expo + TypeScript** recorded through the native Expo dev client on iOS Simulator.
 - Merchant inbox can be the fastest credible web surface.
 - The old untracked Next.js scaffold under `src/` is obsolete according to `spec-v04`.
 
@@ -41,7 +41,7 @@ If you're tempted to write internals into a label "for clarity," you don't have 
 
 ## Coordination Rules
 
-- Before editing implementation files, claim or create a GitHub issue in `mmtftr/momentmarkt` and comment that you are taking it.
+- Before editing implementation files, claim or create a GitHub issue in `momentmarkt/momentmarkt` and comment that you are taking it.
 - Assign the GitHub issue to yourself when you take it. If you cannot assign yourself, leave a clear comment with your GitHub username / machine / agent.
 - One issue per laptop/agent at a time unless explicitly coordinated.
 - Push the completed work before closing the issue.
@@ -55,7 +55,7 @@ If you're tempted to write internals into a label "for clarity," you don't have 
 ## Issue Workflow
 
 1. Read `work/SPEC.md`, `context/PARTNER_DISCUSSION.md`, and this file.
-2. Pick one open GitHub issue from `https://github.com/mmtftr/momentmarkt/issues`.
+2. Pick one open GitHub issue from `https://github.com/momentmarkt/momentmarkt/issues`.
 3. Comment `Taking this on <machine/agent>` and assign it to yourself.
 4. Pull/rebase latest `origin/main` before editing.
 5. Make the smallest scoped change for that issue.

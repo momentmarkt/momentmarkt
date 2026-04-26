@@ -30,7 +30,7 @@ Happy to walk you through the 1-min demo cut and a deeper 5-min on the Opportuni
 
 Thanks,
 Doruk Tan Ozturk + Mehmet Efe Akça
-GitHub: github.com/mmtftr/momentmarkt
+GitHub: github.com/momentmarkt/momentmarkt
 Devpost: [link]
 
 ---

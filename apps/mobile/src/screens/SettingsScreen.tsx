@@ -717,11 +717,11 @@ export function SettingsScreen(props: Props): ReactElement | null {
         {/* ── Über MomentMarkt ────────────────────────────────────────── */}
         <SectionHeader>About MomentMarkt</SectionHeader>
         <GroupedSection>
-          <InfoRow label="Version" value="0.1.0 · spec-v04" />
+          <InfoRow label="Version" value="0.1.0 · demo build" />
           <RowSeparator />
           <InfoRow label="Built by" value="Doruk Tan Ozturk · Mehmet Efe Akça" />
           <RowSeparator />
-          <InfoRow label="GitHub" value="github.com/mmtftr/momentmarkt" />
+          <InfoRow label="GitHub" value="github.com/momentmarkt/momentmarkt" />
           <RowSeparator />
           <InfoRow label="Sponsor" value="DSV-Gruppe · CITY WALLET" />
           <RowSeparator />

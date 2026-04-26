@@ -22,7 +22,7 @@ Hard cutoff: Sun Apr 26 09:00 ET.
 
 ## Required Assets
 
-- [x] Public GitHub repo — github.com/mmtftr/momentmarkt
+- [x] Public GitHub repo — github.com/momentmarkt/momentmarkt
 - [ ] Demo video, 1 minute hard cap — **PENDING**
 - [ ] Tech video, 1 minute hard cap — **PENDING**
 - [ ] 16:9 cover image — **PENDING**

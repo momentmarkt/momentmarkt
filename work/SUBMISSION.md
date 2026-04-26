@@ -117,11 +117,11 @@ Quick judge probes:
 - `https://peaktwilight-momentmarkt-api.hf.space/signals/berlin` → live trigger evaluation, demand-gap, privacy envelope
 - `https://peaktwilight-momentmarkt-api.hf.space/merchants/berlin?q=oberholz` → live fuzzy search over the real OSM catalog
 
-The mobile demo itself runs on iOS Simulator against this backend — there is no public consumer URL because the wallet is a native RN app, not a web page. The merchant inbox is a small Vite app run locally during the demo.
+The mobile demo itself runs on iOS Simulator against this backend — there is no public consumer URL because the wallet is a native RN app, not a web page. The merchant inbox is deployed publicly at https://momentmarkt.doruk.ch/.
 
 ## GitHub Repository URL
 
-https://github.com/mmtftr/momentmarkt
+https://github.com/momentmarkt/momentmarkt
 
 ## Demo video URL
 
@@ -137,7 +137,7 @@ _pending_ (recorded in build phase 5; ≤55s; architecture slide → live editor
 
 ## Technologies / Tags
 
-React Native, Expo, TypeScript, NativeWind, expo-symbols, gorhom bottom-sheet, react-native-reanimated, react-native-gesture-handler, react-native-maps, React, Vite, FastAPI, Python, SQLite, Pydantic AI, Azure OpenAI, Hugging Face Spaces, GenUI, H3, OpenStreetMap, Overpass API, Open-Meteo, GTFS, SF Symbols
+React Native, Expo, TypeScript, expo-symbols, gorhom bottom-sheet, react-native-reanimated, react-native-gesture-handler, react-native-maps, React, Vite, FastAPI, Python, SQLite, Pydantic AI, Azure OpenAI, Hugging Face Spaces, GenUI, H3, OpenStreetMap, Overpass API, Open-Meteo, GTFS, SF Symbols
 
 ## Additional Tags
 

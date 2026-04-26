@@ -900,7 +900,7 @@ export default function App() {
               <BottomNavBar
                 activeView={viewMode}
                 onViewChange={handleViewChange}
-                hasUnseenDiscover={hasUnseenSpecial}
+                discoverBadgeCount={hasUnseenSpecial ? 1 : 0}
               />
             ) : null}
           </View>

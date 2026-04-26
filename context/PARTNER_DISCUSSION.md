@@ -10,13 +10,13 @@ The Opportunity Agent's three trigger inputs are **weather**, **events** (specif
 
 ## 2. Stack change — React Native (Expo), not Next.js
 
-The consumer app is **React Native + Expo**, not Next.js. Both partners know RN; Flutter was rejected as too opinionated. Expo specifically because it sidesteps native-build cycles for the demo.
+The consumer app is **React Native + Expo**, not Next.js. Both partners know RN; Flutter was rejected as too opinionated. Expo now runs through a native dev client so the demo can use Apple Maps and native modules.
 
 This means:
-- Consumer app = React Native + Expo + TypeScript. Recording surface = iOS Simulator (or Expo Go on a real device). NOT a web phone-frame mock.
+- Consumer app = React Native + Expo + TypeScript. Recording surface = iOS Simulator with the native dev client. NOT a web phone-frame mock.
 - Merchant inbox can stay web (Next.js or just a small static React app) — the partner-facing UI doesn't need RN. Decide which is faster to build.
 - GenUI primitives are now **React Native primitives**, not web React components. The 6-primitive set must be RN-compatible (e.g. View, Text, Image, Pressable, ScrollView, plus one composed widget primitive).
-- NativeWind (Tailwind for RN) is a fine choice for styling continuity.
+- Styling uses the local React Native `s()` token helper; NativeWind was dropped after runtime instability.
 - Time budget: Expo setup + simulator recording adds friction vs. a web mock. Account for ~1h of stack-stand-up in build phase 1.
 
 ## 3. Push notifications — for-real in architecture, faked in demo

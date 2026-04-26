@@ -175,7 +175,7 @@ flowchart LR
     direction TB
     VIEW["View\n(container)"]
     SCROLL["ScrollView\n(scrollable)"]
-    TEXT["Text\n(+ NativeWind class)"]
+    TEXT["Text\n(+ style token)"]
     IMG["Image\n(remote URI)"]
     PRESS["Pressable\n(action=redeem)"]
   end
