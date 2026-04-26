@@ -466,3 +466,87 @@ export async function fetchOpportunityMeta(
     return null;
   }
 }
+
+/* ------------------------------------------------------------------ *\
+ * History fetch (issue #128)                                         *
+ *                                                                    *
+ * Mobile-shaped wrapper for `GET /history?limit=N`. The wallet       *
+ * `HistoryScreen` calls this on mount + on pull-to-refresh and falls *
+ * back to its hardcoded `REDEMPTIONS` constant when this returns     *
+ * `null` — keeps the demo recordable when the Hugging Face Space is  *
+ * asleep / unreachable.                                              *
+ *                                                                    *
+ * Backend FastAPI shape (`apps/backend/.../main.py`):                *
+ *   class HistoryItem:                                               *
+ *     id, merchant_id, merchant_display_name,                        *
+ *     cashback_eur, redeemed_at_iso, context, photo_url?             *
+ *   class HistoryResponse: { count: int, items: HistoryItem[] }      *
+\* ------------------------------------------------------------------ */
+
+export type HistoryItem = {
+  id: string;
+  merchant_id: string;
+  merchant_display_name: string;
+  cashback_eur: number;
+  /** ISO-8601 with offset, e.g. "2026-04-25T13:31:00+02:00". */
+  redeemed_at_iso: string;
+  /** Short surfacing chip text, e.g. "Rain trigger", "Quiet period". */
+  context: string;
+  /** Optional Unsplash thumbnail; the screen falls back to a flat tile. */
+  photo_url?: string | null;
+};
+
+export type HistoryResponse = {
+  count: number;
+  items: HistoryItem[];
+};
+
+/**
+ * Fetch the cross-merchant cashback history for the wallet `HistoryScreen`.
+ * Returns `null` on any failure (network, non-2xx, parse, malformed payload)
+ * so callers (HistoryScreen) can layer the deterministic local `REDEMPTIONS`
+ * fallback on top.
+ */
+export async function fetchHistory(
+  limit = 50,
+  signal?: AbortSignal,
+): Promise<HistoryResponse | null> {
+  try {
+    const params = new URLSearchParams();
+    params.set("limit", String(limit));
+    const r = await fetch(`${apiBase()}/history?${params.toString()}`, {
+      signal,
+    });
+    if (!r.ok) return null;
+    const data = (await r.json()) as Partial<HistoryResponse> & Record<string, unknown>;
+    if (typeof data.count !== "number" || !Array.isArray(data.items)) {
+      return null;
+    }
+    const items: HistoryItem[] = data.items
+      .filter(
+        (i): i is HistoryItem =>
+          !!i &&
+          typeof (i as HistoryItem).id === "string" &&
+          typeof (i as HistoryItem).merchant_id === "string" &&
+          typeof (i as HistoryItem).merchant_display_name === "string" &&
+          typeof (i as HistoryItem).cashback_eur === "number" &&
+          typeof (i as HistoryItem).redeemed_at_iso === "string" &&
+          typeof (i as HistoryItem).context === "string",
+      )
+      .map((i) => ({
+        id: i.id,
+        merchant_id: i.merchant_id,
+        merchant_display_name: i.merchant_display_name,
+        cashback_eur: i.cashback_eur,
+        redeemed_at_iso: i.redeemed_at_iso,
+        context: i.context,
+        photo_url:
+          typeof i.photo_url === "string" || i.photo_url === null
+            ? i.photo_url
+            : undefined,
+      }));
+    return { count: data.count, items };
+  } catch {
+    return null;
+  }
+}

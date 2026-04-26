@@ -339,6 +339,46 @@ class DemoStore:
             )
         return events
 
+    def recent_redemptions(self, limit: int = 50) -> list[dict[str, Any]]:
+        """Cross-merchant redemption history for the wallet `/history` view.
+
+        Returns redemptions joined with their offer (merchant_id, merchant_name,
+        trigger_reason, copy_seed) so the mobile history screen can render
+        merchant + context chips without an N+1 lookup. Sorted newest-first by
+        the redemption timestamp `t`.
+        """
+        rows = self._connection.execute(
+            """
+            SELECT
+              redemptions.id AS id,
+              redemptions.offer_id AS offer_id,
+              redemptions.amount AS amount,
+              redemptions.t AS t,
+              offers.merchant_id AS merchant_id,
+              offers.merchant_name AS merchant_name,
+              offers.trigger_reason AS trigger_reason,
+              offers.copy_seed AS copy_seed
+            FROM redemptions
+            JOIN offers ON offers.id = redemptions.offer_id
+            ORDER BY redemptions.t DESC, redemptions.id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        return [
+            {
+                "id": str(row["id"]),
+                "offer_id": row["offer_id"],
+                "merchant_id": row["merchant_id"],
+                "merchant_name": row["merchant_name"],
+                "amount": row["amount"],
+                "t": row["t"],
+                "trigger_reason": json.loads(row["trigger_reason"]),
+                "copy_seed": json.loads(row["copy_seed"]),
+            }
+            for row in rows
+        ]
+
     def cached_headline(self, offer_id: str, weather_state: str, intent_state: str) -> str | None:
         row = self._connection.execute(
             """

@@ -21,6 +21,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { fetchHistory, type HistoryItem } from "../lib/api";
 import { s } from "../styles";
 
 /**
@@ -136,6 +137,67 @@ function formatEuro(value: number): string {
 }
 
 /**
+ * Format an ISO-8601 timestamp into the display-ready relative date the
+ * fixture uses ("Today, 13:31" / "Yesterday, 16:48" / "Wed, 19:02"). Anchored
+ * to the canonical demo date (2026-04-25) so seeded entries render the same
+ * labels as the hardcoded fallback even when the wall clock has drifted past
+ * demo day. Falls back to the raw ISO if parsing fails.
+ */
+function formatRelativeDate(iso: string): string {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    const time = `${hh}:${mm}`;
+    const anchor = new Date("2026-04-25T00:00:00+02:00");
+    const dayDelta = Math.round(
+      (anchor.getTime() -
+        new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()) /
+        (24 * 60 * 60 * 1000),
+    );
+    if (dayDelta <= 0) return `Today, ${time}`;
+    if (dayDelta === 1) return `Yesterday, ${time}`;
+    const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()];
+    return `${weekday}, ${time}`;
+  } catch {
+    return iso;
+  }
+}
+
+/**
+ * Derive a human-readable subtitle from a backend merchant_id slug like
+ * "berlin-mitte-cafe-bondi" → "Mitte". The full street address isn't on the
+ * `/history` wire (only `merchant_id` + `merchant_display_name`), so we
+ * surface the 2nd path segment as the chip subtitle. Empty string if the
+ * slug doesn't have one — the row layout tolerates a missing subtitle.
+ */
+function addressFromMerchantId(merchantId: string): string {
+  const parts = merchantId.split("-");
+  if (parts.length < 2) return "";
+  const segment = parts[1] ?? "";
+  if (!segment) return "";
+  return segment.charAt(0).toUpperCase() + segment.slice(1);
+}
+
+const FALLBACK_PHOTO =
+  "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=200";
+
+/** Project the backend `HistoryItem` shape down to the local `Redemption`
+ *  shape the screen renders. Keeps the visual layout untouched. */
+function historyItemToRedemption(item: HistoryItem): Redemption {
+  return {
+    id: item.id,
+    merchant: item.merchant_display_name,
+    address: addressFromMerchantId(item.merchant_id),
+    cashback: item.cashback_eur,
+    date: formatRelativeDate(item.redeemed_at_iso),
+    context: item.context,
+    photo: item.photo_url || FALLBACK_PHOTO,
+  };
+}
+
+/**
  * Build 12 deterministic bars representing the last 12 days. The 8 redemptions
  * are mapped onto specific day-offsets so the chart looks naturally sparse
  * without requiring real timestamps. Empty days render as a flat 6px grey bar.
@@ -158,7 +220,7 @@ function buildBars(redemptions: Redemption[]): Array<{ amount: number }> {
 }
 
 export function HistoryScreen({
-  redemptions = REDEMPTIONS,
+  redemptions: redemptionsProp,
   visible = true,
   onClose,
 }: {
@@ -170,6 +232,35 @@ export function HistoryScreen({
   onClose?: () => void;
 }) {
   const [refreshing, setRefreshing] = useState(false);
+
+  // API-driven redemptions (issue #128). On mount + on pull-to-refresh, call
+  // GET /history; on success use the API items, on null fall back to the
+  // hardcoded `REDEMPTIONS` constant so the demo recording stays
+  // deterministic when the Hugging Face Space is asleep / unreachable.
+  const [apiRedemptions, setApiRedemptions] = useState<Redemption[] | null>(null);
+
+  const fallback = redemptionsProp ?? REDEMPTIONS;
+  const redemptions = apiRedemptions ?? fallback;
+
+  const loadHistory = (signal?: AbortSignal) => {
+    return fetchHistory(50, signal).then((response) => {
+      if (response && response.items.length > 0) {
+        setApiRedemptions(response.items.map(historyItemToRedemption));
+      } else {
+        // Null response or empty payload → keep the hardcoded fallback so
+        // the screen never empties out on a transient backend hiccup.
+        setApiRedemptions(null);
+      }
+    });
+  };
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadHistory(controller.signal).catch(() => {
+      // fetchHistory swallows internally; this catch is just belt-and-braces.
+    });
+    return () => controller.abort();
+  }, []);
 
   const total = useMemo(
     () => redemptions.reduce((sum, r) => sum + r.cashback, 0),
@@ -187,7 +278,9 @@ export function HistoryScreen({
 
   const onRefresh = () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 700);
+    loadHistory()
+      .catch(() => undefined)
+      .finally(() => setRefreshing(false));
   };
 
   // Slide-in overlay choreography (matches SettingsScreen post-IA refactor).
