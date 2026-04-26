@@ -82,6 +82,12 @@ type Props = {
    *  non-Discover tab. Optional so DiscoverView remains usable in
    *  testing harnesses without the dot wiring. */
   onVariantsResolved?: (variants: AlternativeOffer[]) => void;
+  /** Issue #175 — fired with the variant_id of every card the user
+   *  swipes through (left or right). App.tsx uses it for per-swipe
+   *  decrement of the unseen-special set so the Discover-tab counted
+   *  badge ticks down on each gesture. Forwarded straight through to
+   *  SwipeOfferStack. Optional so older callers / tests keep working. */
+  onCardConsumed?: (variantId: string) => void;
 };
 
 export function DiscoverView({
@@ -92,6 +98,7 @@ export function DiscoverView({
   onAppendSwipeHistory,
   onSavePass,
   onVariantsResolved,
+  onCardConsumed,
 }: Props): ReactElement {
   const insets = useSafeAreaInsets();
   const [variants, setVariants] = useState<AlternativeOffer[] | null>(null);
@@ -254,6 +261,7 @@ export function DiscoverView({
           lens={lens}
           onSettle={handleSettle}
           onAllPassed={handleAllPassed}
+          onCardConsumed={onCardConsumed}
         />
       </View>
     </View>
@@ -275,6 +283,7 @@ function DiscoverBody({
   lens,
   onSettle,
   onAllPassed,
+  onCardConsumed,
 }: {
   loading: boolean;
   variants: AlternativeOffer[] | null;
@@ -282,6 +291,8 @@ function DiscoverBody({
   lens: LensKey;
   onSettle: (variant: AlternativeOffer, dwellByVariant: DwellByVariant) => void;
   onAllPassed: (dwellByVariant: DwellByVariant) => void;
+  /** Issue #175 — per-swipe consumed signal forwarded down. */
+  onCardConsumed?: (variantId: string) => void;
 }): ReactElement {
   // showSkeleton drives the cross-fade. We pin it true while loading
   // and the variants haven't landed yet — once the first variant arrives,
@@ -332,6 +343,7 @@ function DiscoverBody({
               variants={variants ?? []}
               onSettle={onSettle}
               onAllPassed={onAllPassed}
+              onCardConsumed={onCardConsumed}
               cardScale="discover"
             />
           ) : (

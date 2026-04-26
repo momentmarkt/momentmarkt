@@ -37,6 +37,7 @@ import { DiscoverView } from "./src/components/DiscoverView";
 import { DEFAULT_LENS, type LensKey } from "./src/components/LensChips";
 import { MerchantDetailView } from "./src/components/MerchantDetailView";
 import { RedeemFlow } from "./src/components/RedeemFlow";
+import { RedeemOverlay } from "./src/components/RedeemOverlay";
 import { WalletSheetContent } from "./src/components/WalletSheetContent";
 import { WalletView } from "./src/components/WalletView";
 import { WidgetRenderer } from "./src/components/WidgetRenderer";
@@ -131,18 +132,29 @@ export default function App() {
   // "Redeem now" path (#160) also clears it back to null so the
   // canonical demo widget renders for that flow.
   const [settledVariant, setSettledVariant] = useState<AlternativeOffer | null>(null);
-  // Issue #156 phase 4 — Discover-tab red dot. When a fresh
-  // /offers/alternatives fetch lands a variant flagged
-  // `is_special_surface=true` AND the user is on a non-Discover tab,
-  // we set `hasUnseenSpecial=true` so the BottomNavBar paints a small
-  // red dot on the Discover icon. Switching to Discover clears the
-  // flag AND records the variant_id in `seenSpecialIds` so subsequent
-  // re-fetches that re-surface the same variant don't keep re-arming
-  // the dot. The set lives in a ref because it's pure dedupe
-  // bookkeeping — no UI binding needed, and using state would force
-  // a re-render every time the user opened Discover.
-  const seenSpecialIds = useRef<Set<string>>(new Set());
-  const [hasUnseenSpecial, setHasUnseenSpecial] = useState(false);
+  // Issue #156 phase 4 / Issue #175 — Discover-tab counted badge. The
+  // tracker carries the variant_id of every `is_special_surface=true`
+  // card the user has NOT yet swiped through. Each fresh
+  // /offers/alternatives result adds new specials; each consumed card
+  // (left or right swipe in DiscoverView) removes its id. The
+  // BottomNavBar reads `unseenSpecialCount` and paints a counted pill.
+  //
+  // The badge persists across tab switches; opening Discover does NOT
+  // clear it (#175 requirement — only actually swiping through the
+  // cards decrements the count). `unseenSpecialIds` lives in a ref so
+  // we can mutate it in-place across the add + decrement paths without
+  // re-allocating a Set on every change; `unseenSpecialCount` mirrors
+  // its size as state purely so the BottomNavBar re-renders when the
+  // count changes (refs alone don't trigger re-renders). The two are
+  // kept in sync inside `handleVariantsResolved` and `markSpecialSeen`.
+  //
+  // `everSeenSpecialIds` plays the dedupe role the old `seenSpecialIds`
+  // ref played pre-#175 — once a special has EVER been added to the
+  // unseen set, a re-fetch that re-surfaces it must NOT re-increment
+  // the badge after the user already swiped through it.
+  const unseenSpecialIds = useRef<Set<string>>(new Set());
+  const everSeenSpecialIds = useRef<Set<string>>(new Set());
+  const [unseenSpecialCount, setUnseenSpecialCount] = useState(0);
   // Issue #136 — preference history persisted across swipe rounds in this
   // session. Each round's PriorSwipe entries get appended; we send the
   // accumulated history with the NEXT /offers/alternatives call so the
@@ -1110,112 +1122,14 @@ function SheetBody({
   onMerchantOpen,
   onSearchFocus,
 }: SheetBodyProps) {
-  // Redeem/Success screens own their own scroll surfaces internally, so a
-  // plain BottomSheetView wrapper is fine here — gorhom requires a direct
-  // child of <BottomSheet />.
-  if (step === "redeeming") {
-    return (
-      <BottomSheetView style={[...s("flex-1 bg-cream")]}>
-        <RedeemFlow
-          offer={miaRainOffer}
-          onComplete={onRedeemComplete}
-          onCancel={onSuccessDone}
-        />
-      </BottomSheetView>
-    );
-  }
-
-  if (step === "success") {
-    return (
-      <BottomSheetView style={[...s("flex-1 bg-cream")]}>
-        <CheckoutSuccessScreen
-          cashbackEur={FALLBACK_CASHBACK_EUR}
-          onDone={onSuccessDone}
-        />
-      </BottomSheetView>
-    );
-  }
-
-  // Issue #122: focused offer view. After #118 made the wallet drawer's
-  // search list + weather card visible at the 25% snap, slotting the offer
-  // card into <WalletSheetContent expandedSlot={...} /> meant tapping a
-  // merchant pushed the OfferStack BELOW the search list — invisible at
-  // the auto-snapped 80% sheet height. Treat the offer/surfacing step like
-  // redeem/success: an early-return focused screen with its own back
-  // chevron back to the silent wallet, mirroring QrRedeemScreen's header.
-  if (step === "offer" || step === "surfacing") {
-    return (
-      <BottomSheetScrollView
-        style={[...s("flex-1 bg-cream")]}
-        contentContainerStyle={s("px-5 py-6")}
-      >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Back to wallet"
-          onPress={onSuccessDone}
-          hitSlop={12}
-          style={({ pressed }) => [
-            ...s("flex-row items-center"),
-            {
-              opacity: pressed ? 0.55 : 1,
-              marginLeft: -6,
-              paddingVertical: 6,
-              paddingRight: 4,
-              alignSelf: "flex-start",
-            },
-          ]}
-        >
-          <SymbolView
-            name="chevron.left"
-            tintColor="#f2542d"
-            size={22}
-            weight="semibold"
-            style={{ width: 22, height: 22 }}
-          />
-        </Pressable>
-        <Text
-          style={s("mt-2 text-xs font-bold uppercase tracking-[3px] text-cocoa")}
-        >
-          MomentMarkt
-        </Text>
-        <View style={s("mt-4")}>
-          {settledVariant ? (
-            // Issue #132: when the user committed to a swipe-stack variant,
-            // render its widget_spec directly via WidgetRenderer instead of
-            // the hand-authored demoWidgetSpecs ladder. The CTA still routes
-            // through onWidgetCta → handleAdvanceFromOffer → step="redeeming"
-            // so the existing redeem flow takes over from here.
-            <View style={s("flex-1")}>
-              <View style={[...s("mb-3 rounded-2xl bg-spark px-4 py-3")]}>
-                <Text
-                  style={s("text-xs font-bold uppercase tracking-[2px] text-white")}
-                >
-                  Your pick
-                </Text>
-                <Text
-                  style={s("mt-1 text-base font-black leading-6 text-white")}
-                >
-                  {`${settledVariant.discount_label} · ${settledVariant.headline}`}
-                </Text>
-              </View>
-              <WidgetRenderer
-                node={settledVariant.widget_spec}
-                onRedeem={onWidgetCta}
-              />
-            </View>
-          ) : (
-            <OfferStack
-              widgetVariant={widgetVariant}
-              highIntent={highIntent}
-              aggressiveHeadline={aggressiveHeadline}
-              onWidgetVariantChange={onWidgetVariantChange}
-              onWidgetCta={onWidgetCta}
-            />
-          )}
-        </View>
-      </BottomSheetScrollView>
-    );
-  }
+  // Issue #182: redeem branches (offer / surfacing / redeeming / success)
+  // moved OUT of SheetBody and INTO RedeemOverlay at App.tsx top-level.
+  // SheetBody is now silent-only — the BottomSheet only ever shows the
+  // browse drawer (search + list + weather card). Bug pre-#182: tapping
+  // a saved pass from Wallet flipped step → "offer" but the redeem
+  // rendered inside the Browse-only BottomSheet, yanking the user into
+  // Browse. Post-#182: the redeem renders as a slide-up overlay above
+  // ANY view via RedeemOverlay (App.tsx top-level).
 
   // WalletSheetContent renders BottomSheetScrollView at its root (issue #88)
   // so it doubles as the gorhom scroll surface — no extra wrapper needed.
