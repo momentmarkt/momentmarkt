@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MomentMarkt — Architecture</title>
+  <style>
+    :root {
+      --cream: #faf6f0;
+      --cream-deep: #f3ead9;
+      --cocoa: #6f3f2c;
+      --cocoa-deep: #2a1810;
+      --spark: #d97a3a;
+      --ink: #1a1410;
+      --muted: #6b5e54;
+      --line: #e8dcc6;
+      --card: #ffffff;
+      --shadow: 0 1px 2px rgba(42, 24, 16, 0.04), 0 8px 24px rgba(42, 24, 16, 0.06);
+      --shadow-deep: 0 2px 4px rgba(42, 24, 16, 0.06), 0 16px 48px rgba(42, 24, 16, 0.10);
+      --radius: 14px;
+      --radius-sm: 8px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+      background: var(--cream);
+      color: var(--ink);
+      line-height: 1.6;
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      max-width: 1280px;
+      margin: 0 auto;
+      gap: 48px;
+      padding: 48px 32px;
+    }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; gap: 24px; padding: 24px 20px; }
+      nav.toc { position: static; max-height: none; }
+    }
+
+    /* Sidebar TOC */
+    nav.toc {
+      position: sticky;
+      top: 24px;
+      align-self: start;
+      max-height: calc(100vh - 48px);
+      overflow-y: auto;
+      font-size: 14px;
+    }
+
+    nav.toc h2 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin: 0 0 12px;
+      font-weight: 600;
+    }
+
+    nav.toc ol {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      counter-reset: section;
+    }
+
+    nav.toc li {
+      counter-increment: section;
+      margin-bottom: 4px;
+    }
+
+    nav.toc a {
+      color: var(--cocoa-deep);
+      text-decoration: none;
+      display: block;
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      transition: background 0.15s, color 0.15s;
+    }
+
+    nav.toc a::before {
+      content: counter(section, decimal-leading-zero) "  ";
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      font-size: 12px;
+    }
+
+    nav.toc a:hover {
+      background: var(--cream-deep);
+      color: var(--cocoa);
+    }
+
+    /* Main content */
+    main { min-width: 0; }
+
+    .hero {
+      padding: 56px 0 48px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 56px;
+    }
+
+    .hero .eyebrow {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--spark);
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+
+    .hero h1 {
+      font-size: 56px;
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+      margin: 0 0 20px;
+      font-weight: 700;
+      color: var(--cocoa-deep);
+    }
+
+    .hero .lede {
+      font-size: 20px;
+      color: var(--muted);
+      max-width: 640px;
+      line-height: 1.5;
+    }
+
+    .hero .meta {
+      display: flex;
+      gap: 24px;
+      margin-top: 32px;
+      flex-wrap: wrap;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .hero .meta span strong {
+      color: var(--cocoa);
+      font-weight: 600;
+    }
+
+    section.block {
+      padding: 48px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    section.block:last-of-type { border-bottom: none; }
+
+    section.block h2 {
+      font-size: 32px;
+      letter-spacing: -0.01em;
+      margin: 0 0 8px;
+      color: var(--cocoa-deep);
+      font-weight: 700;
+    }
+
+    section.block .section-eyebrow {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--spark);
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    section.block .section-lede {
+      font-size: 17px;
+      color: var(--muted);
+      max-width: 720px;
+      margin: 0 0 32px;
+    }
+
+    h3 {
+      font-size: 19px;
+      color: var(--cocoa-deep);
+      margin: 28px 0 8px;
+      font-weight: 600;
+    }
+
+    p { margin: 0 0 14px; }
+
+    code {
+      font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+      background: var(--cream-deep);
+      color: var(--cocoa);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 0.88em;
+    }
+
+    a { color: var(--cocoa); }
+
+    /* Cards */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin: 24px 0;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .card .role {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--spark);
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .card h4 {
+      margin: 0 0 8px;
+      font-size: 17px;
+      color: var(--cocoa-deep);
+    }
+
+    .card p {
+      margin: 0;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .card .file {
+      display: inline-block;
+      margin-top: 10px;
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 11px;
+      background: var(--cream-deep);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--cocoa);
+    }
+
+    /* Status badges */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .badge.shipped { background: #e3efd9; color: #4a6b2c; }
+    .badge.partial { background: #fce8d4; color: #a04e1e; }
+    .badge.future { background: #ece4f0; color: #5d3a78; }
+    .badge.live { background: #e3efd9; color: #4a6b2c; }
+    .badge.mock { background: #f3ead9; color: #6b5e54; }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 14px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid var(--line);
+    }
+
+    th {
+      background: var(--cream-deep);
+      font-weight: 600;
+      color: var(--cocoa-deep);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    td code {
+      white-space: nowrap;
+    }
+
+    /* Endpoint group header rows */
+    tr.group td {
+      background: var(--cream-deep);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--cocoa);
+      font-weight: 600;
+      padding: 8px 16px;
+    }
+
+    /* Diagram containers */
+    .diagram {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 32px;
+      margin: 24px 0;
+      box-shadow: var(--shadow-deep);
+      overflow-x: auto;
+    }
+
+    .diagram .caption {
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+      margin-top: 16px;
+      font-style: italic;
+    }
+
+    .mermaid { text-align: center; }
+
+    /* Principle list */
+    .principles {
+      counter-reset: principle;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .principles li {
+      counter-increment: principle;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 20px 20px 20px 60px;
+      position: relative;
+      box-shadow: var(--shadow);
+    }
+
+    .principles li::before {
+      content: counter(principle);
+      position: absolute;
+      left: 16px;
+      top: 18px;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--spark);
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+
+    .principles strong {
+      display: block;
+      color: var(--cocoa-deep);
+      margin-bottom: 4px;
+      font-size: 15px;
+    }
+
+    .principles span {
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    /* Beat list */
+    .beats {
+      list-style: none;
+      padding: 0;
+      margin: 24px 0;
+      counter-reset: beat;
+    }
+
+    .beats li {
+      counter-increment: beat;
+      display: grid;
+      grid-template-columns: 48px 1fr;
+      gap: 16px;
+      padding: 16px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .beats li::before {
+      content: counter(beat);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--spark);
+      font-variant-numeric: tabular-nums;
+      grid-row: 1 / 3;
+    }
+
+    .beats .beat-title {
+      font-weight: 600;
+      color: var(--cocoa-deep);
+      font-size: 15px;
+    }
+
+    .beats .beat-body {
+      font-size: 14px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .beats .beat-time {
+      font-family: ui-monospace, monospace;
+      font-size: 11px;
+      color: var(--spark);
+      margin-left: 8px;
+      font-weight: 600;
+    }
+
+    /* Pull quote */
+    blockquote.pull {
+      border: none;
+      background: var(--cream-deep);
+      border-left: 3px solid var(--spark);
+      padding: 20px 24px;
+      margin: 24px 0;
+      font-size: 17px;
+      color: var(--cocoa-deep);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      font-style: italic;
+    }
+
+    /* Two-column comparison block */
+    .pair {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 24px 0;
+    }
+
+    @media (max-width: 720px) {
+      .pair { grid-template-columns: 1fr; }
+    }
+
+    .pair > div {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .pair h5 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--spark);
+    }
+
+    .pair p { font-size: 14px; color: var(--muted); }
+    .pair p:last-child { margin: 0; }
+
+    .footer {
+      padding: 32px 0 16px;
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .footer code { font-size: 12px; }
+
+    /* Mermaid SVGs are sized to their viewBox-natural dimensions in JS post-render
+       (see <script> at end of body) so the .diagram container's overflow-x:auto
+       can kick in for wide diagrams instead of mermaid scaling everything down. */
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <nav class="toc">
+      <h2>Contents</h2>
+      <ol>
+        <li><a href="#wedge">The Wedge</a></li>
+        <li><a href="#topology">System Topology</a></li>
+        <li><a href="#agents">Agent Topology</a></li>
+        <li><a href="#consumer-surfaces">Consumer Surfaces</a></li>
+        <li><a href="#merchant-surfaces">Merchant Surfaces</a></li>
+        <li><a href="#endpoints">Backend Endpoints</a></li>
+        <li><a href="#flow">Demo User Flow</a></li>
+        <li><a href="#privacy">Privacy Boundary</a></li>
+        <li><a href="#roadmap">v1 → v2 → v3</a></li>
+        <li><a href="#principles">Design Principles</a></li>
+      </ol>
+    </nav>
+
+    <main>
+      <header class="hero">
+        <div class="eyebrow">DSV-Gruppe · CITY WALLET track · Hack-Nation 2026</div>
+        <h1>MomentMarkt</h1>
+        <p class="lede">
+          A city wallet that surfaces a perfectly relevant local offer the moment it fits — generated by an LLM, bounded by the merchant, never authored as static copy.
+        </p>
+        <div class="meta">
+          <span><strong>Stack:</strong> React Native + Expo · React + Vite · FastAPI · Pydantic AI · Azure OpenAI <code>gpt-5.5</code></span>
+          <span><strong>Cities:</strong> Berlin Mitte (39 OSM merchants) · Zurich HB (30)</span>
+          <span><strong>Spec:</strong> <code>work/SPEC.md</code> (spec-v04, ready)</span>
+        </div>
+      </header>
+
+      <!-- ============================================================ -->
+      <!-- 1. THE WEDGE -->
+      <!-- ============================================================ -->
+      <section id="wedge" class="block">
+        <div class="section-eyebrow">Section 01</div>
+        <h2>The Wedge</h2>
+        <p class="section-lede">
+          Competitors do <em>personalized offers</em>: the merchant authors a static offer string, the system distributes it, the LLM routes who sees what. MomentMarkt does <strong>generative offers within merchant-set bounds</strong>: the merchant authors no offer copy at all — they set bounds, and an LLM generates the actual offer in real time when an agent decides conditions match.
+        </p>
+
+        <div class="diagram">
+          <div class="mermaid">
+flowchart TB
+  subgraph A["❌ Competitors — Personalized Offers"]
+    direction LR
+    A1["Merchant authors<br/><b>offer copy</b><br/><i>'15% off espresso'</i>"]
+    A2["Distribute to<br/>eligible users"]
+    A3["LLM routes —<br/>who sees what"]
+    A1 --> A2 --> A3
+  end
+
+  subgraph B["✓ MomentMarkt — Generative within Bounds"]
+    direction LR
+    B1["Merchant authors<br/><b>bounds only</b><br/><i>floor · ceiling · hours · tone</i>"]
+    B2["Agent watches context<br/><i>weather · demand ·<br/>time · intent</i>"]
+    B3["LLM generates<br/><b>the actual offer</b><br/><i>this moment, this user</i>"]
+    B1 --> B3
+    B2 --> B3
+  end
+
+  A ~~~ B
+
+  classDef competitor fill:#f3ead9,stroke:#a89580,color:#5d4f44
+  classDef us fill:#fce8d4,stroke:#6f3f2c,color:#2a1810
+  class A1,A2,A3 competitor
+  class B1,B2,B3 us
+          </div>
+          <div class="caption">The merchant's role inverts: bounds, not copy. That is the structural reason the LLM has work to do that the merchant cannot do alone.</div>
+        </div>
+
+        <blockquote class="pull">
+          We don't ask shop owners to be marketers — we ask them what they'd tolerate. Floor, ceiling, hours, tone. The LLM authors the discount level, the headline, the GenUI widget, the timing.
+        </blockquote>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- 2. SYSTEM TOPOLOGY -->
+      <!-- ============================================================ -->
+      <section id="topology" class="block">
+        <div class="section-eyebrow">Section 02</div>
+        <h2>System Topology</h2>
+        <p class="section-lede">
+          Three runtimes — a React Native consumer wallet, a FastAPI + Pydantic AI backend, and a React merchant dashboard with a five-stage onboarding pipeline — wired through 17 core endpoints, a 9-endpoint onboarding sub-router, and seven Pydantic AI agents.
+        </p>
+
+        <div class="diagram">
+          <div class="mermaid">
+flowchart TB
+  subgraph C["📱 Consumer Wallet — React Native + Expo"]
+    direction LR
+    Map["Map<br/><i>spatial context</i>"]
+    Drawer["Drawer<br/><i>wallet vessel</i>"]
+    List["List<br/><i>unfiltered truth</i>"]
+    Swipe["Swipe Stack<br/><i>LLM stage</i>"]
+  end
+
+  subgraph B["⚙️ Backend — FastAPI + Pydantic AI"]
+    direction TB
+    EM["GET /merchants/-city-"]
+    ES["GET /signals/-city-"]
+    EA["POST /offers/alternatives"]
+    ER["POST /redeem · GET /history"]
+    EO["POST /opportunity/generate · /batch"]
+    EV["POST /surfacing/evaluate"]
+    EAP["POST /offers/-id-/approve · /reject"]
+    EMD["GET /merchants/-id-/summary · events · demand-chart"]
+    EOB["POST /onboarding · 9 sub-routes"]
+  end
+
+  subgraph A["🤖 Pydantic AI Agents"]
+    direction TB
+    AO["Opportunity ✓"]
+    AS["Surfacing ✓"]
+    AP["Preference ✓"]
+    ASB["Subhead ✓"]
+    AHR["Headline Rewrite ✓"]
+    AME["Menu Edit ✓"]
+    AN["Negotiation ◐<br/>module · wiring v2"]
+    AB["Bounds Manager ○<br/>fixtures today · v3"]
+  end
+
+  subgraph D["🌐 Data & Models"]
+    direction TB
+    OSM["OSM Overpass<br/>real catalog"]
+    OM["Open-Meteo<br/>live weather"]
+    PD["Payone density<br/>fixture"]
+    LLM["Azure OpenAI<br/>gpt-5.5"]
+  end
+
+  subgraph M["💼 Merchant Dashboard — React + Vite"]
+    direction LR
+    MOB["Onboarding<br/>5-stage LIVE"]
+    MT["Today<br/>LIVE"]
+    MOF["Offers<br/>LIVE"]
+    MB["Bounds<br/>scaffolded"]
+    MS["Settings<br/>scaffolded"]
+  end
+
+  Map --> ES
+  List --> EM
+  Swipe --> EA
+  Drawer --> ER
+
+  EM --> OSM
+  ES --> OM
+  ES --> PD
+  EA --> AP
+  EA --> ASB
+  EA --> AHR
+  EO --> AO
+  EV --> AS
+  EOB --> AME
+
+  AO --> LLM
+  AP --> LLM
+  ASB --> LLM
+  AHR --> LLM
+  AME --> LLM
+  AN -.->|"v2 wiring"| EA
+  AB -.->|"v3 portal"| MB
+
+  MOB --> EOB
+  MT --> EMD
+  MOF --> EAP
+
+  classDef consumer fill:#fce8d4,stroke:#6f3f2c,color:#2a1810
+  classDef backend fill:#f0e6dc,stroke:#6f3f2c,color:#2a1810
+  classDef agent fill:#e8d5b7,stroke:#6f3f2c,color:#2a1810
+  classDef data fill:#faf6f0,stroke:#a89580,color:#2a1810
+  classDef merchant fill:#fce8d4,stroke:#6f3f2c,color:#2a1810
+  class Map,Drawer,List,Swipe consumer
+  class EM,ES,EA,ER,EO,EV,EAP,EMD,EOB backend
+  class AO,AS,AP,ASB,AHR,AME,AN,AB agent
+  class OSM,OM,PD,LLM data
+  class MOB,MT,MOF,MB,MS merchant
+          </div>
+          <div class="caption">Solid arrows are wired today. Dashed arrows are documented v2/v3 connections. Onboarding is a real shipped pipeline, not a mockup.</div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- 3. AGENTS -->
+      <!-- ============================================================ -->
+      <section id="agents" class="block">
+        <div class="section-eyebrow">Section 03</div>
+        <h2>Agent Topology</h2>
+        <p class="section-lede">
+          Five strategic agents define the architecture. Three ship today; one (Negotiation) ships as a module with tests but waits on v2 wiring; one (Bounds Manager) is fixture-baked today and replaces fixtures with a portal in v3. Three supporting Pydantic AI agents handle per-card emotional copy, headline contextualisation, and menu validation during onboarding.
+        </p>
+
+        <h3>Strategic agents</h3>
+        <table>
+          <thead>
+            <tr><th>Agent</th><th>Role</th><th>Status</th><th>Module</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Opportunity</strong></td>
+              <td>Given context, what offer should this merchant make? Drafts offer + GenUI widget spec.</td>
+              <td><span class="badge shipped">shipped</span></td>
+              <td><code>opportunity_agent.py</code></td>
+            </tr>
+            <tr>
+              <td><strong>Surfacing</strong></td>
+              <td>Given wrapped user signals, should we fire this approved offer now? Deterministic scoring; LLM rewrites headline only on the fired card.</td>
+              <td><span class="badge shipped">shipped</span></td>
+              <td><code>surfacing_agent.py</code></td>
+            </tr>
+            <tr>
+              <td><strong>Preference</strong></td>
+              <td>Given swipe + dwell history, re-rank cross-merchant candidates. Anchor pinned at index 0; permutation-validated.</td>
+              <td><span class="badge shipped">shipped</span></td>
+              <td><code>preference_agent.py</code></td>
+            </tr>
+            <tr>
+              <td><strong>Negotiation</strong></td>
+              <td>Given user reaction, adjust discount within bounds. <code>discount_pct</code> always inside <code>[floor, ceiling]</code> by heuristic <em>and</em> a final post-LLM clamp.</td>
+              <td><span class="badge partial">module shipped · wiring v2</span></td>
+              <td><code>negotiation_agent.py</code></td>
+            </tr>
+            <tr>
+              <td><strong>Bounds Manager</strong></td>
+              <td>What constraints did this merchant set? Fixture-baked today; merchant portal owns it in v3.</td>
+              <td><span class="badge future">v3 — merchant portal</span></td>
+              <td>fixtures today</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Supporting agents</h3>
+        <table>
+          <thead>
+            <tr><th>Agent</th><th>Role</th><th>Trigger</th><th>Module</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Subhead</strong></td>
+              <td>Per-card emotional one-liner ("Cocoa weather. Eight stools, three taken."). Cached by <code>(merchant_id, weather_trigger, time_bucket)</code>.</td>
+              <td>Every card in the swipe stack</td>
+              <td><code>subhead_agent.py</code></td>
+            </tr>
+            <tr>
+              <td><strong>Headline Rewrite</strong></td>
+              <td>Contextualises <code>copy_seed</code> against the wrapped user context and high-intent boost. One LLM call per fired offer.</td>
+              <td>Only when Surfacing fires</td>
+              <td><code>llm_agents.py</code></td>
+            </tr>
+            <tr>
+              <td><strong>Menu Edit</strong></td>
+              <td>Validates and refines OCR-extracted menu items during merchant onboarding stage 3.</td>
+              <td>Onboarding pipeline</td>
+              <td><code>menu_edit_agent.py</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Why Negotiation matters</h3>
+        <p>
+          It enforces a hard invariant: <code>discount_pct</code> is always inside <code>[discount_floor_pct, discount_ceiling_pct]</code> — both by the deterministic heuristic and by a final clamp on the LLM output, so any hallucination cannot regress the contract. <em>"User rejected −5% three times, dwelled 1.4s on −15% last visit → next offer is −18%, capped by merchant's −25% floor."</em>
+        </p>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- 4. CONSUMER SURFACES -->
+      <!-- ============================================================ -->
+      <section id="consumer-surfaces" class="block">
+        <div class="section-eyebrow">Section 04</div>
+        <h2>Consumer Surfaces</h2>
+        <p class="section-lede">
+          Two views, four surfaces. The 2-view IA refactor (Discover · Browse) puts the swipe stack at full screen as the default — but the underlying surfaces are still the four roles below. None is removable; each answers a real user question.
+        </p>
+
+        <h3>Four surfaces</h3>
+        <div class="cards">
+          <div class="card">
+            <div class="role">Surface 1</div>
+            <h4>Map</h4>
+            <p>Spatial context — <em>where am I.</em> Apple Maps, frosted weather pill (tap to swap city), category pins with offer callouts. The spatial framing keeps "this place" honest.</p>
+            <span class="file">CityMap.tsx</span>
+          </div>
+          <div class="card">
+            <div class="role">Surface 2</div>
+            <h4>Drawer / Wallet</h4>
+            <p>The persistent wallet metaphor — the cream <em>vessel</em> that holds saved value. QR, search, focused offer view, lens chip row.</p>
+            <span class="file">WalletSheetContent.tsx · WalletView.tsx</span>
+          </div>
+          <div class="card">
+            <div class="role">Surface 3</div>
+            <h4>List</h4>
+            <p>Browse mode — <em>what's here.</em> Unfiltered ground truth, ranked by simple distance. Plain substring search. The escape hatch a skeptical user can always reach.</p>
+            <span class="file">MerchantSearchList.tsx</span>
+          </div>
+          <div class="card">
+            <div class="role">Surface 4</div>
+            <h4>Swipe Stack</h4>
+            <p>Recommend mode — <em>what fits this moment.</em> Cross-merchant variants by lens. Full-screen Discover view; per-card subhead generated by LLM. The LLM's stage.</p>
+            <span class="file">SwipeOfferStack.tsx · DiscoverView.tsx</span>
+          </div>
+        </div>
+
+        <h3>Supporting components</h3>
+        <p>
+          <code>MerchantDetailView.tsx</code> renders the focused offer screen with a GenUI widget composed from the LLM-emitted JSON spec by <code>WidgetRenderer.tsx</code>. <code>RedeemFlow.tsx</code> + <code>QrRedeemScreen.tsx</code> + <code>CheckoutSuccessScreen.tsx</code> handle the QR → simulated girocard → cashback success path. <code>HistoryScreen.tsx</code> shows past redemptions and the trigger reason for each. <code>DevPanel.tsx</code> exposes the wrapped <code>{intent_token, h3_cell_r8}</code> and a high-intent toggle that re-skins the offer in real time.
+        </p>
+
+        <h3>The four lenses (the LLM's role made legible)</h3>
+        <table>
+          <thead>
+            <tr><th>Lens</th><th>Mechanism</th><th>LLM?</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>For you</strong></td><td>Cross-merchant relevance + Preference Agent re-rank against swipe + dwell history</td><td>Yes</td></tr>
+            <tr><td><strong>Best deals</strong></td><td>Deterministic discount-magnitude sort</td><td>No</td></tr>
+            <tr><td><strong>Right now</strong></td><td>Rule-based weather × time × category match</td><td>No</td></tr>
+            <tr><td><strong>Nearby</strong></td><td>Pure distance sort — the user's escape hatch</td><td>No</td></tr>
+          </tbody>
+        </table>
+        <blockquote class="pull">
+          Tap a chip — you pick the mechanism. Tap "Nearby" and it's just distance, on purpose. This is the explicit anti-magician's-force safeguard from <code>DESIGN_PRINCIPLES.md</code> #4, made visible in the chip row.
+        </blockquote>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- 5. MERCHANT SURFACES -->
+      <!-- ============================================================ -->
+      <section id="merchant-surfaces" class="block">
+        <div class="section-eyebrow">Section 05</div>
+        <h2>Merchant Surfaces</h2>
+        <p class="section-lede">
+          The merchant side is the inverse of the consumer side: instead of receiving generated offers, the merchant <em>onboards</em> their menu and hours, then <em>bounds</em> the offers an agent can make on their behalf. Today's web dashboard ships four sections plus a five-stage live onboarding pipeline driven by Pydantic AI menu extraction.
+        </p>
+
+        <h3>Onboarding — the speed-run merchant cut</h3>
+        <p>
+          Onboarding is the opposite of campaign work: ingest what the merchant already has and turn it into structured rules. Five stages, each backed by a real backend route under <code>/onboarding/{id}/…</code>:
+        </p>
+
+        <ol class="beats">
+          <li>
+            <div class="beat-title">Drop <span class="beat-time">stage 1</span></div>
+            <div class="beat-body">Merchant enters URL or business name. <code>FlowIntroStep.tsx</code> kicks off an onboarding session via <code>POST /onboarding</code>.</div>
+          </li>
+          <li>
+            <div class="beat-title">Menu read <span class="beat-time">stage 2</span></div>
+            <div class="beat-body">Real OCR runs on the menu image. <code>MenuReadStep.tsx</code> polls <code>GET /onboarding/{id}/status</code> while the pipeline extracts categories and items.</div>
+          </li>
+          <li>
+            <div class="beat-title">Menu confirm <span class="beat-time">stage 3</span></div>
+            <div class="beat-body">Merchant edits items in a chat-style flow with the Menu Edit Agent. <code>MenuConfirmStep.tsx</code> ↔ <code>POST /onboarding/{id}/menu/agent</code>.</div>
+          </li>
+          <li>
+            <div class="beat-title">Hours <span class="beat-time">stage 4</span></div>
+            <div class="beat-body"><code>HoursPicker.tsx</code> writes through to <code>POST /onboarding/{id}/hours</code>. Pre-populated from public sources where possible.</div>
+          </li>
+          <li>
+            <div class="beat-title">Processing <span class="beat-time">stage 5</span></div>
+            <div class="beat-body">A demand-curve preview (typical vs. live) appears alongside suggested bounds. <code>POST /onboarding/{id}/complete</code> finalizes the merchant.</div>
+          </li>
+        </ol>
+
+        <h3>Dashboard sections</h3>
+        <div class="cards">
+          <div class="card">
+            <h4>Today <span class="badge live">live</span></h4>
+            <p>Daily briefing — pending-offer count chip, live demand curve + ROI strip, active offer mini-cards with inventory burndown rings. Polls <code>/merchants/{id}/summary</code> every 2s.</p>
+            <span class="file">Today.tsx</span>
+          </div>
+          <div class="card">
+            <h4>Offers <span class="badge live">live</span></h4>
+            <p>Inbox of drafted + approved offers. Per-offer headline, discount, status badge (<code>pending_approval</code> · <code>approved</code> · <code>auto_approved</code> · <code>rejected</code>). One-tap approve/reject; auto-approve rule hints surfaced inline.</p>
+            <span class="file">Offers.tsx</span>
+          </div>
+          <div class="card">
+            <h4>Bounds <span class="badge mock">scaffolded</span></h4>
+            <p>Discount floor/ceiling sliders, category chips, opening hours, blackout windows, brand tone. <em>The visual proof of the wedge.</em> Today: fixture-baked. v3: portal-driven.</p>
+            <span class="file">Bounds.tsx</span>
+          </div>
+          <div class="card">
+            <h4>Settings <span class="badge mock">scaffolded</span></h4>
+            <p>Sparkasse account binding, integration keys, basic merchant profile. Cosmetic, present so the dashboard reads as a real product.</p>
+            <span class="file">Settings.tsx</span>
+          </div>
+        </div>
+
+        <h3>Future — mobile companion (v3)</h3>
+        <p>
+          The structural symmetry with the consumer wallet: push when offers fire under bounds, quick-glance status, swipe-to-block in the audit log. The merchant's swipe surface mirrors the consumer's. Not decoration — it is the merchant's escape hatch from a system that otherwise generates on their behalf 24/7.
+        </p>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- 6. ENDPOINTS -->
+      <!-- ============================================================ -->
+      <section id="endpoints" class="block">
+        <div class="section-eyebrow">Section 06</div>
+        <h2>Backend Endpoints</h2>
+        <p class="section-lede">
+          17 core endpoints in <code>main.py</code> plus a 9-route onboarding sub-router. Every endpoint is real today; every dataset is honest about its substitution from demo to production.
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Endpoint</th>
+              <th>Purpose</th>
+              <th>Demo source</th>
+              <th>Production swap</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="group"><td colspan="4">Catalog &amp; signals</td></tr>
+            <tr>
+              <td><code>GET /health</code></td>
+              <td>Liveness</td>
+              <td>—</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td><code>GET /cities</code></td>
+              <td>Available cities + config</td>
+              <td><code>cities/*.json</code></td>
+              <td>Same</td>
+            </tr>
+            <tr>
+              <td><code>GET /merchants/{city}</code></td>
+              <td>Catalog list + search</td>
+              <td>Real OSM Overpass (39 + 30)</td>
+              <td>Same — already real</td>
+            </tr>
+            <tr>
+              <td><code>GET /signals/{city}</code></td>
+              <td>Live context (weather + events + density)</td>
+              <td>Open-Meteo + Payone fixture</td>
+              <td>Real Payone aggregation</td>
+            </tr>
+
+            <tr class="group"><td colspan="4">Offer generation &amp; surfacing</td></tr>
+            <tr>
+              <td><code>POST /opportunity/generate</code></td>
+              <td>LLM-driven offer + GenUI widget for one merchant</td>
+              <td>Pydantic AI → Azure OpenAI <code>gpt-5.5</code></td>
+              <td>Same Pydantic AI surface, swappable provider</td>
+            </tr>
+            <tr>
+              <td><code>POST /opportunity/batch</code></td>
+              <td>Generate offers for all triggered merchants in a city</td>
+              <td>Pydantic AI loop</td>
+              <td>Same</td>
+            </tr>
+            <tr>
+              <td><code>POST /surfacing/evaluate</code></td>
+              <td>Deterministic scoring + headline rewrite on fire</td>
+              <td>Server-side (Surfacing Agent)</td>
+              <td>On-device — only <code>{intent_token, h3_cell_r8}</code> leaves</td>
+            </tr>
+            <tr>
+              <td><code>POST /offers/alternatives</code></td>
+              <td>Cross-merchant swipe stack with <code>lens</code> param + Preference / Subhead / Headline rewrite</td>
+              <td>Backend builds, optional LLM re-rank</td>
+              <td>Same surface, on-device SLM for re-rank</td>
+            </tr>
+
+            <tr class="group"><td colspan="4">Wallet &amp; redemption</td></tr>
+            <tr>
+              <td><code>POST /redeem</code></td>
+              <td>Persist a redemption</td>
+              <td>JSON storage</td>
+              <td>Sparkasse / Payone settlement rail</td>
+            </tr>
+            <tr>
+              <td><code>GET /history</code></td>
+              <td>Past cashback redemptions for HistoryScreen</td>
+              <td>JSON storage</td>
+              <td>Real settlement log</td>
+            </tr>
+
+            <tr class="group"><td colspan="4">Merchant inbox</td></tr>
+            <tr>
+              <td><code>POST /offers/{id}/approve</code></td>
+              <td>Approve a pending offer</td>
+              <td>JSON storage</td>
+              <td>Same</td>
+            </tr>
+            <tr>
+              <td><code>POST /offers/{id}/reject</code></td>
+              <td>Reject a pending offer</td>
+              <td>JSON storage</td>
+              <td>Same</td>
+            </tr>
+            <tr>
+              <td><code>GET /merchants/{id}/summary</code></td>
+              <td>Counters for the Today section</td>
+              <td>Aggregated state</td>
+              <td>Same</td>
+            </tr>
+            <tr>
+              <td><code>GET /merchants/{id}/events</code></td>
+              <td>Activity feed (inbox + redemptions, newest-first)</td>
+              <td>Aggregated state</td>
+              <td>Same</td>
+            </tr>
+            <tr>
+              <td><code>GET /merchants/{id}/demand-chart</code></td>
+              <td>Typical vs. live density curve with trigger highlight</td>
+              <td>Density fixture + recent events</td>
+              <td>Real Payone aggregation</td>
+            </tr>
+
+            <tr class="group"><td colspan="4">Demo lifecycle</td></tr>
+            <tr>
+              <td><code>POST /demo/reset</code></td>
+              <td>Clear offers + redemptions</td>
+              <td>JSON storage</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td><code>POST /demo/seed</code></td>
+              <td>Reset + batch-generate offers for a city</td>
+              <td>Pydantic AI loop</td>
+              <td>—</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Onboarding sub-router (<code>/onboarding/*</code>)</h3>
+        <p>
+          A real five-stage merchant pipeline backed by 9 routes in <code>onboarding.py</code>:
+        </p>
+        <table>
+          <thead>
+            <tr><th>Route</th><th>Purpose</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>POST /onboarding</code></td><td>Start a session</td></tr>
+            <tr><td><code>GET /onboarding/{id}/status</code></td><td>Pipeline progress poll</td></tr>
+            <tr><td><code>GET · POST /onboarding/{id}/menu</code></td><td>Read / write extracted menu</td></tr>
+            <tr><td><code>POST /onboarding/{id}/menu/agent</code></td><td>Menu Edit Agent chat turn</td></tr>
+            <tr><td><code>GET · POST /onboarding/{id}/hours</code></td><td>Read / write opening hours</td></tr>
+            <tr><td><code>POST /onboarding/{id}/limits</code></td><td>Discount bounds suggestion</td></tr>
+            <tr><td><code>POST /onboarding/{id}/complete</code></td><td>Finalize and create merchant</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- 7. USER FLOW -->
+      <!-- ============================================================ -->
+      <section id="flow" class="block">
+        <div class="section-eyebrow">Section 07</div>
+        <h2>The Demo User Flow</h2>
+        <p class="section-lede">
+          The recording is a 55-60s consumer→merchant arc. It opens on the swipe stack to make the Tinder-for-local-deals hook obvious, proves the LLM has real work to do (cross-merchant re-rank, GenUI), shows the privacy boundary, then flips to the merchant side to prove the wedge: <em>onboard once, set bounds, agents negotiate.</em>
+        </p>
+
+        <div class="diagram">
+          <div class="mermaid">
+sequenceDiagram
+  autonumber
+  actor Mia as Mia
+  participant App as Wallet App
+  participant API as Backend API
+  participant LLM as Azure OpenAI
+  actor Shop as Merchant
+  participant Dash as Dashboard
+
+  Mia->>App: Open in Discover
+  App->>API: GET /signals/berlin
+  API-->>App: weather, density
+  Note over App: Beat 1 — Discover full-screen swipe · 5s
+
+  Mia->>App: Tap "Best deals" then "For you" · swipe right
+  App->>API: POST /offers/alternatives {lens}
+  API->>LLM: rerank + subhead + headline rewrite
+  LLM-->>API: ranked + copy
+  API-->>App: variants
+  Note over App: Beat 2 — Lens switch + swipe · 7s
+
+  Mia->>App: Switch to Browse · tap Cafe Bondi
+  App->>API: POST /offers/alternatives (focused)
+  Note over App: Beat 3 — List as ground truth · 8s
+
+  App->>API: POST /surfacing/evaluate
+  API->>LLM: headline rewrite (fire path)
+  LLM-->>API: contextualised
+  API-->>App: fired offer + widget_spec
+  Note over App: Beat 4 — GenUI rain widget · 11s
+
+  Mia->>App: Redeem · QR · simulated girocard
+  App->>API: POST /redeem
+  API-->>App: success + cashback
+  Note over App: Beat 5 — Privacy chip · 7s
+
+  Shop->>Dash: Onboard (URL, menu OCR)
+  Dash->>API: POST /onboarding · /menu · /hours
+  API->>LLM: Menu Edit Agent
+  LLM-->>API: refined items
+  Note over Dash: Beat 6 — Onboarding speed-run · 9s
+
+  Shop->>Dash: Set bounds + auto-approve rule
+  Note over Dash: Beat 7 — The wedge · 8s
+
+  Shop->>Dash: Today / demand curve
+  Dash->>API: GET /merchants/-id-/summary
+  Note over Dash: Beat 8 — Same offer, both sides · 5s
+          </div>
+          <div class="caption">~55-60s total. The strongest closing image is the same offer on both sides: Mia redeems it, the merchant dashboard shows why it existed.</div>
+        </div>
+
+        <h3>The eight beats</h3>
+        <ol class="beats">
+          <li>
+            <div class="beat-title">Discover open <span class="beat-time">0:00–0:05</span></div>
+            <div class="beat-body">Mia's phone opens directly into Discover — full-screen swipe card, lens chips visible, deal badge on the top card. "Less like ads, more like Tinder for local deals."</div>
+          </li>
+          <li>
+            <div class="beat-title">Lens switch + right-swipe <span class="beat-time">0:05–0:12</span></div>
+            <div class="beat-body">Tap "Best deals" (deterministic sort), then "For you" (Preference Agent re-rank). Swipe right on a card. Every swipe teaches the wallet what converts.</div>
+          </li>
+          <li>
+            <div class="beat-title">Browse: map + list <span class="beat-time">0:12–0:20</span></div>
+            <div class="beat-body">Switch to Browse. Map and merchant list. Weather pill shows Berlin. Tap Cafe Bondi. The list is still ground truth — no paid placement, no hidden merchants.</div>
+          </li>
+          <li>
+            <div class="beat-title">Alternatives → GenUI rain widget <span class="beat-time">0:20–0:31</span></div>
+            <div class="beat-body">Alternatives stack opens, right-swipe the keeper, focused GenUI widget renders. Rain incoming, lunch intent high, Cafe Bondi nearby — generated for this exact context.</div>
+          </li>
+          <li>
+            <div class="beat-title">Redeem · QR · girocard · privacy chip <span class="beat-time">0:31–0:38</span></div>
+            <div class="beat-body">QR with intent token → simulated girocard tap → cashback success, count-up. Optional one-second flash of the dev panel showing only <code>{intent_token, h3_cell_r8}</code> on the wire.</div>
+          </li>
+          <li>
+            <div class="beat-title">Merchant onboarding speed-run <span class="beat-time">0:38–0:47</span></div>
+            <div class="beat-body">Cut to dashboard. Drop URL → real OCR pulls menu items → categories appear structured → Menu Edit Agent edits → bounds screen. The opposite of campaign work.</div>
+          </li>
+          <li>
+            <div class="beat-title">Bounds + auto-approve rule <span class="beat-time">0:47–0:55</span></div>
+            <div class="beat-body">Discount floor/ceiling sliders, allowed categories. Toggle an auto-approve rule like "Rain + hot drinks" or "Lunch demand gap". The worst case the merchant can live with.</div>
+          </li>
+          <li>
+            <div class="beat-title">Same offer, both sides <span class="beat-time">0:55–1:00</span></div>
+            <div class="beat-body">Today section shows the offer Mia just redeemed, with the demand curve gap that triggered it. Optional final flash back to Mia's phone.</div>
+          </li>
+        </ol>
+
+        <p>
+          Source: <code>assets/demo-day/demo-video-script.md</code>. The 50-second cut compresses beats 1–2 and beats 6–7; the 60-second cut keeps all eight.
+        </p>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- 8. PRIVACY -->
+      <!-- ============================================================ -->
+      <section id="privacy" class="block">
+        <div class="section-eyebrow">Section 08</div>
+        <h2>The Privacy Boundary</h2>
+        <p class="section-lede">
+          Per <code>CLAUDE.md</code>'s Demo Truth Boundary: the production swap is an on-device SLM (Phi-3-mini / Gemma-2B); the backend LLM stands in for the demo. In production, only the wrapped enum <code>{intent_token, h3_cell_r8}</code> reaches the backend.
+        </p>
+
+        <div class="diagram">
+          <div class="mermaid">
+flowchart LR
+  subgraph device["📱 On-Device — production"]
+    direction TB
+    Dwell["Dwell time<br/>(ms)"]
+    Swipes["Swipe direction<br/>(L/R)"]
+    Intent["Intent inference"]
+    SLM["On-device SLM<br/>Phi-3-mini · Gemma-2B"]
+    Dwell --> SLM
+    Swipes --> SLM
+    Intent --> SLM
+  end
+
+  subgraph wire["🔒 Wire — only this leaves device"]
+    Token["{ intent_token,<br/>h3_cell_r8,<br/>weather_state,<br/>high_intent }"]
+  end
+
+  subgraph backend["⚙️ Backend"]
+    Match["Bounds match"]
+    Gen["Offer generation"]
+    Match --> Gen
+  end
+
+  SLM --> Token
+  Token --> Match
+
+  classDef onDevice fill:#fce8d4,stroke:#6f3f2c,color:#2a1810
+  classDef wire fill:#fff5e6,stroke:#d97a3a,color:#2a1810
+  classDef backend fill:#f0e6dc,stroke:#6f3f2c,color:#2a1810
+  class Dwell,Swipes,Intent,SLM onDevice
+  class Token wire
+  class Match,Gen backend
+          </div>
+          <div class="caption">A system that doesn't have the user's preference data centralised cannot manipulate at scale.</div>
+        </div>
+
+        <h3>Intent tokens (the locked enum)</h3>
+        <p>
+          The wrapped enum carries one of: <code>lunch_break.cold</code>, <code>commute.evening_rushed</code>, <code>tourist.midday_browsing</code>, <code>weekend_wander</code>, <code>late_night.solo</code>. <code>h3_cell_r8</code> is a coarse ~1 km hex; the candidate pool is the user's cell + 1 ring. <code>weather_state</code> is a derived enum, not raw forecast data. <code>high_intent</code> is a boolean flag composed on-device from active screen time, map foreground, and coupon-browse proxies.
+        </p>
+
+        <blockquote class="pull">
+          The wedge compounds into a privacy story that is <strong>structural, not theatrical</strong>. Because the merchant authors bounds rather than offers, and the LLM generates within those bounds based on on-device signals, the system that maximises offer relevance also minimises centralised user data. Consent banners are a substitute for architecture; this is the architecture.
+        </blockquote>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- 9. ROADMAP -->
+      <!-- ============================================================ -->
+      <section id="roadmap" class="block">
+        <div class="section-eyebrow">Section 09</div>
+        <h2>v1 → v2 → v3</h2>
+        <p class="section-lede">
+          Each stage preserves the previous stage's surfaces. Nothing is removed; the home moves and a new layer of agency is added — for the user (lenses) at v2, for the merchant (bounds portal + mobile companion) at v3.
+        </p>
+
+        <div class="diagram">
+          <div class="mermaid">
+flowchart LR
+  v1["<b>v1 — today</b><br/>Wallet-first IA<br/>Map · Drawer · List · Swipe<br/>3 strategic + 3 supporting agents<br/>5-stage onboarding<br/>4 dashboard sections"]
+  v2["<b>v2 — next</b><br/>Discover (swipe) is home<br/>4 lens chips wired<br/>Negotiation Agent wired<br/>Persistent swipe history"]
+  v3["<b>v3 — future</b><br/>Bounds Manager portal<br/>Audit · Performance · Insights<br/>Merchant mobile companion<br/>On-device SLM (Phi-3 / Gemma)"]
+
+  v1 ==>|"swipe stack<br/>is the bridge"| v2
+  v2 ==>|"merchant portal<br/>closes the loop"| v3
+
+  classDef now fill:#e8d5b7,stroke:#6f3f2c,color:#2a1810
+  classDef next fill:#fce8d4,stroke:#6f3f2c,color:#2a1810
+  classDef future fill:#faf6f0,stroke:#a89580,color:#2a1810
+  class v1 now
+  class v2 next
+  class v3 future
+          </div>
+          <div class="caption">The cross-merchant swipe stack already shipped in v1 telegraphs v2 inside v1 — judges see the swipe-as-curation mechanic without us having to swap the primary surface.</div>
+        </div>
+
+        <h3>Demo Truth Boundary</h3>
+        <div class="pair">
+          <div>
+            <h5>Today (demo)</h5>
+            <p><strong>LLM:</strong> Pydantic AI → Azure OpenAI <code>gpt-5.5</code>, server-side, with deterministic fixture fallback on every call.</p>
+            <p><strong>Surface:</strong> in-app card slide.</p>
+            <p><strong>Density:</strong> synthetic Payone-style transaction-density JSON.</p>
+            <p><strong>Surfacing:</strong> server-side scoring + LLM headline rewrite on fire.</p>
+          </div>
+          <div>
+            <h5>Production swap</h5>
+            <p><strong>LLM:</strong> same Pydantic AI surface, swappable provider, paired with on-device SLM (Phi-3-mini / Gemma-2B) for intent extraction.</p>
+            <p><strong>Surface:</strong> push notification via Expo Push / FCM / APNs.</p>
+            <p><strong>Density:</strong> real Payone / Sparkassen aggregated transaction density.</p>
+            <p><strong>Surfacing:</strong> on-device — only <code>{intent_token, h3_cell_r8}</code> reaches the backend.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- 10. PRINCIPLES -->
+      <!-- ============================================================ -->
+      <section id="principles" class="block">
+        <div class="section-eyebrow">Section 10</div>
+        <h2>Eight Design Principles</h2>
+        <p class="section-lede">
+          Durable invariants that govern how MomentMarkt curates, ranks, and surfaces offers. Non-negotiable for v1 and v2. If a future feature threatens any of them, the right response is to scope-cut the feature, not the principle.
+        </p>
+
+        <ol class="principles">
+          <li>
+            <strong>The list is reality. The swipe is curation.</strong>
+            <span><code>MerchantSearchList</code> shows every merchant in the city's catalog by simple distance — no LLM filtering, no personalization, no paid placement. The swipe re-orders; it never removes.</span>
+          </li>
+          <li>
+            <strong>No paid placement.</strong>
+            <span>The LLM's prompt has no "boost merchant X" instruction. Ranking is driven by distance, swipe history, offer attributes, and live signals. If sponsored ever lands, it is explicitly marked and annotates rather than replaces.</span>
+          </li>
+          <li>
+            <strong>Preferences stay on-device.</strong>
+            <span>In production, dwell time, swipe direction, and inferred intent never leave the phone. Only <code>{intent_token, h3_cell_r8}</code> reaches the backend. Structural defense against centralised manipulation.</span>
+          </li>
+          <li>
+            <strong>Always offer a non-personalized fallback.</strong>
+            <span>The "Nearby" lens is pure distance — no LLM, no swipe-history influence. The antidote to magician's force: the user always has a verifiable algorithm.</span>
+          </li>
+          <li>
+            <strong>Reasoning is inspectable.</strong>
+            <span>Long-press a swipe card → reveal the matched signals. Opaque ranking is not acceptable. Every <code>NegotiatedOffer</code> carries a <code>reasoning</code> string for the audit log.</span>
+          </li>
+          <li>
+            <strong>The LLM is one of several mechanisms.</strong>
+            <span>For-you = LLM. Best-deals = deterministic sort. Right-now = rule-based. Nearby = pure distance. The user opts into a mechanism; nothing is a black box that runs everything.</span>
+          </li>
+          <li>
+            <strong>Text search is text-match only.</strong>
+            <span>Drawer search bar is a plain substring filter over <code>display_name</code>, <code>category</code>, <code>neighborhood</code>. No LLM re-ranking, no "smart" interpretation. What you type is what you get.</span>
+          </li>
+          <li>
+            <strong>Don't break expectations between sessions.</strong>
+            <span>A left-swipe doesn't make a merchant disappear from the list. Swipe history influences ranking <em>within</em> the swipe stack. City swap (Berlin ↔ Zurich) resets swipe history — different cultural context, different semantics.</span>
+          </li>
+        </ol>
+      </section>
+
+      <footer class="footer">
+        <p>
+          MomentMarkt · DSV-Gruppe CITY WALLET · Hack-Nation 2026
+        </p>
+        <p>
+          Sources: <code>work/SPEC.md</code> · <code>context/UX_STRATEGY.md</code> · <code>context/END_GOAL_ARCHITECTURE.md</code> · <code>context/AGENT_IO.md</code> · <code>context/DESIGN_PRINCIPLES.md</code> · <code>assets/demo-day/demo-video-script.md</code>
+        </p>
+      </footer>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'base',
+      themeVariables: {
+        fontFamily: '-apple-system, "SF Pro Text", Inter, system-ui, sans-serif',
+        fontSize: '14px',
+        primaryColor: '#fce8d4',
+        primaryTextColor: '#2a1810',
+        primaryBorderColor: '#6f3f2c',
+        lineColor: '#6f3f2c',
+        secondaryColor: '#f0e6dc',
+        tertiaryColor: '#faf6f0',
+        background: '#ffffff',
+        mainBkg: '#fce8d4',
+        secondBkg: '#f0e6dc',
+        clusterBkg: '#faf6f0',
+        clusterBorder: '#a89580',
+        edgeLabelBackground: '#ffffff',
+        actorBkg: '#fce8d4',
+        actorBorder: '#6f3f2c',
+        actorTextColor: '#2a1810',
+        actorLineColor: '#a89580',
+        signalColor: '#6f3f2c',
+        signalTextColor: '#2a1810',
+        labelBoxBkgColor: '#fce8d4',
+        labelBoxBorderColor: '#6f3f2c',
+        labelTextColor: '#2a1810',
+        noteBkgColor: '#fff5e6',
+        noteBorderColor: '#d97a3a',
+        noteTextColor: '#2a1810',
+        activationBkgColor: '#fce8d4',
+        activationBorderColor: '#6f3f2c'
+      },
+      flowchart: {
+        curve: 'basis',
+        padding: 20,
+        nodeSpacing: 50,
+        rankSpacing: 60,
+        htmlLabels: true
+      },
+      sequence: {
+        actorMargin: 60,
+        boxMargin: 12,
+        noteMargin: 12,
+        messageMargin: 40,
+        wrap: true
+      }
+    });
+
+    // Render then size each SVG. Narrow diagrams (wedge, roadmap, privacy) fit
+    // their container so they look balanced. Wide diagrams (system topology)
+    // are clamped to a readable scale: they may exceed container width, and the
+    // .diagram parent's overflow-x:auto provides horizontal scrolling.
+    (async () => {
+      await mermaid.run();
+      document.querySelectorAll('.mermaid svg').forEach(svg => {
+        const vb = svg.getAttribute('viewBox');
+        if (!vb) return;
+        const [, , vbW, vbH] = vb.split(/\s+/).map(Number);
+        if (!vbW) return;
+
+        const container = svg.closest('.diagram');
+        const containerWidth = container ? container.clientWidth - 64 : 800;
+
+        // If the diagram is naturally wider than the container, clamp it to a
+        // floor that keeps text readable (~1.4x container, max 1600px). The
+        // container scrolls horizontally to reveal the rest.
+        let targetWidth;
+        if (vbW <= containerWidth) {
+          targetWidth = vbW;
+        } else {
+          targetWidth = Math.min(Math.max(containerWidth * 1.4, 1100), 1600);
+        }
+        const scale = targetWidth / vbW;
+        svg.style.width = targetWidth + 'px';
+        svg.style.height = (vbH * scale) + 'px';
+        svg.style.maxWidth = 'none';
+      });
+    })();
+  </script>
+</body>
+</html>

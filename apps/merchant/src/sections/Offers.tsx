@@ -211,7 +211,6 @@ function OfferRow({
     1,
     Math.round(moment.budgetTotal / Math.max(moment.cashbackPerRedeem, 1)),
   );
-  const used = slots > 0 ? Math.min(100, Math.round((moment.redemptions / slots) * 100)) : 0;
   const expires = shortTime(moment.expiresAt);
   return (
     <button
@@ -236,9 +235,6 @@ function OfferRow({
             </>
           ) : null}
         </div>
-        <span className="feed-bar" aria-hidden>
-          <span style={{ width: `${used}%` }} />
-        </span>
       </div>
     </button>
   );
@@ -576,4 +572,3 @@ function renderRule(rule: SavedRule): string {
   }
   return `Approve ${trigger} offers for ${rule.category} up to ${rule.cap}%`;
 }
-

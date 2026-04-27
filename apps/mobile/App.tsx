@@ -7,6 +7,16 @@ import BottomSheet, {
 // BottomSheetScrollView is also used inside SheetBody's focused offer view —
 // issue #122.)
 import { StatusBar } from "expo-status-bar";
+import * as Notifications from "expo-notifications";
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 import {
   type ComponentProps,
   useCallback,
@@ -126,6 +136,12 @@ const SHEET_SNAP_POINTS = ["25%", "55%", "80%"] as const;
 // double-counts and lifts the sheet above the tab bar with a visible gap.
 
 export default function App() {
+  useEffect(() => {
+    Notifications.getPermissionsAsync().then(({ status }) => {
+      if (status !== "granted") Notifications.requestPermissionsAsync();
+    });
+  }, []);
+
   const [step, setStep] = useState<DemoStep>("silent");
   const [highIntent, setHighIntent] = useState(false);
   const [city, setCity] = useState<DemoCityId>("berlin");

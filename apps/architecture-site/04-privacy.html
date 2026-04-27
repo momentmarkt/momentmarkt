@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>04 · Privacy Boundary — MomentMarkt</title>
+  <style>
+    :root {
+      --cream: #faf6f0;
+      --cream-deep: #f3ead9;
+      --cocoa: #6f3f2c;
+      --cocoa-deep: #2a1810;
+      --spark: #d97a3a;
+      --ink: #1a1410;
+      --muted: #6b5e54;
+      --line: #e8dcc6;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif;
+      background: var(--cream);
+      color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+    }
+    .slide {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 24px;
+      padding: 48px 72px 28px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+    .slide-header { display: flex; align-items: baseline; gap: 20px; }
+    .slide-number {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 13px;
+      letter-spacing: 0.18em;
+      color: var(--spark);
+      font-weight: 700;
+    }
+    .slide-title {
+      font-size: 52px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 0;
+      color: var(--cocoa-deep);
+      line-height: 1.04;
+    }
+    .slide-lede {
+      font-size: 19px;
+      color: var(--muted);
+      margin: 10px 0 0;
+      max-width: 920px;
+      line-height: 1.5;
+    }
+    .slide-body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+    }
+    .slide-body .mermaid { width: 100%; text-align: center; }
+    .slide-caption {
+      font-size: 17px;
+      color: var(--cocoa-deep);
+      text-align: center;
+      margin: 0 auto 12px;
+      max-width: 920px;
+      font-style: italic;
+    }
+    .slide-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+      font-size: 13px;
+      color: var(--muted);
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    .refs { display: flex; gap: 12px; flex-wrap: wrap; }
+    .refs code {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      background: var(--cream-deep);
+      color: var(--cocoa);
+      padding: 4px 9px;
+      border-radius: 5px;
+      font-size: 12px;
+    }
+    .pager {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .pager a { color: var(--cocoa); text-decoration: none; padding: 0 4px; }
+    .pager a:hover { color: var(--spark); }
+  </style>
+</head>
+<body>
+  <div class="slide">
+    <header class="slide-header">
+      <span class="slide-number">04 / 04</span>
+      <div>
+        <h1 class="slide-title">Privacy Boundary</h1>
+        <p class="slide-lede">The wire carries an enum, not a profile. Production swap is on-device — the architecture that maximizes relevance also minimizes centralized data.</p>
+      </div>
+    </header>
+
+    <div class="slide-body">
+      <div class="mermaid">
+flowchart LR
+  subgraph device["📱 On-Device · production"]
+    direction TB
+    Dwell["Dwell time<br/>(ms)"]
+    Swipes["Swipe direction<br/>(L/R)"]
+    Intent["Intent inference"]
+    SLM["<b>On-device SLM</b><br/>Phi-3-mini · Gemma-2B"]
+    Dwell --> SLM
+    Swipes --> SLM
+    Intent --> SLM
+  end
+
+  subgraph wire["🔒 Wire — only this leaves device"]
+    direction TB
+    Token["{ intent_token,<br/>h3_cell_r8,<br/>weather_state,<br/>high_intent }"]
+  end
+
+  subgraph backend["⚙️ Backend"]
+    direction TB
+    Match["Bounds match"]
+    Gen["Offer generation<br/>(LLM)"]
+    Match --> Gen
+  end
+
+  SLM --> Token
+  Token --> Match
+
+  classDef onDevice fill:#fce8d4,stroke:#6f3f2c,color:#2a1810
+  classDef wireStyle fill:#fff5e6,stroke:#d97a3a,color:#2a1810
+  classDef backendStyle fill:#f0e6dc,stroke:#6f3f2c,color:#2a1810
+  class Dwell,Swipes,Intent,SLM onDevice
+  class Token wireStyle
+  class Match,Gen backendStyle
+      </div>
+    </div>
+
+    <div>
+      <p class="slide-caption"><code>intent_token</code> ∈ { lunch_break.cold · commute.evening_rushed · tourist.midday_browsing · weekend_wander · late_night.solo }. <code>h3_cell_r8</code> ≈ 1 km hex. The candidate pool is the user's cell + 1 ring. <b>Consent banners are a substitute for architecture; this is the architecture.</b></p>
+      <div class="slide-footer">
+        <div class="refs">
+          <code>apps/mobile/src/surfacing/demoSignals.ts</code>
+          <code>apps/mobile/src/components/DevPanel.tsx</code>
+          <code>surfacing_agent.py:18</code>
+          <code>context/AGENT_IO.md</code>
+        </div>
+        <div class="pager">
+          <a href="03-agents.html">←</a>
+          <span>04 / 04</span>
+          <a href="01-wedge.html">→</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <script>
+    window.PREV = '03-agents.html';
+    window.NEXT = '01-wedge.html';
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight' || e.key === ' ') window.location.href = window.NEXT;
+      if (e.key === 'ArrowLeft') window.location.href = window.PREV;
+    });
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'base',
+      themeVariables: {
+        fontFamily: '-apple-system, "SF Pro Text", Inter, system-ui, sans-serif',
+        fontSize: '15px',
+        primaryColor: '#fce8d4',
+        primaryTextColor: '#2a1810',
+        primaryBorderColor: '#6f3f2c',
+        lineColor: '#6f3f2c',
+        secondaryColor: '#f0e6dc',
+        tertiaryColor: '#faf6f0',
+        clusterBkg: '#faf6f0',
+        clusterBorder: '#a89580',
+        edgeLabelBackground: '#ffffff'
+      },
+      flowchart: { curve: 'basis', padding: 22, nodeSpacing: 50, rankSpacing: 70, htmlLabels: true }
+    });
+
+    (async () => {
+      await mermaid.run();
+      const body = document.querySelector('.slide-body');
+      const svg = document.querySelector('.mermaid svg');
+      if (!svg || !body) return;
+      const vb = svg.getAttribute('viewBox');
+      if (!vb) return;
+      const [, , vbW, vbH] = vb.split(/\s+/).map(Number);
+      if (!vbW || !vbH) return;
+      const scale = Math.min(body.clientWidth / vbW, body.clientHeight / vbH);
+      svg.style.width = (vbW * scale) + 'px';
+      svg.style.height = (vbH * scale) + 'px';
+      svg.style.maxWidth = 'none';
+    })();
+  </script>
+</body>
+</html>

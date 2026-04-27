@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>01 · The Wedge — MomentMarkt</title>
+  <style>
+    :root {
+      --cream: #faf6f0;
+      --cream-deep: #f3ead9;
+      --cocoa: #6f3f2c;
+      --cocoa-deep: #2a1810;
+      --spark: #d97a3a;
+      --ink: #1a1410;
+      --muted: #6b5e54;
+      --line: #e8dcc6;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif;
+      background: var(--cream);
+      color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+    }
+    .slide {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 24px;
+      padding: 48px 72px 28px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+    .slide-header { display: flex; align-items: baseline; gap: 20px; }
+    .slide-number {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 13px;
+      letter-spacing: 0.18em;
+      color: var(--spark);
+      font-weight: 700;
+    }
+    .slide-title {
+      font-size: 52px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 0;
+      color: var(--cocoa-deep);
+      line-height: 1.04;
+    }
+    .slide-lede {
+      font-size: 19px;
+      color: var(--muted);
+      margin: 10px 0 0;
+      max-width: 920px;
+      line-height: 1.5;
+    }
+    .slide-body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+    }
+    .slide-body .mermaid {
+      width: 100%;
+      text-align: center;
+    }
+    .slide-caption {
+      font-size: 17px;
+      color: var(--cocoa-deep);
+      text-align: center;
+      margin: 0 auto 12px;
+      max-width: 900px;
+      font-style: italic;
+    }
+    .slide-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+      font-size: 13px;
+      color: var(--muted);
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    .refs { display: flex; gap: 12px; flex-wrap: wrap; }
+    .refs code {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      background: var(--cream-deep);
+      color: var(--cocoa);
+      padding: 4px 9px;
+      border-radius: 5px;
+      font-size: 12px;
+    }
+    .pager {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .pager a { color: var(--cocoa); text-decoration: none; padding: 0 4px; }
+    .pager a:hover { color: var(--spark); }
+  </style>
+</head>
+<body>
+  <div class="slide">
+    <header class="slide-header">
+      <span class="slide-number">01 / 04</span>
+      <div>
+        <h1 class="slide-title">The Wedge</h1>
+        <p class="slide-lede">The merchant authors step ① — once. Steps ② through ⑥ run automatically, every offer, forever, inside the bounds the merchant drew.</p>
+      </div>
+    </header>
+
+    <div class="slide-body">
+      <div class="mermaid">
+flowchart TB
+  subgraph manual["✋ Merchant authors — one time"]
+    direction LR
+    B1["<b>① Bounds</b><br/>categories · discount_floor_pct · discount_ceiling_pct<br/>opening_hours · blackout_windows · brand_tone<br/><i>cities/{city}.json today · merchant portal in v3</i>"]
+  end
+
+  subgraph auto["🤖 Automated — every offer, forever"]
+    direction LR
+    T["<b>② Trigger</b><br/>signal context<br/><i>Open-Meteo<br/>· demand fixture<br/>· time-of-day</i>"]
+    O["<b>③ Draft</b><br/><b>opportunity_agent.py</b><br/>OfferDraft +<br/>GenUI widget_spec<br/><i>(LLM, schema-validated)</i>"]
+    A["<b>④ Approve</b><br/>merchant inbox<br/><i>POST /offers/{id}/approve<br/>or auto-approve rule</i>"]
+    S["<b>⑤ Surface</b><br/><b>surfacing_agent.py</b><br/>deterministic score +<br/>headline rewrite on fire"]
+    N["<b>⑥ Negotiate</b><br/><b>negotiation_agent.py</b><br/><i>floor ≤ pct ≤ ceiling</i><br/>heuristic + post-LLM clamp"]
+    T --> O --> A --> S --> N
+  end
+
+  manual ==>|drives every stage| auto
+  auto -.->|nothing leaves the box the merchant drew| manual
+
+  classDef bounds fill:#fce8d4,stroke:#6f3f2c,color:#2a1810,stroke-width:2px
+  classDef agent fill:#fce8d4,stroke:#6f3f2c,color:#2a1810
+  classDef ctxStyle fill:#faf6f0,stroke:#a89580,color:#2a1810
+  classDef inboxStyle fill:#f0e6dc,stroke:#6f3f2c,color:#2a1810
+  class B1 bounds
+  class T ctxStyle
+  class O,S,N agent
+  class A inboxStyle
+      </div>
+    </div>
+
+    <div>
+      <p class="slide-caption">The merchant's only authoring surface is the box around the loop. That is the wedge: <b>bounds, not copy</b> — adapted from the same six-stage flow the merchant onboarding shows, expressed in the agentic terms underneath.</p>
+      <div class="slide-footer">
+        <div class="refs">
+          <code>cities/{berlin,zurich}.json</code>
+          <code>opportunity_agent.py:41</code>
+          <code>surfacing_agent.py:18</code>
+          <code>negotiation_agent.py</code>
+          <code>FlowDiagram.tsx</code>
+        </div>
+        <div class="pager">
+          <a href="04-privacy.html">←</a>
+          <span>01 / 04</span>
+          <a href="02-stack.html">→</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <script>
+    window.PREV = '04-privacy.html';
+    window.NEXT = '02-stack.html';
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight' || e.key === ' ') window.location.href = window.NEXT;
+      if (e.key === 'ArrowLeft') window.location.href = window.PREV;
+    });
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'base',
+      themeVariables: {
+        fontFamily: '-apple-system, "SF Pro Text", Inter, system-ui, sans-serif',
+        fontSize: '15px',
+        primaryColor: '#fce8d4',
+        primaryTextColor: '#2a1810',
+        primaryBorderColor: '#6f3f2c',
+        lineColor: '#6f3f2c',
+        secondaryColor: '#f0e6dc',
+        tertiaryColor: '#faf6f0',
+        clusterBkg: '#faf6f0',
+        clusterBorder: '#a89580',
+        edgeLabelBackground: '#ffffff'
+      },
+      flowchart: { curve: 'basis', padding: 24, nodeSpacing: 60, rankSpacing: 70, htmlLabels: true }
+    });
+
+    (async () => {
+      await mermaid.run();
+      const body = document.querySelector('.slide-body');
+      const svg = document.querySelector('.mermaid svg');
+      if (!svg || !body) return;
+      const vb = svg.getAttribute('viewBox');
+      if (!vb) return;
+      const [, , vbW, vbH] = vb.split(/\s+/).map(Number);
+      if (!vbW || !vbH) return;
+      const scale = Math.min(body.clientWidth / vbW, body.clientHeight / vbH);
+      svg.style.width = (vbW * scale) + 'px';
+      svg.style.height = (vbH * scale) + 'px';
+      svg.style.maxWidth = 'none';
+    })();
+  </script>
+</body>
+</html>

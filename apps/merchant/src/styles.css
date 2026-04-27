@@ -659,30 +659,6 @@ code {
   color: var(--danger);
 }
 
-.feed-bar {
-  flex: 1;
-  height: 4px;
-  border-radius: 999px;
-  background: var(--hairline);
-  overflow: hidden;
-}
-
-.feed-bar span {
-  display: block;
-  height: 100%;
-  background: var(--cocoa);
-  border-radius: inherit;
-  transition: width 320ms cubic-bezier(0.22, 0.71, 0.32, 1);
-}
-
-.feed-bar-meta {
-  color: var(--ink-mute);
-  font-size: 0.72rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
 /* ── right pane: detail ────────────────────────────────────────────────── */
 
 .detail {

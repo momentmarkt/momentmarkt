@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>MomentMarkt — demo intro animation (1920×1080)</title>
+    <style>
+      /* ------------------------------------------------------------------
+         MomentMarkt 3.0s demo intro — stroke-draw edition (sharp M).
+
+         Storyboard (compressed to 3s on the dot):
+           0.00–0.90s  M draws as a single ink stroke, start to end.
+           0.90–1.20s  spark dot + cream halo pop at the M's right-leg
+                       endpoint; halo bites a circle out of the leg.
+           1.20–1.50s  hold — the brand reads.
+           1.50–2.00s  M erases in the same direction it was drawn.
+           2.00–2.40s  dot drifts to canvas center; halo fades; tail
+                       grows from underneath — the dot is now a pin.
+           2.40–2.80s  pin scales up massively, flooding the screen.
+           2.80–3.00s  hold solid orange — editor cut point.
+
+         Render target: Chrome headless, 1920×1080, 60fps.
+
+         Geometry (M centered at stage 960×540):
+           M centerline: (760,720)→(760,360)→(960,600)→(1160,360)→(1160,720)
+           stroke: 110, square caps, miter joins
+           dot/halo center: (1160, 720) — exactly the M's right-leg endpoint
+           dot r=55 (so dot diameter == stroke width)
+           halo r=85 — large enough that all four corners of the leg's
+                       bottom 110×110 square (each √(55² + 55²) ≈ 78 from
+                       center) sit cleanly inside the cream pocket.
+         The M itself is centered on canvas; the dot terminates the M at
+         its bottom-right tip; the halo carves the leg around the dot.
+         Background is solid cream (no gradient) so the halo's cream is
+         visually identical to the surrounding canvas.
+
+         Brand palette: cream #fff8ee · ink #17120f · spark #f2542d
+         ------------------------------------------------------------------ */
+
+      :root {
+        --cream: #fff8ee;
+        --ink: #17120f;
+        --spark: #f2542d;
+      }
+
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      html, body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--cream);
+      }
+
+      body {
+        font-family: "Helvetica Neue", "Helvetica", Arial, sans-serif;
+        position: relative;
+      }
+
+      .stage {
+        position: absolute;
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        /* Solid brand cream — keeps the halo cream around the dot
+           visually identical to the surrounding canvas, so the bite
+           reads as part of the M, not as a floating disc. */
+        background: var(--cream);
+      }
+
+      .stage-svg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+      }
+
+      /* ─── M centerline stroke ───────────────────────────────────── */
+      .m-stroke {
+        fill: none;
+        stroke: var(--ink);
+        stroke-width: 110;
+        stroke-linecap: square;
+        stroke-linejoin: miter;
+        stroke-miterlimit: 6;
+        /* Start fully invisible, then animate dashoffset 100 → 0 to draw,
+           then 0 → -100 to erase in the same direction. pathLength=100
+           on the path makes these clean 0..100 percentages. */
+        stroke-dasharray: 100;
+        stroke-dashoffset: 100;
+        /* Near-linear with a soft landing — the speed barely varies
+           through the stroke, with just enough deceleration at the end
+           to feel intentional rather than mechanical. */
+        animation:
+          m-draw  0.90s cubic-bezier(0.4, 0.1, 0.6, 1.0) 0.0s forwards,
+          m-erase 0.50s cubic-bezier(0.4, 0.1, 0.6, 1.0) 1.5s forwards;
+      }
+      @keyframes m-draw  { to { stroke-dashoffset:    0; } }
+      @keyframes m-erase {
+        from { stroke-dashoffset:    0; }
+        to   { stroke-dashoffset: -100; }
+      }
+
+      /* On dot impact, the M flexes by a whisper — 0.5% squash. */
+      .m-stroke-wrap {
+        transform-box: fill-box;
+        transform-origin: center;
+        animation: m-recoil 0.20s cubic-bezier(0.34, 1.56, 0.64, 1) 0.9s forwards;
+      }
+      @keyframes m-recoil {
+        0%   { transform: scale(1.000, 1.000); }
+        40%  { transform: scale(1.005, 0.995); }
+        100% { transform: scale(1.000, 1.000); }
+      }
+
+      /* ─── Cream halo — bites a circle out of the M ──────────────── */
+      /* Lives outside the marker-flood group so it does NOT scale up
+         with the final flood (otherwise it would leave a giant cream
+         blob in the middle of the orange wash). It travels with the
+         dot until 3.6s, then fades. */
+      .dot-halo {
+        transform-box: fill-box;
+        transform-origin: center;
+        transform: scale(0);
+        opacity: 0;
+        animation:
+          halo-pop  0.30s cubic-bezier(0.34, 1.56, 0.64, 1) 0.90s forwards,
+          halo-fade 0.15s linear                            1.95s forwards;
+      }
+      @keyframes halo-pop {
+        0%   { transform: scale(0);    opacity: 0; }
+        60%  { transform: scale(1.10); opacity: 1; }
+        100% { transform: scale(1.00); opacity: 1; }
+      }
+      @keyframes halo-fade {
+        from { opacity: 1; }
+        to   { opacity: 0; }
+      }
+
+      /* ─── dot-group: travels from M-end to canvas center ─────────── */
+      .dot-group {
+        transform: translate(1160px, 720px);
+        animation: dot-travel 0.4s cubic-bezier(0.5, 0, 0.2, 1) 2.0s forwards;
+      }
+      @keyframes dot-travel {
+        from { transform: translate(1160px, 720px); }
+        to   { transform: translate( 960px, 540px); }
+      }
+
+      /* ─── Spark dot — pops in at the end of the M stroke ────────── */
+      .dot {
+        transform-box: fill-box;
+        transform-origin: center;
+        transform: scale(0);
+        opacity: 0;
+        animation: dot-pop 0.30s cubic-bezier(0.34, 1.56, 0.64, 1) 0.90s forwards;
+      }
+      @keyframes dot-pop {
+        0%   { transform: scale(0);    opacity: 0; }
+        60%  { transform: scale(1.18); opacity: 1; }
+        100% { transform: scale(1.0);  opacity: 1; }
+      }
+
+      /* ─── Marker tail (the triangular point under the dot) ─────── */
+      .marker-tail {
+        transform-box: fill-box;
+        transform-origin: center top;
+        transform: scaleY(0);
+        opacity: 0;
+        animation: tail-grow 0.30s cubic-bezier(0.4, 0, 0.2, 1) 2.20s forwards;
+      }
+      @keyframes tail-grow {
+        0%   { transform: scaleY(0);   opacity: 0; }
+        15%  { opacity: 1; }
+        100% { transform: scaleY(1.0); opacity: 1; }
+      }
+
+      /* ─── Flood — scale the pin up until it fills the screen ─── */
+      /* The marker-flood's local (0,0) is the head's center; with default
+         transform-box (view-box) and transform-origin (0 0) the head
+         stays locked at its current stage position while it grows.
+         At N≈42 the head's circle covers every screen corner; we go
+         to 50 for safety margin. */
+      .marker-flood {
+        transform-origin: 0 0;
+        animation: flood 0.4s cubic-bezier(0.6, 0, 0.4, 1) 2.4s forwards;
+      }
+      @keyframes flood {
+        0%   { transform: scale(1);  }
+        100% { transform: scale(50); }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="stage">
+      <svg class="stage-svg" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <!-- M, centerline stroke. Bottom-left → top-left → mid valley
+             → top-right → bottom-right. Sharp corners (miter), squared
+             ends (square caps). -->
+        <g class="m-stroke-wrap">
+          <path class="m-stroke"
+                pathLength="100"
+                d="M 760 720 L 760 360 L 960 600 L 1160 360 L 1160 720" />
+        </g>
+
+        <!-- Cream halo — sits at the M's right-leg endpoint and carves a
+             cream pocket around the dot. Renders ABOVE the M (so it cuts
+             the ink) and BELOW the dot (so the orange sits inside it). -->
+        <circle class="dot-halo" cx="1160" cy="720" r="85" fill="#fff8ee"/>
+
+        <!-- The marker group — outer translate moves it to canvas center
+             after the M is gone; inner flood scales it up at the end. -->
+        <g class="dot-group">
+          <g class="marker-flood">
+            <!-- Tail attaches to the dot's bottom-third and tapers to a
+                 point ~120 below center. dot r=55, so attach at y≈40. -->
+            <path class="marker-tail"
+                  d="M -44 38 Q 0 60 0 168 Q 0 60 44 38 Z"
+                  fill="#f2542d" />
+            <!-- Head: spark dot, marker head, and the element that
+                 scales up to flood the screen. r matches stroke-width/2. -->
+            <circle class="dot" cx="0" cy="0" r="55" fill="#f2542d" />
+          </g>
+        </g>
+      </svg>
+    </div>
+
+    <script>
+      /* ?t=<ms> freezes all animations at that timeline position.
+         Lets agent-browser load file://…/intro-animation.html?t=1700
+         and screenshot any phase deterministically. */
+      (() => {
+        const t = parseInt(new URLSearchParams(location.search).get('t'), 10);
+        if (isNaN(t)) return;
+        const seek = () => {
+          for (const a of document.getAnimations()) {
+            a.pause();
+            a.currentTime = t;
+          }
+        };
+        // Animations attach during the first frame; defer one rAF so they exist.
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', () => requestAnimationFrame(seek));
+        } else {
+          requestAnimationFrame(seek);
+        }
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>03 · Agent Pipeline — MomentMarkt</title>
+  <style>
+    :root {
+      --cream: #faf6f0;
+      --cream-deep: #f3ead9;
+      --cocoa: #6f3f2c;
+      --cocoa-deep: #2a1810;
+      --spark: #d97a3a;
+      --ink: #1a1410;
+      --muted: #6b5e54;
+      --line: #e8dcc6;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif;
+      background: var(--cream);
+      color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+    }
+    .slide {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 24px;
+      padding: 48px 72px 28px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+    .slide-header { display: flex; align-items: baseline; gap: 20px; }
+    .slide-number {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 13px;
+      letter-spacing: 0.18em;
+      color: var(--spark);
+      font-weight: 700;
+    }
+    .slide-title {
+      font-size: 52px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 0;
+      color: var(--cocoa-deep);
+      line-height: 1.04;
+    }
+    .slide-lede {
+      font-size: 19px;
+      color: var(--muted);
+      margin: 10px 0 0;
+      max-width: 920px;
+      line-height: 1.5;
+    }
+    .slide-body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+    }
+    .slide-body .mermaid { width: 100%; text-align: center; }
+    .slide-caption {
+      font-size: 17px;
+      color: var(--cocoa-deep);
+      text-align: center;
+      margin: 0 auto 12px;
+      max-width: 960px;
+      font-style: italic;
+    }
+    .slide-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+      font-size: 13px;
+      color: var(--muted);
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    .refs { display: flex; gap: 12px; flex-wrap: wrap; }
+    .refs code {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      background: var(--cream-deep);
+      color: var(--cocoa);
+      padding: 4px 9px;
+      border-radius: 5px;
+      font-size: 12px;
+    }
+    .pager {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .pager a { color: var(--cocoa); text-decoration: none; padding: 0 4px; }
+    .pager a:hover { color: var(--spark); }
+  </style>
+</head>
+<body>
+  <div class="slide">
+    <header class="slide-header">
+      <span class="slide-number">03 / 04</span>
+      <div>
+        <h1 class="slide-title">Agent Pipeline</h1>
+        <p class="slide-lede">Deterministic where it matters, LLM where it pays. The hot path spends one LLM call only on the offer that fires.</p>
+      </div>
+    </header>
+
+    <div class="slide-body">
+      <div class="mermaid">
+flowchart TB
+  subgraph periodic["⏱ Periodic — runs ahead of demand"]
+    direction LR
+    CTX["Trigger context<br/><i>weather · demand · time</i>"]
+    O["<b>opportunity_agent.py</b><br/>drafts offer +<br/>GenUI widget spec<br/><i>(LLM, schema-validated)</i>"]
+    P["Merchant inbox<br/><i>approve / reject<br/>or auto-approve rule</i>"]
+    CTX --> O --> P
+  end
+
+  subgraph fire["⚡ Fire path — surfacing decides if a card pops"]
+    direction LR
+    S["<b>surfacing_agent.py</b><br/>deterministic score<br/><i>relevance × proximity ×<br/>trigger × novelty + boost</i>"]
+    HR["<b>headline rewrite</b><br/><i>llm_agents.py<br/>(LLM, only on the<br/>offer that fires)</i>"]
+    S -->|fires| HR
+  end
+
+  subgraph swipe["🔁 Swipe stack — POST /offers/alternatives"]
+    direction LR
+    PR["<b>preference_agent.py</b><br/>cross-merchant re-rank<br/><i>(LLM + heuristic fallback)</i>"]
+    SH["<b>subhead_agent.py</b><br/>per-card subhead<br/><i>(LLM, cached)</i>"]
+    N["<b>negotiation_agent.py</b><br/>discount clamp<br/><i>floor ≤ pct ≤ ceiling<br/>heuristic + post-LLM check</i>"]
+    PR --> SH --> N
+  end
+
+  periodic -->|approved offer| fire
+  periodic -->|approved offer| swipe
+
+  classDef agent fill:#fce8d4,stroke:#6f3f2c,color:#2a1810
+  classDef ctxStyle fill:#faf6f0,stroke:#a89580,color:#2a1810
+  classDef inboxStyle fill:#f0e6dc,stroke:#6f3f2c,color:#2a1810
+  class CTX ctxStyle
+  class P inboxStyle
+  class O,S,H,SW agent
+      </div>
+    </div>
+
+    <div>
+      <p class="slide-caption">Five strategic agents — three shipped, one module-landed (Negotiation), one v3 (Bounds Manager). Plus three supporting agents (Subhead, Headline Rewrite, Menu Edit). <b>discount_pct</b> is clamped both by heuristic and by post-LLM check, so hallucination cannot regress the bounds contract.</p>
+      <div class="slide-footer">
+        <div class="refs">
+          <code>opportunity_agent.py:41</code>
+          <code>surfacing_agent.py:18</code>
+          <code>preference_agent.py:117</code>
+          <code>negotiation_agent.py</code>
+          <code>subhead_agent.py</code>
+        </div>
+        <div class="pager">
+          <a href="02-stack.html">←</a>
+          <span>03 / 04</span>
+          <a href="04-privacy.html">→</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <script>
+    window.PREV = '02-stack.html';
+    window.NEXT = '04-privacy.html';
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight' || e.key === ' ') window.location.href = window.NEXT;
+      if (e.key === 'ArrowLeft') window.location.href = window.PREV;
+    });
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'base',
+      themeVariables: {
+        fontFamily: '-apple-system, "SF Pro Text", Inter, system-ui, sans-serif',
+        fontSize: '15px',
+        primaryColor: '#fce8d4',
+        primaryTextColor: '#2a1810',
+        primaryBorderColor: '#6f3f2c',
+        lineColor: '#6f3f2c',
+        secondaryColor: '#f0e6dc',
+        tertiaryColor: '#faf6f0',
+        clusterBkg: '#faf6f0',
+        clusterBorder: '#a89580',
+        edgeLabelBackground: '#ffffff'
+      },
+      flowchart: { curve: 'basis', padding: 22, nodeSpacing: 50, rankSpacing: 50, htmlLabels: true }
+    });
+
+    (async () => {
+      await mermaid.run();
+      const body = document.querySelector('.slide-body');
+      const svg = document.querySelector('.mermaid svg');
+      if (!svg || !body) return;
+      const vb = svg.getAttribute('viewBox');
+      if (!vb) return;
+      const [, , vbW, vbH] = vb.split(/\s+/).map(Number);
+      if (!vbW || !vbH) return;
+      const bodyW = body.clientWidth;
+      const bodyH = body.clientHeight;
+      const scale = Math.min(bodyW / vbW, bodyH / vbH);
+      svg.style.width = (vbW * scale) + 'px';
+      svg.style.height = (vbH * scale) + 'px';
+      svg.style.maxWidth = 'none';
+    })();
+  </script>
+</body>
+</html>

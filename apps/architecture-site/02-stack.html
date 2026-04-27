@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>02 · The Stack — MomentMarkt</title>
+  <style>
+    :root {
+      --cream: #faf6f0;
+      --cream-deep: #f3ead9;
+      --cocoa: #6f3f2c;
+      --cocoa-deep: #2a1810;
+      --spark: #d97a3a;
+      --ink: #1a1410;
+      --muted: #6b5e54;
+      --line: #e8dcc6;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif;
+      background: var(--cream);
+      color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+    }
+    .slide {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 24px;
+      padding: 48px 72px 28px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+    .slide-header { display: flex; align-items: baseline; gap: 20px; }
+    .slide-number {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 13px;
+      letter-spacing: 0.18em;
+      color: var(--spark);
+      font-weight: 700;
+    }
+    .slide-title {
+      font-size: 52px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 0;
+      color: var(--cocoa-deep);
+      line-height: 1.04;
+    }
+    .slide-lede {
+      font-size: 19px;
+      color: var(--muted);
+      margin: 10px 0 0;
+      max-width: 920px;
+      line-height: 1.5;
+    }
+    .slide-body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+    }
+    .slide-body .mermaid { width: 100%; text-align: center; }
+    .slide-caption {
+      font-size: 17px;
+      color: var(--cocoa-deep);
+      text-align: center;
+      margin: 0 auto 12px;
+      max-width: 900px;
+      font-style: italic;
+    }
+    .slide-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+      font-size: 13px;
+      color: var(--muted);
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    .refs { display: flex; gap: 12px; flex-wrap: wrap; }
+    .refs code {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      background: var(--cream-deep);
+      color: var(--cocoa);
+      padding: 4px 9px;
+      border-radius: 5px;
+      font-size: 12px;
+    }
+    .pager {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .pager a { color: var(--cocoa); text-decoration: none; padding: 0 4px; }
+    .pager a:hover { color: var(--spark); }
+  </style>
+</head>
+<body>
+  <div class="slide">
+    <header class="slide-header">
+      <span class="slide-number">02 / 04</span>
+      <div>
+        <h1 class="slide-title">The Stack</h1>
+        <p class="slide-lede">Three runtimes, twenty-six endpoints, seven Pydantic AI agents — all wired to live data.</p>
+      </div>
+    </header>
+
+    <div class="slide-body">
+      <div class="mermaid">
+flowchart LR
+  subgraph C["📱 Consumer Wallet · React Native + Expo"]
+    direction TB
+    Csurf["Discover · Browse<br/>Map · List · Swipe Stack"]
+  end
+
+  subgraph M["💼 Merchant Dashboard · React + Vite"]
+    direction TB
+    Msec["5-stage Onboarding<br/>Today · Offers · Bounds"]
+  end
+
+  subgraph B["⚙️ Backend · FastAPI + Pydantic AI"]
+    direction TB
+    R1["17 core routes<br/><i>main.py</i>"]
+    R2["9 onboarding routes<br/><i>onboarding.py</i>"]
+    A7["<b>7 Pydantic AI agents</b><br/>Opportunity · Surfacing · Preference<br/>Negotiation · Subhead · Headline · Menu Edit"]
+    R1 --> A7
+    R2 --> A7
+  end
+
+  subgraph D["🌐 Live Data &amp; Models"]
+    direction TB
+    LLM["Azure OpenAI<br/><b>gpt-5.5</b>"]
+    OSM["OSM Overpass<br/><i>39 Berlin · 30 Zurich</i>"]
+    OM["Open-Meteo<br/><i>weather</i>"]
+    PD["Payone density<br/><i>fixture</i>"]
+  end
+
+  Csurf -->|HTTPS| R1
+  Msec -->|HTTPS| R2
+  A7 --> LLM
+  R1 --> OSM
+  R1 --> OM
+  R1 --> PD
+
+  classDef runtime fill:#fce8d4,stroke:#6f3f2c,color:#2a1810
+  classDef backend fill:#f0e6dc,stroke:#6f3f2c,color:#2a1810
+  classDef data fill:#faf6f0,stroke:#a89580,color:#2a1810
+  class Csurf,Msec runtime
+  class R1,R2,A7 backend
+  class OSM,OM,PD,LLM data
+      </div>
+    </div>
+
+    <div>
+      <p class="slide-caption">Pydantic AI dispatches LLM calls with deterministic fallback on every call. OSM merchant catalog and Open-Meteo weather are real, not seeded.</p>
+      <div class="slide-footer">
+        <div class="refs">
+          <code>apps/backend/.../main.py</code>
+          <code>apps/backend/.../onboarding.py</code>
+          <code>apps/mobile/src/</code>
+          <code>apps/merchant/src/</code>
+          <code>cities/*.json</code>
+        </div>
+        <div class="pager">
+          <a href="01-wedge.html">←</a>
+          <span>02 / 04</span>
+          <a href="03-agents.html">→</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <script>
+    window.PREV = '01-wedge.html';
+    window.NEXT = '03-agents.html';
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight' || e.key === ' ') window.location.href = window.NEXT;
+      if (e.key === 'ArrowLeft') window.location.href = window.PREV;
+    });
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'base',
+      themeVariables: {
+        fontFamily: '-apple-system, "SF Pro Text", Inter, system-ui, sans-serif',
+        fontSize: '14px',
+        primaryColor: '#fce8d4',
+        primaryTextColor: '#2a1810',
+        primaryBorderColor: '#6f3f2c',
+        lineColor: '#6f3f2c',
+        secondaryColor: '#f0e6dc',
+        tertiaryColor: '#faf6f0',
+        clusterBkg: '#faf6f0',
+        clusterBorder: '#a89580',
+        edgeLabelBackground: '#ffffff'
+      },
+      flowchart: { curve: 'basis', padding: 20, nodeSpacing: 50, rankSpacing: 70, htmlLabels: true }
+    });
+
+    (async () => {
+      await mermaid.run();
+      const body = document.querySelector('.slide-body');
+      const svg = document.querySelector('.mermaid svg');
+      if (!svg || !body) return;
+      const vb = svg.getAttribute('viewBox');
+      if (!vb) return;
+      const [, , vbW, vbH] = vb.split(/\s+/).map(Number);
+      if (!vbW || !vbH) return;
+      const scale = Math.min(body.clientWidth / vbW, body.clientHeight / vbH);
+      svg.style.width = (vbW * scale) + 'px';
+      svg.style.height = (vbH * scale) + 'px';
+      svg.style.maxWidth = 'none';
+    })();
+  </script>
+</body>
+</html>
