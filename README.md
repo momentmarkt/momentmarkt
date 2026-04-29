@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="./assets/logo-icon.svg" alt="MomentMarkt" width="120" />
+<img src="./assets/logo-icon.png" alt="MomentMarkt" width="120" />
 
 # MomentMarkt
 
@@ -30,8 +30,6 @@
 </div>
 
 ---
-
-# MomentMarkt
 
 ## What it is
 
@@ -167,6 +165,29 @@ Tavily, no Foursquare, no CH GTFS bind on the Zürich swap.
   Sparkassen branding)
 - **GitHub repo**: https://github.com/momentmarkt/momentmarkt (this repo)
 
+## How we built it
+
+MomentMarkt was planned and built using a multi-agent Claude Code orchestration pipeline — the same agentic approach the product itself demonstrates. A coordinator agent dispatched specialised subagents across five stages, each writing to a single artifact in `work/` that the next stage picked up. No agent wrote into another agent's context; no coordinator did agent work itself.
+
+```mermaid
+flowchart LR
+  EXPLORE["stage 00: EXPLORE\nideator → explorer\n(loop until budget or empty queue)"]
+  PLAN["stage 01: PLAN\nplanner\nwrites SPEC.md"]
+  CRIT["stage 02: CRITIQUE + REFINE\ncritic writes CRITIQUE.md"]
+  REFINE["planner refines SPEC.md"]
+  JUDGE["stage 03: JUDGE\njudge → YES / NO"]
+
+  EXPLORE --> PLAN
+  PLAN --> CRIT
+  CRIT -. "EXPLORATION_REQUEST.md\n(or loop again)" .-> EXPLORE
+  CRIT --> REFINE
+  REFINE --> JUDGE
+```
+
+The invariant that made this work: every role file starts with `OUTPUT:` naming the single file that role writes. Agents never leak into the coordinator's context — only their artifact does. Relaxing this causes context pollution; we didn't relax it.
+
+Canonical output artifacts: `work/SPEC.md` (spec-v04, the build authority), `context/AGENT_IO.md` (agent contract), `context/PARTNER_DISCUSSION.md` (verbal sync transcribed to actionable change requests), `assets/architecture-diagrams.md` (Mermaid diagrams auto-rendering on GitHub).
+
 ## Run The Backend
 
 ```bash
@@ -182,7 +203,7 @@ The FastAPI service lives in `apps/backend` and exposes:
 
 It is fixture-first and demo-safe. Pass `{"use_llm": true}` to
 `/opportunity/generate` or `/surfacing/evaluate` after configuring
-`MOMENTMARKT_PYDANTIC_AI_MODEL` (for example `openai:gpt-5.2`) to try live
+`MOMENTMARKT_PYDANTIC_AI_MODEL` (for example `azure:gpt-5.5`) to try live
 agent generation; failed LLM calls fall back to validated fixture JSON.
 
 Validate with:
@@ -191,49 +212,3 @@ Validate with:
 pnpm backend:test
 ```
 
-## Planning Workflow
-
-A file-driven multi-agent workflow for hackathon planning with a data-exploration
-front stage. Designed to run via subagents (Claude Code's Task tool) with a
-coordinator Claude Code instance as the dispatcher.
-
-## Shape
-
-```mermaid
-flowchart LR
-  EXPLORE["stage 00: EXPLORE<br/>ideator -> explorer*<br/>(loop until budget or empty queue)"]
-  PLAN["stage 01: PLAN<br/>planner<br/>writes SPEC.md"]
-  CRIT["stage 02: CRITIQUE + REFINE<br/>critic writes CRITIQUE.md<br/>(optional: request more exploration)"]
-  REFINE["planner refines SPEC.md"]
-  JUDGE["stage 03: JUDGE<br/>judge -> YES/NO"]
-
-  EXPLORE --> PLAN
-  PLAN --> CRIT
-  CRIT -. "EXPLORATION_REQUEST.md (or loop again)" .-> EXPLORE
-  CRIT --> REFINE
-  REFINE --> JUDGE
-```
-
-## Files you fill in before first run
-
-- `context/HACKATHON.md` — rules, tracks, judging criteria, sponsor stack, timeline
-- `context/IDEA_SEED.md` — your raw pitch (keep it short; 5–10 min of freehand)
-- `context/DATASET.md` — where the data lives, format, known docs, access notes
-
-(Start from the `.template` files next to each.)
-
-## How to run
-
-Feed `ORCHESTRATOR.md` to your top-level Claude Code session. It dispatches
-every stage by spawning subagents with the role files in `roles/` and the
-stage files in `stages/`. It never does agent work itself — it only reads
-artifacts from `work/` and routes.
-
-See `examples/README.md` for invocation sketches.
-
-## The invariant
-
-Every role file starts with `OUTPUT:` specifying the single file that role
-writes. Agents never output into the coordinator's context — only into their
-assigned artifact. The coordinator reads artifacts, never agent stdout. This is
-load-bearing; if you relax it, context pollution returns.

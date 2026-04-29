@@ -262,6 +262,82 @@ Toggle high-intent OFF: score drops to `0.60`, threshold rises to `0.72` → sil
 
 ---
 
+## 6. Swipe-to-Pick — On-Device Price Discovery
+
+The swipe-to-pick mechanic (issue #132): the merchant sets a discount range
+(floor → ceiling), the user reveals their reservation price by swiping right
+on the smallest variant they accept. Dwell-time per card + swipe direction
+stay on-device per the privacy boundary; the backend only generates the
+ladder.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor User as User (consumer)
+  participant RN as RN Wallet (Expo)
+  participant API as Backend (FastAPI)
+  participant LLM as Headline Rewrite\n(Pydantic AI)
+
+  User->>RN: tap merchant w/ active_offer
+  RN->>API: POST /offers/alternatives\n{merchant_id, base=5%, max=25%, n=3}
+  API->>API: linear interpolate\n5% → 15% → 25%\nbuild rainHero widget_spec\nfor each variant
+  alt use_llm=true
+    API->>LLM: rewrite headlines\n(conservative → balanced → aggressive)
+    LLM-->>API: tone-shifted headlines
+  end
+  API-->>RN: 3 variants (cheapest → most generous)
+  RN->>RN: setStep("alternatives")\nrender SwipeOfferStack
+  Note over User,RN: card 1 of 3 — −5%
+  User->>RN: swipe LEFT (skip)
+  RN->>RN: record dwell_ms[v1]\nfling card off, advance index
+  Note over User,RN: card 2 of 3 — −15%
+  User->>RN: swipe RIGHT (keep)
+  RN->>RN: record dwell_ms[v2]\nlightTap haptic\nsetSettledVariant(v2)
+  RN->>RN: setStep("offer")\nrender variant widget_spec
+  User->>RN: tap CTA "Lock in"
+  RN->>API: POST /redeem\n{merchant_id, variant_id, discount_pct}
+
+  Note over RN: dwell_ms[] never leaves device\n(privacy boundary)
+```
+
+```mermaid
+stateDiagram-v2
+  [*] --> Silent: app open
+  Silent --> Loading: tap merchant\nfetchOfferAlternatives()
+  Loading --> Alternatives: variants land (n≥1)
+  Loading --> Offer: backend null/empty\n(demo-safety fallback)
+
+  state Alternatives {
+    [*] --> Card1
+    Card1 --> Card2: swipe ←\n(record dwell)
+    Card2 --> Card3: swipe ←\n(record dwell)
+    Card3 --> AllPassed: swipe ←\n(record dwell)
+    Card1 --> Settled: swipe →\n(record dwell)
+    Card2 --> Settled: swipe →\n(record dwell)
+    Card3 --> Settled: swipe →\n(record dwell)
+  }
+
+  Alternatives --> Offer: Settled\n(setSettledVariant)
+  Alternatives --> Silent: AllPassed
+  Offer --> Redeeming: tap CTA
+  Redeeming --> Success: POST /redeem ok
+  Success --> Silent: dismiss
+```
+
+**Demo values (Cafe Bondi, n=3):**
+- Card 1 → `−5%` "Quick coffee, small saving" (conservative)
+- Card 2 → `−15%` "Warm cocoa, fair deal" (balanced)
+- Card 3 → `−25%` "Treat yourself — best price today" (generous)
+
+**Why this matters for the pitch:** the user reveals their reservation price
+through the swipe gesture itself — no form, no slider, no question. The
+merchant captures more conversions at lower discount when users settle on
+card 1 or 2; when they only swipe right on card 3, the merchant knows this
+user needed the full discount to convert. Same data the merchant inbox would
+otherwise need a survey for.
+
+---
+
 ## See also
 
 - [`assets/architecture-slide.md`](./architecture-slide.md) — slide source for the tech video
